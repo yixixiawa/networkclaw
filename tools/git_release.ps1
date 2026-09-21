@@ -114,7 +114,9 @@ if (-not $staged) {
 Info "步骤 4/5：打标签"
 if (-not $Tag) {
     Write-Host "    未指定 -Tag，跳过"
-} elseif ((git tag -l $Tag) -ne "") {
+} elseif (git tag -l $Tag) {
+    # 注意：这里不能用 `(git tag -l $Tag) -ne ""` 判断 —— 没有标签时返回 $null，
+    # 而 PowerShell 里 $null -ne "" 为真，会把「不存在」误判成「已存在」。
     if ($Force) {
         $forceMsg = if ($Message) { $Message } else { "NetworkClaw $Tag" }
         git tag -f -a $Tag -m $forceMsg
