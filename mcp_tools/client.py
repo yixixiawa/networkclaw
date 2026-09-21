@@ -25,9 +25,12 @@ from fastmcp.client.transports import StdioTransport
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PYTHON = sys.executable
 
-# 默认接入的服务端：知识 / 命令模板检索（纯本地，无需外网）
+# 默认接入的服务端：知识检索 / 设备串口 / 设备 Telnet / 图像识别（均纯本地）
 DEFAULT_SERVERS: dict[str, list[str]] = {
     "knowledge": [str(PROJECT_ROOT / "mcp_tools" / "template_server.py")],
+    "device-serial": [str(PROJECT_ROOT / "mcp_tools" / "device_server.py")],
+    "device-telnet": [str(PROJECT_ROOT / "mcp_tools" / "telnet_server.py")],
+    "vision": [str(PROJECT_ROOT / "mcp_tools" / "vision_server.py")],
 }
 # 可选服务端：联网搜索（依赖 npx + open-websearch，按需接入）
 SEARCH_SERVER: dict[str, list[str]] = {
@@ -123,6 +126,12 @@ class McpHub:
                     or getattr(t, "inputSchema", None)
                     or {"type": "object", "properties": {}}
                 )
+                # 工具重名会让路由指向错误的服务端，必须显式提示（后注册者覆盖前者）
+                owner = self._tool_server.get(t.name)
+                if owner is not None and owner != server:
+                    print(f"[MCP] 警告：工具名冲突 {t.name}（{owner} 与 {server}），"
+                          f"调用将路由到 {server}")
+                    tools = [x for x in tools if x["name"] != t.name]
                 tools.append({
                     "server": server,
                     "name": t.name,

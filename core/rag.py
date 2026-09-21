@@ -101,12 +101,15 @@ def _build_prompt(query: str, context: str) -> str:
 回答："""
 
 
-def ask(query: str, show_thinking: bool = True, stream: bool = True) -> str:
+def ask(query: str, show_thinking: bool = True, stream: bool = True,
+        images: list[str] | None = None) -> str:
     """检索 + 流式 LLM 生成，返回最终回答文本。
 
     - show_thinking=True 时实时打印模型思考过程
     - stream=True 时逐 token 实时打印回答；stream=False 则只收集不打印，
       由调用方（如 main.py）统一渲染返回值，便于同时记录会话历史。
+    - images：随问题一起送入模型的图片路径（拓扑截图等）；需要 llama-server 以
+      --mmproj 启动多模态能力，否则会被服务端拒绝。
     """
     retrieved = retrieve(query)
     if retrieved:
@@ -117,8 +120,17 @@ def ask(query: str, show_thinking: bool = True, stream: bool = True) -> str:
         print("知识库中未检索到相关片段（索引为空或问题不匹配），将仅依赖模型自身知识回答")
 
     prompt = _build_prompt(query, "\n\n".join(retrieved))
+    content = prompt
+    if images:
+        try:
+            from core.vision import build_user_content
+            content = build_user_content(prompt, images)
+        except Exception as e:
+            print(f"[警告] 图片读取失败，本次按纯文本提问：{type(e).__name__}: {e}")
+            content = prompt
+
     result = stream_chat(
-        messages=[{"role": "user", "content": prompt}],
+        messages=[{"role": "user", "content": content}],
         show_thinking=show_thinking,
         show_answer=stream,
     )

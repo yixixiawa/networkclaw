@@ -14,12 +14,17 @@
 """
 import base64
 import io
-import json
 from pathlib import Path
 
 import requests
 
-from core.llama_start import BASE_DIR, BASE_URL, LOG_PATH
+from core.llama_start import (  # noqa: F401  (find_mmproj / mmproj_hint 在此转出，供 MCP 工具层使用)
+    BASE_DIR,
+    BASE_URL,
+    find_mmproj,
+    mmproj_hint,
+    server_vision_state,
+)
 
 MODELS_DIR = BASE_DIR / "models"
 
@@ -43,52 +48,6 @@ TOPOLOGY_SYSTEM_PROMPT = """你是资深网络工程师，正在阅读用户提�
 5. 值得注意的点：单点故障、环路、缺失的冗余链路、IP 冲突、未标注的接口等
 
 最后附一句「可用于本工具的下一步」建议（例如：需要查询哪台设备的配置命令）。"""
-
-
-# ---------------------------------------------------------------- mmproj 探测
-
-def find_mmproj(explicit: str | Path | None = None) -> Path | None:
-    """定位视觉投影文件。
-
-    优先级：显式传入 > 环境变量 NETWORKCLAW_MMPROJ > models/ 目录下 *mmproj*.gguf
-    """
-    import os
-
-    candidates: list[Path] = []
-    if explicit:
-        candidates.append(Path(explicit))
-    env = os.environ.get("NETWORKCLAW_MMPROJ")
-    if env:
-        candidates.append(Path(env))
-    if MODELS_DIR.exists():
-        # 常见的 mmproj 命名：mmproj-BF16.gguf / mmproj-<model>-Q8_0.gguf
-        candidates += sorted(MODELS_DIR.glob("mmproj*.gguf"))
-        candidates += sorted(MODELS_DIR.glob("*mmproj*.gguf"))
-
-    seen = set()
-    for c in candidates:
-        key = str(c).lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        if c.exists() and c.is_file():
-            return c
-    return None
-
-
-def mmproj_hint() -> str:
-    """给用户的 mmproj 获取指引（未找到文件时使用）"""
-    found = find_mmproj()
-    if found:
-        return f"已找到视觉投影文件：{found}"
-    return (
-        "未找到视觉投影文件（mmproj）。请下载与本模型配套的 mmproj 并放入 models/ 目录，例如：\n"
-        "  models/mmproj-BF16.gguf\n"
-        "来源（与 Qwen3.5-9B-Q4_K_M.gguf 同一仓库）：\n"
-        "  https://www.modelscope.cn/models/unsloth/Qwen3.5-9B-GGUF/resolve/master/mmproj-BF16.gguf\n"
-        "下载后无需改代码：程序会自动探测 models/ 下的 *mmproj*.gguf；"
-        "也可用 --mmproj <路径> 或环境变量 NETWORKCLAW_MMPROJ 显式指定。"
-    )
 
 
 # ---------------------------------------------------------------- 图片编码
@@ -148,48 +107,16 @@ def build_user_content(text: str, images: list[str] | None = None):
 
 # ---------------------------------------------------------------- 服务端就绪探测
 
-def server_props(timeout: float = 5.0) -> dict:
-    """读取 llama-server 的 /props（用于判断当前实例是否加载了 mmproj）"""
-    try:
-        r = requests.get(f"{BASE_URL}/props", timeout=timeout)
-        if r.status_code != 200:
-            return {}
-        return r.json()
-    except Exception:
-        return {}
-
-
 def vision_status() -> dict:
-    """判断视觉能力是否可用。
+    """判断视觉能力是否可用（委托给 core.llama_start 的服务实例探测）。
 
     返回 {"available": bool|None, "detail": str}
         True  已确认可用
         False 明确不可用（未加载 mmproj 或服务未启动）
         None  无法确定（服务在跑但没有可判读字段）——此时建议直接试一次
     """
-    props = server_props()
-    if not props:
-        return {"available": False,
-                "detail": "llama-server 未运行或 /props 不可用，请先启动主程序。"}
-
-    # llama.cpp 不同版本字段名不一，做模糊匹配
-    blob = json.dumps(props, ensure_ascii=False).lower()
-    hit = next((k for k in ("mmproj", "vision", "modalit", "image") if k in blob), None)
-    if hit:
-        return {"available": True, "detail": f"/props 中存在视觉相关字段（{hit}）"}
-
-    # 退一步：如果我们自己拉起过服务，日志里会有多模态加载记录
-    try:
-        if LOG_PATH.exists():
-            tail = LOG_PATH.read_text(encoding="utf-8", errors="ignore").lower()[-20000:]
-            if "mmproj" in tail:
-                return {"available": True, "detail": "启动日志中出现 mmproj 加载记录"}
-    except Exception:
-        pass
-
-    return {"available": None,
-            "detail": "服务在运行，但无法从 /props 判断是否加载了 mmproj；"
-                      "若识图失败，请用 --mmproj 重启。"}
+    available, detail = server_vision_state()
+    return {"available": available, "detail": detail}
 
 
 # ---------------------------------------------------------------- 视觉问答

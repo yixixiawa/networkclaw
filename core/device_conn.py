@@ -57,6 +57,25 @@ def clean_output(text: str) -> str:
     return text.strip()
 
 
+def strip_iac_bytes(data: bytes) -> bytes:
+    """只丢弃 Telnet IAC 协商字节（不回包），用于一次性探测场景"""
+    out = bytearray()
+    i, n = 0, len(data)
+    while i < n:
+        b = data[i]
+        if b != 255:                                  # 255 = IAC
+            out.append(b)
+            i += 1
+        elif i + 1 < n and data[i + 1] == 255:        # IAC IAC = 转义的 255
+            out.append(255)
+            i += 2
+        elif i + 2 < n and data[i + 1] in (251, 252, 253, 254):  # WILL/WONT/DO/DONT + 选项
+            i += 3
+        else:
+            i += 2
+    return bytes(out)
+
+
 # ---------------------------------------------------------------- 提示符识别
 
 PROMPT_RE = re.compile(
@@ -172,6 +191,7 @@ class BaseSession:
 
     def prepare(self, disable_paging: bool = True) -> str:
         """会话建立后的初始化：关闭分页，避免长回显被 "---- More ----" 截断"""
+        self.drain(quiet=0.25)   # 丢掉登录/banner 残留，保证后续「一问一答」不错位
         if not disable_paging:
             return ""
         info = []
@@ -464,5 +484,5 @@ def probe_tcp(host: str, port: int = 23, timeout: float = 5.0) -> dict:
     return {
         "ok": True, "host": host, "port": port,
         "elapsed": round(time.time() - start, 2),
-        "banner": clean_output(decode_bytes(banner))[:200],
+        "banner": clean_output(decode_bytes(strip_iac_bytes(banner)))[:200],
     }
