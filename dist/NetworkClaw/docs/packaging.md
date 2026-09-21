@@ -93,7 +93,41 @@ dist\NetworkClaw\NetworkClaw.exe --gui   # 正常应能出现窗口；headless �
 dist\NetworkClaw\NetworkClaw.exe --cli --help
 ```
 
-## 七、常见问题
+## 七、发布流程（git 自动打包）
+
+```powershell
+.\tools\git_release.ps1 -Tag v1.0              # 清理 → 打包 → 提交（含 exe）→ 打注释标签
+.\tools\git_release.ps1 -Tag v1.1 -Push        # 配好远端后连推送一起做
+.\tools\git_release.ps1 -Tag v1.1 -SkipBuild   # 复用已有产物，只提交与打标签
+.\tools\git_release.ps1 -Tag v1.0 -Force       # 标签已存在时覆盖（本地重打用）
+```
+
+脚本按五步走：**清理临时产物 → 构建 exe → 纳入版本控制（源码 + `dist/NetworkClaw`）→ 打注释标签 →（可选）推送**。
+提交路径是**显式白名单**，不会误把密钥、模型、运行日志带进仓库。
+
+配套钩子 `.githooks/pre-push`：推送**标签**时（=对外发布）要求打包产物已存在且已入库，
+避免发布一个没有 exe 的空壳版本；推送普通分支不受影响、不会被构建拖慢。
+
+```powershell
+git config core.hooksPath .githooks            # 一次性启用
+$env:NETWORKCLAW_SKIP_HOOK=1; git push ...     # 临时跳过检查
+```
+
+### 把 exe 放进 git 的取舍
+
+- **好处**：clone 下来就是可运行版本，不需要本地构建环境（构建要装 PyQt6 + PyInstaller，约 4 分钟）。
+- **代价**：一份产物 267MB，而且**每次重新打包都会新增一份二进制历史**，仓库随发版线性膨胀。
+- **建议**：内部分发/小团队够用；若要长期多版本迭代，改用 Git LFS（`git lfs track "dist/**"`）
+  或把 exe 作为 GitHub Release 附件而不入库。
+- 体积现状：最大单文件 60.5MB（`chromadb_rust_bindings.pyd`），低于 GitHub 的 100MB 单文件硬限制，可直接推送。
+
+### 运行痕迹不会被提交
+
+`.gitignore` 保留了对 `/dist/NetworkClaw/logs` 与 `/dist/NetworkClaw/data` 的忽略，
+并且脚本用普通 `git add`（**不加 `-f`**）——因为 `-f` 会连被忽略的文件一起提交，
+把运行日志和 `data/sessions.json`（会话记录）带进仓库。
+
+## 八、常见问题
 
 - **双击闪退**：看 `logs\launcher_error.log`（launcher 启动期兜底会写全栈）或
   `logs\gui_error.log`（运行期异常兜底）。
@@ -106,3 +140,8 @@ dist\NetworkClaw\NetworkClaw.exe --cli --help
   `NETWORKCLAW_LLAMA_SERVER` 指路。
 - **知识检索不可用**：本机需要 Ollama（127.0.0.1:11434）并已 `ollama pull nomic-embed-text`；
   检索不可用时问答会自动降级，不影响纯对话。
+- **重新打包时报 `SAFE_DELETE_*` / 回收站失败**：受限环境（沙箱）会拦截成规模的删除，
+  导致 PyInstaller 无法清理旧的 `dist\NetworkClaw`。症状是构建以 EXIT=1 结束、
+  日志里出现 `Removing dir ...dist\NetworkClaw` 后紧跟删除失败。处理办法：先手动删掉旧的
+  `dist\NetworkClaw`（或在允许的环境里运行），再重新打包。`git_release.ps1` 遇到删除被拒
+  只会提示、不会中断发布。

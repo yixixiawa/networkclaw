@@ -229,6 +229,11 @@ python -m core.llm_client --all --ask "1+1=?"                # 所有已配置�
 - 为什么默认目录形态而不是单文件：MCP 子进程要多次拉起 exe，单文件每次都要重新解压
   ~300MB，启动会慢到不可用。详见 `docs/packaging.md` 与 `NetworkClaw.spec` 头部注释。
 
+发布（git 自动打包）：`.\tools\git_release.ps1 -Tag v1.0` —— 清理临时产物 → 构建 →
+把源码与 `dist\NetworkClaw` 一起提交 → 打注释标签（配了远端加 `-Push` 即连推送）。
+配套 `.githooks/pre-push` 会在推送标签时校验产物已入库，防止发出没有 exe 的版本。
+exe 已入库（267MB），clone 即可运行；取舍与 LFS 建议见 `docs/packaging.md` 第七节。
+
 ## 对话入口（main.py）
 
 ```bash
@@ -417,6 +422,7 @@ python main.py                      # 一键启动：LLM 服务（单实例）+ 
 python launcher.py                  # 打开桌面应用（GUI）；--cli 进命令行，--serve-mcp 内部用
 python -m tools.gui_smoke_test      # GUI 离屏冒烟测试
 .\build_exe.ps1                     # 打包为 exe（产物 dist\NetworkClaw\NetworkClaw.exe）
+.\tools\git_release.ps1 -Tag v1.1   # 打包 + 提交产物 + 打标签（git 自动打包）
 python main.py --provider deepseek  # 用云端模型（跳过本地 llama-server）
 python main.py --parallel           # 多模型并行 + 融合
 python main.py --mmproj             # 额外启用图像识别（自动探测 mmproj）
