@@ -1,0 +1,1 @@
+invalid type: string "华为路由器基础配置命令：\n- interface GigabitEthernet 0/0/0：进入接口。\n- ip address 192.168.1.1 24：配置IP地址。\n- ip route-static 0.0.0.0 0 192.168.1.254：配置默认路由。\n- display ip routing-table：查看路由表。", expected i64ort default vlan 10：Access口加入VLAN。\n- display current-configuration：查看当前配置。\n������
