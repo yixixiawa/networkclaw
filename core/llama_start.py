@@ -21,18 +21,85 @@ from pathlib import Path
 
 import requests
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+from core.net import ensure_localhost_bypass  # noqa: F401  (导入即让本机回环绕过系统代理)
+from core.paths import BASE_DIR, find_llama_server, llama_server_path  # noqa: F401
+
+ensure_localhost_bypass()
+
 LOG_PATH = BASE_DIR / "logs" / "llama_server.log"
 
-LLAMA_SERVER_PATH = r"C:\Users\yixixiawa\AppData\Local\Microsoft\WinGet\Packages\ggml.llamacpp_Microsoft.Winget.Source_8wekyb3d8bbwe\llama-server.exe"
-# 模型源文件统一存放在项目 models/ 目录下
+# llama-server 的位置由 core/paths.py 统一查找（环境变量 NETWORKCLAW_LLAMA_SERVER >
+# exe 同级目录 > bin/ > tools/ > 开发机常见安装位置），打包后不再依赖绝对路径。
+LLAMA_SERVER_PATH = llama_server_path()
+
+# 模型源文件统一存放在工作目录的 models/ 下
 MODELS_DIR = BASE_DIR / "models"
-MODEL_PATH = str(MODELS_DIR / "Qwen3.5-9B-Q4_K_M.gguf")
+DEFAULT_MODEL_NAME = "Qwen3.5-9B-Q4_K_M.gguf"
+MODEL_ENV = "NETWORKCLAW_MODEL"
+
 SERVER_PORT = 8080
 BASE_URL = f"http://127.0.0.1:{SERVER_PORT}"
 
 MMPROJ_DOWNLOAD_URL = ("https://www.modelscope.cn/models/unsloth/Qwen3.5-9B-GGUF/"
                        "resolve/master/mmproj-BF16.gguf")
+
+
+def find_model(explicit: str | Path | None = None) -> Path | None:
+    """定位主模型 gguf 文件。
+
+    优先级：显式传入 > 环境变量 NETWORKCLAW_MODEL > models/ 下的
+    第一个非 mmproj 的 .gguf > 约定的默认文件名。
+    """
+    candidates: list[Path] = []
+    if explicit:
+        candidates.append(Path(explicit))
+    env = os.environ.get(MODEL_ENV)
+    if env:
+        candidates.append(Path(env))
+    if MODELS_DIR.exists():
+        candidates.append(MODELS_DIR / DEFAULT_MODEL_NAME)
+        # 交给用户自己放模型时，文件名可能不同：自动挑一个（排除视觉投影文件）
+        candidates += sorted(p for p in MODELS_DIR.glob("*.gguf") if "mmproj" not in p.name.lower())
+
+    seen: set[str] = set()
+    for c in candidates:
+        key = str(c).lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        if c.is_file():
+            return c
+    return None
+
+
+def model_path() -> str:
+    """主模型路径（找不到时返回约定的默认位置，由调用方给出可读报错）"""
+    found = find_model()
+    return str(found) if found else str(MODELS_DIR / DEFAULT_MODEL_NAME)
+
+
+# 兼容旧引用：模块级常量仍保留，值为当前可定位到的模型路径
+MODEL_PATH = model_path()
+
+
+def _missing_runtime_hint() -> str:
+    """llama-server 或模型缺失时给用户的可执行指引（打包分发场景最常踩）"""
+    lines: list[str] = []
+    if find_llama_server() is None:
+        lines.append(
+            f"未找到 llama-server 可执行文件。请任选其一：\n"
+            f"  ① 把 llama-server.exe 放到这里：{BASE_DIR}\\llama-server.exe\n"
+            f"  ② 设置环境变量 {os.environ.get('NETWORKCLAW_LLAMA_SERVER') or 'NETWORKCLAW_LLAMA_SERVER'}"
+            f" 指向它的完整路径\n"
+            f"  ③ 下载地址：https://github.com/ggml-org/llama.cpp/releases"
+        )
+    if find_model() is None:
+        lines.append(
+            f"未找到主模型 gguf。请把模型放到：{MODELS_DIR}\n"
+            f"  （默认文件名为 {DEFAULT_MODEL_NAME}，其他文件名也会被自动识别；\n"
+            f"   也可用环境变量 {MODEL_ENV} 指定完整路径）"
+        )
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------- mmproj 探测
@@ -150,7 +217,6 @@ def start_llama_server(mmproj: str | None = None, require_vision: bool = False):
     mmproj_path = find_mmproj(mmproj if mmproj and mmproj != "auto" else None)
     if require_vision and mmproj_path is None:
         raise RuntimeError("需要图像识别能力，但" + mmproj_hint())
-
     if is_server_running():
         if require_vision:
             state, detail = server_vision_state()
@@ -164,9 +230,14 @@ def start_llama_server(mmproj: str | None = None, require_vision: bool = False):
             print(f"检测到 llama-server 已在端口 {SERVER_PORT} 运行，直接复用（退出时不会关闭它）")
         return None
 
+    server_bin = find_llama_server()
+    model_file = find_model()
+    if server_bin is None or model_file is None:
+        raise RuntimeError("本地模型运行环境不完整：\n" + _missing_runtime_hint())
+
     cmd = [
-        LLAMA_SERVER_PATH,
-        "-m", MODEL_PATH,
+        str(server_bin),
+        "-m", str(model_file),
         "--parallel", "1",
         "-ngl", "99",
         "-c", "4096",
@@ -245,7 +316,10 @@ if __name__ == "__main__":
 
     if len(sys.argv) > 1 and sys.argv[1] == "mmproj":
         found = find_mmproj()
-        print(f"主模型：{MODEL_PATH}（{'存在' if Path(MODEL_PATH).exists() else '缺失'}）")
+        model = find_model()
+        print(f"主模型：{model if model else MODEL_PATH}"
+              f"（{'存在' if model else '缺失'}）")
+        print(f"llama-server：{find_llama_server() or '未找到（' + LLAMA_SERVER_PATH + '）'}")
         print(f"mmproj：{found}" if found else mmproj_hint())
         if is_server_running():
             state, detail = server_vision_state()

@@ -1,0 +1,27 @@
+华为交换机主要产品线分为S系列和CE系列。S系列面向企业网络，包括：
+- S1700：入门级二层交换机，用于小型办公接入。
+- S2700：百兆接入交换机，适用于小型企业。
+- S3700：三层百兆交换机，支持静态路由和基础VLAN。
+- S5700：全千兆交换机，分LI（二层）和EI（三层），常用于企业汇聚层。
+- S6700：万兆上行交换机，用于高性能汇聚或小型核心。
+- S7700/S12700：核心交换机，支持CSS集群，用于大中型企业骨干网。
+
+华为路由器主要分为AR系列和NE系列：
+- AR系列（AR1200/2200/3200）：企业分支接入，支持路由、交换、语音、安全一体化。
+- NE系列（NE40E/NE5000/NE8000）：运营商骨干网和城域网高端路由器。
+
+华为交换机基础配置命令：
+- system-view：进入系统视图。
+- sysname SW1：修改设备名。
+- vlan batch 10 20 ：批量创建VLAN。
+- interface GigabitEthernet 0/0/1：进入接口。
+- port link-type access / trunk：设置接口模式。
+- port default vlan 10：Access口加入VLAN。
+- display current-configuration：查看当前配置。
+- save：保存配置。
+
+华为路由器基础配置命令：
+- interface GigabitEthernet 0/0/0：进入接口。
+- ip address 192.168.1.1 24：配置IP地址。
+- ip route-static 0.0.0.0 0 192.168.1.254：配置默认路由。
+- display ip routing-table：查看路由表。

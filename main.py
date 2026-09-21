@@ -1,40 +1,50 @@
-"""NetworkClaw 统一启动入口（对话 + MCP 工具 + 设备操作 + 图像识别）。
+"""NetworkClaw 统一启动入口（对话 + MCP 工具 + 设备操作 + 图像识别 + 多模型并行）。
 
 流程：
-1. 启动 llama-server（单实例，已有健康实例直接复用）
-   —— 带 --mmproj 时同时加载视觉投影文件，模型获得图像识别能力
+1. 加载模型提供方配置（本地 llama-server / DeepSeek 等），按需启动本地服务
 2. 构建 / 校验知识库索引（按内容指纹判断，幂等）
 3. 以 stdio 方式连接本地 MCP 服务端，聚合工具清单
    （知识检索 / 命令模板 / 串口 / Telnet / 图像识别）
 4. 进入对话循环
 
-两种模式（对话中可用 /rag、/agent 随时切换）：
+三种问答模式（对话中可用 /agent、/rag、/parallel 切换）：
 - agent（默认）：把 MCP 工具交给模型，由模型自主决定调用
-- rag：固定走「知识库检索 + 流式生成」的单轮问答（原行为）
+- rag：固定走「知识库检索 + 流式生成」的单轮问答
+- parallel：同一问题并行跑多个模型（本地 + DeepSeek…），必要时先识图，最后融合成一份答案
 
 运行方式（项目根目录下）：
-    python main.py                       # 默认 agent 模式（带 MCP 工具）
-    python main.py --mmproj              # 自动探测 models/ 下的 mmproj，启用图像识别
+    python main.py                        # 默认 agent 模式，用当前激活的模型提供方
+    python main.py --provider deepseek     # 直接用 DeepSeek（需 API Key）
+    python main.py --deepseek-key sk-xxx   # 临时提供密钥（更推荐写进 .env 或环境变量）
+    python main.py --parallel              # 每轮提问都走多模型并行 + 融合
+    python main.py --mmproj                # 自动探测 models/ 下的 mmproj，启用图像识别
     python main.py --mmproj D:\\x\\mmproj-BF16.gguf   # 显式指定视觉投影文件
-    python main.py --image topo.png      # 启动时就带上一张拓扑图
-    python main.py --mode rag            # 直接进入 RAG 问答
-    python main.py --with-search         # 额外接入联网搜索 MCP（需 npx + open-websearch）
-    python main.py --no-thinking         # 不打印模型思考过程
+    python main.py --image topo.png        # 启动时就带上一张拓扑图
+    python main.py --mode rag              # 直接进入 RAG 问答
+    python main.py --with-search           # 额外接入联网搜索 MCP（需 npx + open-websearch）
+    python main.py --no-thinking           # 不打印模型思考过程
 
 设备命令安全（详见 core/command_guard.py）：
     allow   display / show / ping / tracert 等只读命令 → 直接执行
     confirm sysname / vlan / interface 等配置命令     → 需用户同意后带 confirm=true
     block   undo / shutdown / delete / reset / reboot → 直接拦截
 """
+from __future__ import annotations
+
 import argparse
 import asyncio
 import datetime
 import json
+import os
 from pathlib import Path
 
 from core.agent import run_agent
-from core.llama_start import (BASE_DIR, find_mmproj, mmproj_hint,
+from core.llama_start import (BASE_DIR, find_mmproj, is_server_running, mmproj_hint,
                               start_llama_server, stop_llama_server)
+from core.llm_client import ProviderError
+from core.parallel import run_multimodal_parallel
+from core.providers import (describe_table, get_active, get_provider, list_providers,
+                            load_env_file, load_providers, set_active)
 from core.rag import ask, build_index
 from core.vision import vision_status
 from mcp_tools.client import DEFAULT_SERVERS, SEARCH_SERVER, McpHub
@@ -44,6 +54,10 @@ LOG_DIR = BASE_DIR / "logs"
 HELP_TEXT = """
 可用命令：
   /help               显示本帮助
+  /model [名称]       查看/切换模型提供方（local / deepseek / deepseek-reasoner …）
+  /key sk-xxx         临时设置 DeepSeek API Key（更推荐写进 .env 或环境变量）
+  /parallel [列表]    开关多模型并行：不带参数切换；/parallel local,deepseek 指定组合；
+                      /parallel off 关闭。开启时先识图（如有），再并行回答并融合
   /tools              列出已接入的 MCP 工具
   /call 工具名 {json}  直接调用某个 MCP 工具，例如：
                         /call exec_command {"command":"display version","port":"COM3"}
@@ -62,14 +76,24 @@ HELP_TEXT = """
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="NetworkClaw 对话入口（RAG + MCP + 设备 + 视觉）")
+    parser = argparse.ArgumentParser(description="NetworkClaw 对话入口（RAG + MCP + 设备 + 视觉 + 多模型）")
     parser.add_argument("--mode", choices=["agent", "rag"], default="agent",
                         help="启动模式，默认 agent（模型自主调用 MCP 工具）")
+    parser.add_argument("--provider", default=None, metavar="名称",
+                        help="模型提供方：local / deepseek / deepseek-reasoner，默认用配置里的激活项")
+    parser.add_argument("--deepseek-key", default=None, metavar="sk-xxx",
+                        help="临时指定 DeepSeek API Key（未设置 DEEPSEEK_API_KEY 时用）")
+    parser.add_argument("--deepseek-model", default=None, metavar="模型名",
+                        help="覆盖 DeepSeek 模型名（默认 deepseek-chat）")
+    parser.add_argument("--parallel", action="store_true",
+                        help="每轮提问都走多模型并行 + 融合（等效于启动后执行 /parallel）")
+    parser.add_argument("--parallel-providers", default=None, metavar="列表",
+                        help="并行使用的提供方，逗号分隔，如 local,deepseek")
     parser.add_argument("--mmproj", nargs="?", const="auto", default=None, metavar="路径",
                         help="启用图像识别：加载视觉投影文件（mmproj）。"
                              "不带值表示自动探测 models/ 下的 *mmproj*.gguf")
-    parser.add_argument("--image", default=None, metavar="路径",
-                        help="启动时预载一张图片（拓扑截图），等效于先执行 /image")
+    parser.add_argument("--image", action="append", default=[], metavar="路径",
+                        help="启动时预载图片（拓扑截图），可多次指定；等效于先执行 /image")
     parser.add_argument("--with-search", action="store_true",
                         help="额外接入联网搜索 MCP 服务端（需 npx + open-websearch）")
     parser.add_argument("--no-thinking", action="store_true", help="不打印模型思考过程")
@@ -102,17 +126,35 @@ def save_session(records: list[tuple[str, str, str]], path: str | None = None) -
     return out
 
 
+# 本地 llama-server 的按需管理（LocalService）已抽到 core/local_service.py，
+# 与 GUI 共用同一套「复用已有实例、退出只关自己拉起的那个」语义。
+# 本模块通过上面的 import 继续对外提供 main.LocalService（向后兼容）。
+
+
+def _provider_tag(name: str) -> str:
+    try:
+        return get_provider(name).name
+    except KeyError:
+        return name
+
+
 async def chat_loop(hub: McpHub, mode: str, show_thinking: bool, stream: bool,
-                    max_rounds: int,
+                    max_rounds: int, local: LocalService,
+                    provider_name: str, parallel: bool = False,
+                    parallel_providers: list[str] | None = None,
                     images: list[str] | None = None) -> list[tuple[str, str, str]]:
     """交互式对话循环，返回本次会话记录"""
     records: list[tuple[str, str, str]] = []   # [(mode, question, answer)]
     history: list[dict] = []                   # agent 模式的多轮上下文
     last_answer = ""
     images = list(images or [])                # 附加图片（拓扑截图），随每次提问送出
+    parallel_providers = list(parallel_providers or [])
+
+    def current_mode() -> str:
+        return "parallel" if parallel else mode
 
     while True:
-        tag = f"[{mode}·{'流式' if stream else '整段'}]"
+        tag = f"[{current_mode()}·{_provider_tag(provider_name)}·{'流式' if stream else '整段'}]"
         if images:
             tag += f"[已附图片 {len(images)}]"
         try:
@@ -131,6 +173,68 @@ async def chat_loop(hub: McpHub, mode: str, show_thinking: bool, stream: bool,
             cmd = cmd.strip().lower()
             if cmd == "help":
                 print(HELP_TEXT)
+            elif cmd == "model":
+                target = rest.strip()
+                if not target:
+                    print(describe_table(active=provider_name))
+                    print(f"\n当前激活：{provider_name}")
+                else:
+                    try:
+                        prov = set_active(target)
+                    except KeyError as e:
+                        print(f"{e.args[0] if e.args else e}")
+                        continue
+                    provider_name = prov.name
+                    print(f"已切换到 {prov.label}（{prov.model}）")
+                    if prov.needs_key and not prov.api_key_value:
+                        print(f"[警告] 该提供方还没有 API Key：请设置环境变量 "
+                              f"{prov.api_key_env or 'DEEPSEEK_API_KEY'}，"
+                              f"或在对话中用 /key sk-xxx 临时设置")
+                    if prov.kind == "local" and not local.running:
+                        print("本地 llama-server 未运行，正在启动…")
+                        try:
+                            local.ensure()
+                        except Exception as e:
+                            print(f"[警告] 本地服务启动失败：{type(e).__name__}: {e}")
+                    if prov.supports_vision is False and images:
+                        print(f"[提示] {prov.name} 不看图；已附图片将由本地视觉模型识读后"
+                              f"以文字形式提供给它（多模态桥接）")
+            elif cmd == "key":
+                key = rest.strip()
+                if not key:
+                    print(f"DEEPSEEK_API_KEY：{'已设置' if os.environ.get('DEEPSEEK_API_KEY') else '未设置'}")
+                else:
+                    os.environ["DEEPSEEK_API_KEY"] = key
+                    load_providers(refresh=True)
+                    print("已设置本次会话的 DeepSeek API Key（重启后失效；"
+                          "建议写入项目根 .env：DEEPSEEK_API_KEY=sk-xxx）")
+            elif cmd == "parallel":
+                target = rest.strip().lower()
+                if target in ("off", "close", "0"):
+                    parallel = False
+                    print("已关闭多模型并行")
+                elif target:
+                    names = [s.strip() for s in rest.split(",") if s.strip()]
+                    bad = []
+                    for n in names:
+                        try:
+                            get_provider(n)
+                        except KeyError:
+                            bad.append(n)
+                    if bad:
+                        print(f"未知的提供方：{', '.join(bad)}（可用："
+                              f"{', '.join(p.name for p in list_providers())}）")
+                        continue
+                    parallel_providers = names
+                    parallel = True
+                    print(f"已开启多模型并行：{', '.join(names)}（每轮提问都会并行调用并融合）")
+                else:
+                    parallel = not parallel
+                    if parallel:
+                        print("已开启多模型并行（/parallel local,deepseek 可指定组合；"
+                              "/parallel off 关闭）")
+                    else:
+                        print("已关闭多模型并行")
             elif cmd == "tools":
                 print(hub.describe_tools())
             elif cmd == "call":
@@ -148,7 +252,7 @@ async def chat_loop(hub: McpHub, mode: str, show_thinking: bool, stream: bool,
                 target = rest.strip()
                 if not target:
                     print("已附加图片：" + ("\n  ".join(images) if images else "（无）"))
-                elif target.lower() in ("clear", "none", "-"):
+                elif target.lower() in ("clear", "none", "-", "off"):
                     images.clear()
                     print("已取消附加图片")
                 else:
@@ -156,7 +260,6 @@ async def chat_loop(hub: McpHub, mode: str, show_thinking: bool, stream: bool,
                     if not p.is_file():
                         print(f"图片不存在：{p}")
                     else:
-                        images.clear()
                         images.append(str(p))
                         print(f"已附加图片：{p}（对后续每个问题生效，/image clear 取消）")
                         status = vision_status()
@@ -167,9 +270,11 @@ async def chat_loop(hub: McpHub, mode: str, show_thinking: bool, stream: bool,
             elif cmd == "vision":
                 status = vision_status()
                 found = find_mmproj()
+                active = get_provider(provider_name)
                 print(f"图像识别：{'可用' if status['available'] else ('待确认' if status['available'] is None else '不可用')}")
                 print(f"  判据：{status['detail']}")
                 print(f"  mmproj：{found if found else '未找到'}")
+                print(f"  当前模型 {active.name}：{'支持图片' if active.supports_vision else '不支持图片（走多模态桥接）'}")
                 if not found:
                     print("  " + mmproj_hint().replace("\n", "\n  "))
             elif cmd == "audit":
@@ -177,7 +282,8 @@ async def chat_loop(hub: McpHub, mode: str, show_thinking: bool, stream: bool,
                 print("[审计] " + (await hub.call_tool("recent_audit", {"n": int(n) if n.isdigit() else 10})))
             elif cmd in ("agent", "rag"):
                 mode = cmd
-                print(f"已切换到 {mode} 模式")
+                parallel = False
+                print(f"已切换到 {mode} 模式（已关闭并行）")
             elif cmd == "thinking":
                 show_thinking = not show_thinking
                 print(f"思考过程显示：{'开' if show_thinking else '关'}")
@@ -194,38 +300,91 @@ async def chat_loop(hub: McpHub, mode: str, show_thinking: bool, stream: bool,
             continue
 
         # ---------------------------------------------------- 正常提问
-        use_agent = mode == "agent" and bool(hub.tools)
-        if mode == "agent" and not hub.tools:
-            print("（没有可用的 MCP 工具，本次改用 RAG 问答）")
+        try:
+            if parallel:
+                # 并行编排在网络与模型上较慢，放到线程里，避免卡住事件循环（MCP 连接保持可用）
+                report = await asyncio.to_thread(
+                    run_multimodal_parallel, raw, images or None,
+                    parallel_providers or None, "parallel", True, None, show_thinking)
+                print("\n" + report.render())
+                answer = report.synthesis or "\n\n".join(
+                    (o.result.content if o.ok else f"[{o.label} 失败] {o.error}")
+                    for o in report.outcomes) or "（没有拿到任何回答）"
+                if not report.synthesis and report.answers:
+                    print("\n（未生成融合答案，以上为各路原始回答）")
+            else:
+                use_agent = mode == "agent" and bool(hub.tools)
+                if mode == "agent" and not hub.tools:
+                    print("（没有可用的 MCP 工具，本次改用 RAG 问答）")
 
-        if use_agent:
-            answer = await run_agent(raw, hub, history=history, max_rounds=max_rounds,
-                                     show_thinking=show_thinking,
-                                     images=images or None)
-            history += [{"role": "user", "content": raw},
-                        {"role": "assistant", "content": answer}]
-            del history[:-8]  # 只保留最近 4 轮，避免上下文无限增长
-            print_answer(answer, streamed=True)
-        else:
-            # ask 是同步阻塞调用，放到线程里执行，避免卡住事件循环（MCP 连接保持可用）
-            answer = await asyncio.to_thread(ask, raw, show_thinking, stream, images or None)
-            print_answer(answer, streamed=stream)
+                if use_agent:
+                    answer = await run_agent(raw, hub, history=history, max_rounds=max_rounds,
+                                             show_thinking=show_thinking,
+                                             images=images or None, provider=provider_name)
+                    history += [{"role": "user", "content": raw},
+                                {"role": "assistant", "content": answer}]
+                    del history[:-8]  # 只保留最近 4 轮，避免上下文无限增长
+                    print_answer(answer, streamed=True)
+                else:
+                    answer = await asyncio.to_thread(ask, raw, show_thinking, stream,
+                                                     images or None, provider_name)
+                    print_answer(answer, streamed=stream)
+        except ProviderError as e:
+            # 模型侧失败（密钥/余额/限流/断网）不应打断会话，提示后继续下一轮
+            print(f"\n[调用失败] {e}")
+            print("（本次不计入会话记录；可用 /model 换提供方，或检查密钥与网络后重试）")
+            continue
+        except Exception as e:
+            print(f"\n[出错] {type(e).__name__}: {e}")
+            print("（本次不计入会话记录，可重试或换个问题）")
+            continue
 
         last_answer = answer
-        records.append((mode, raw, answer))
+        records.append((current_mode(), raw, answer))
 
 
 async def main():
     args = parse_args()
-    proc = None
-    try:
-        # --mmproj 传了值/带了开关 → 启用视觉；启动前先校验文件是否就位
-        want_vision = args.mmproj is not None
-        if want_vision and find_mmproj(args.mmproj) is None:
-            print(f"[警告] {mmproj_hint()}")
-            print("[警告] 本次将以纯文本模式启动（图像识别不可用）。")
 
-        proc = start_llama_server(args.mmproj, require_vision=want_vision)
+    # ---------------------------------------------------------- 提供方准备
+    load_env_file()
+    if args.deepseek_key:
+        os.environ["DEEPSEEK_API_KEY"] = args.deepseek_key.strip()
+    if args.deepseek_model:
+        os.environ["DEEPSEEK_MODEL"] = args.deepseek_model.strip()
+    load_providers(refresh=True)
+
+    if args.provider:
+        try:
+            set_active(args.provider)
+        except KeyError as e:
+            print(f"[错误] {e.args[0] if e.args else e}")
+            return
+    active = get_active()
+    print(describe_table(active=active.name))
+    if active.needs_key and not active.api_key_value:
+        print(f"\n[提示] 当前提供方 {active.name} 还没有 API Key。"
+              f"设置方法：项目根 .env 写入 DEEPSEEK_API_KEY=sk-xxx，"
+              f"或对话中用 /key sk-xxx，或启动时加 --deepseek-key sk-xxx")
+
+    parallel_providers = ([s.strip() for s in args.parallel_providers.split(",") if s.strip()]
+                          if args.parallel_providers else [])
+
+    # ---------------------------------------------------------- 本地服务准备
+    want_vision = args.mmproj is not None
+    if want_vision and find_mmproj(args.mmproj) is None:
+        print(f"\n[警告] {mmproj_hint()}")
+        print("[警告] 本次无图像识别能力（多模态桥接与 /image 会失败）。")
+
+    need_local = (active.kind == "local") or want_vision or bool(args.image)
+    local = LocalService(args.mmproj)
+    if need_local:
+        local.ensure(require_vision=want_vision)
+    else:
+        print(f"\n当前提供方为云端模型（{active.name}），跳过启动本地 llama-server 以节省内存。\n"
+              "如需图像识别或本地模型：/model local（会按需启动），或启动时加 --mmproj")
+
+    try:
         try:
             build_index()
         except RuntimeError as e:
@@ -244,8 +403,8 @@ async def main():
             print(hub.describe_tools())
 
             images = []
-            if args.image:
-                p = Path(args.image).expanduser()
+            for item in args.image or []:
+                p = Path(item).expanduser()
                 if p.is_file():
                     images.append(str(p))
                     print(f"\n已预载图片：{p}")
@@ -259,18 +418,22 @@ async def main():
 
             if args.mode == "rag":
                 print("\n当前为 rag 模式：固定知识库检索问答（输入 /agent 可切换到工具模式）")
+            if args.parallel:
+                print(f"已开启多模型并行"
+                      f"{'：' + ', '.join(parallel_providers) if parallel_providers else ''}"
+                      f"（/parallel off 关闭）")
             print("输入 /help 查看命令，q 退出")
 
             records = await chat_loop(
                 hub, mode=args.mode, show_thinking=not args.no_thinking,
-                stream=True, max_rounds=args.max_rounds, images=images,
+                stream=True, max_rounds=args.max_rounds, local=local,
+                provider_name=active.name, parallel=args.parallel,
+                parallel_providers=parallel_providers, images=images,
             )
             if records:
                 print(f"\n会话已自动保存：{save_session(records)}")
     finally:
-        stop_llama_server(proc)
-        if proc is not None:
-            print("llama-server 已关闭")
+        local.stop()
 
 
 if __name__ == "__main__":

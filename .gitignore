@@ -1,4 +1,21 @@
 .workbuddy
 __pycache__
+
+# 运行时生成物：不入库
 logs
 models
+build
+data/sessions.json
+
+# 打包/调试期临时文件（仅项目根）
+/_*.txt
+/_*.log
+/_*.py
+
+# 打包产物入库，但产物运行时会生成日志与数据，这部分不入库
+/dist/NetworkClaw/logs
+/dist/NetworkClaw/data
+
+# 密钥相关：不得提交（参考 config/llm.example.json 自行创建）
+.env
+config/llm.json

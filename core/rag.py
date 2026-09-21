@@ -18,6 +18,7 @@
     python -m core.rag --rebuild    # 强制重建知识库索引
 """
 import argparse
+from collections.abc import Callable
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
@@ -80,13 +81,29 @@ def build_index(force: bool = False) -> int:
 
 
 def retrieve(query: str, n_results: int = 3) -> list[str]:
-    """从知识库集合检索相关片段（集合为空时返回空列表，不发起查询）"""
-    coll = get_collection(KNOWLEDGE_COLLECTION)
-    total = coll.count()
+    """从知识库集合检索相关片段。
+
+    检索依赖 Ollama 的 Embedding 服务，而它不一定在跑（尤其在交付给别人的机器上）。
+    因此这里把「取不到片段」统一降级为返回空列表 + 一条可读提示：
+    对话仍可继续（由模型自身知识回答），而不是整轮问答直接失败。
+    """
+    try:
+        coll = get_collection(KNOWLEDGE_COLLECTION)
+        total = coll.count()
+    except Exception as e:
+        print(f"[警告] 知识库不可用（{type(e).__name__}: {e}），本次跳过检索")
+        return []
+
     if total == 0:
         return []
     n_results = max(1, min(n_results, total))
-    results = coll.query(query_texts=[query], n_results=n_results)
+    try:
+        results = coll.query(query_texts=[query], n_results=n_results)
+    except Exception as e:
+        print(f"[警告] 知识库检索失败（Embedding 服务不可用？）：{type(e).__name__}: {e}")
+        print("       本次跳过检索，仅依赖模型自身知识回答。"
+              "修复方式：启动 Ollama（ollama serve）并拉取模型 ollama pull nomic-embed-text")
+        return []
     return results["documents"][0]
 
 
@@ -102,14 +119,18 @@ def _build_prompt(query: str, context: str) -> str:
 
 
 def ask(query: str, show_thinking: bool = True, stream: bool = True,
-        images: list[str] | None = None) -> str:
+        images: list[str] | None = None, provider=None,
+        on_think: Callable[[str], None] | None = None,
+        on_answer: Callable[[str], None] | None = None) -> str:
     """检索 + 流式 LLM 生成，返回最终回答文本。
 
     - show_thinking=True 时实时打印模型思考过程
     - stream=True 时逐 token 实时打印回答；stream=False 则只收集不打印，
       由调用方（如 main.py）统一渲染返回值，便于同时记录会话历史。
-    - images：随问题一起送入模型的图片路径（拓扑截图等）；需要 llama-server 以
-      --mmproj 启动多模态能力，否则会被服务端拒绝。
+    - images：随问题一起送入模型的图片路径（拓扑截图等）；需要该提供方支持图片。
+    - provider：使用的模型提供方（名称或 Provider），默认当前激活的。
+    - on_think / on_answer：流式片段回调（GUI 用）；一旦给出，对应内容就交给回调
+      渲染而不再打印到 stdout（桌面端靠它做逐 token 打字机效果）。
     """
     retrieved = retrieve(query)
     if retrieved:
@@ -133,6 +154,9 @@ def ask(query: str, show_thinking: bool = True, stream: bool = True,
         messages=[{"role": "user", "content": content}],
         show_thinking=show_thinking,
         show_answer=stream,
+        provider=provider,
+        on_think=on_think,
+        on_answer=on_answer,
     )
     print_stats(result)
     return result.content

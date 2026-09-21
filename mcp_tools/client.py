@@ -7,14 +7,18 @@
 - 生成 OpenAI 风格工具定义，供 core.agent 交给本地模型做工具调用
 
 约定：
-- 所有服务端都用**当前解释器**（.venv 里的 python）拉起，避免装到别的环境
+- 所有服务端都用**当前解释器**（.venv 里的 python）拉起，避免装到别的环境；
+  打包成 exe 后没有解释器，改为让 exe 用 `--serve-mcp <标识>` 复用自身拉起服务端
+  （派发逻辑在项目根的 launcher.py，标识 → 模块的映射在 mcp_tools/__init__.py）
 - 工具内部不抛异常，失败统一转成可读文本，Agent 循环不会因工具报错中断
 
 运行自检：
     python -m mcp_tools.client        # 列出工具并实际调用一次
 """
 import asyncio
+import contextlib
 import json
+import os
 import sys
 from contextlib import AsyncExitStack
 from pathlib import Path
@@ -22,20 +26,64 @@ from pathlib import Path
 from fastmcp import Client
 from fastmcp.client.transports import StdioTransport
 
+from core.paths import BASE_DIR, SERVE_FLAG, is_frozen
+from mcp_tools import module_for
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PYTHON = sys.executable
 
+# 单个服务端的连接超时（导入 fastmcp/chromadb 较慢，给足裕量）
+SERVER_TIMEOUT = 60.0
+
 # 默认接入的服务端：知识检索 / 设备串口 / 设备 Telnet / 图像识别（均纯本地）
-DEFAULT_SERVERS: dict[str, list[str]] = {
-    "knowledge": [str(PROJECT_ROOT / "mcp_tools" / "template_server.py")],
-    "device-serial": [str(PROJECT_ROOT / "mcp_tools" / "device_server.py")],
-    "device-telnet": [str(PROJECT_ROOT / "mcp_tools" / "telnet_server.py")],
-    "vision": [str(PROJECT_ROOT / "mcp_tools" / "vision_server.py")],
+# 值为服务端脚本路径（开发模式用得到；打包后按服务端标识复用 exe 自身）
+DEFAULT_SERVERS: dict[str, str] = {
+    "knowledge": str(PROJECT_ROOT / "mcp_tools" / "template_server.py"),
+    "device-serial": str(PROJECT_ROOT / "mcp_tools" / "device_server.py"),
+    "device-telnet": str(PROJECT_ROOT / "mcp_tools" / "telnet_server.py"),
+    "vision": str(PROJECT_ROOT / "mcp_tools" / "vision_server.py"),
 }
 # 可选服务端：联网搜索（依赖 npx + open-websearch，按需接入）
-SEARCH_SERVER: dict[str, list[str]] = {
-    "search": [str(PROJECT_ROOT / "mcp_tools" / "internet.py")],
+SEARCH_SERVER: dict[str, str] = {
+    "search": str(PROJECT_ROOT / "mcp_tools" / "internet.py"),
 }
+
+
+def _transport_spec(name: str, script: str) -> tuple[str, list[str], str]:
+    """计算拉起某个服务端所需的 (可执行文件, 参数, 工作目录)。
+
+    开发模式：python mcp_tools/xxx.py
+    打包模式：NetworkClaw.exe --serve-mcp xxx     （复用自身，避免依赖外部解释器）
+    """
+    if is_frozen():
+        return sys.executable, [SERVE_FLAG, module_for(name) or name], str(BASE_DIR)
+    return PYTHON, [script], str(PROJECT_ROOT)
+
+
+def _child_env() -> dict[str, str]:
+    """子进程环境变量。
+
+    fastmcp 的 StdioTransport 一旦显式传 env 就会**整体替换**掉默认环境，
+    之前只传了 PYTHONPATH/PYTHONIOENCODING，Windows 上会缺 SystemRoot、PATH 等，
+    容易在加载 DLL / 调用外部命令时才暴露问题。这里以系统默认环境为底，再叠加本项目需要的项。
+    """
+    env: dict[str, str] = {}
+    try:
+        from mcp.client.stdio import get_default_environment
+
+        env.update(get_default_environment())
+    except Exception:
+        env.update(os.environ)
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONUTF8"] = "1"
+    if not is_frozen():
+        env["PYTHONPATH"] = str(PROJECT_ROOT)
+    # 密钥要能传到 MCP 服务端（联网搜索等场景可能需要）
+    for key in ("DEEPSEEK_API_KEY", "NETWORKCLAW_MMPROJ", "NETWORKCLAW_PROVIDER"):
+        if os.environ.get(key):
+            env[key] = os.environ[key]
+    return env
+
 
 
 def _result_to_text(result) -> str:
@@ -75,7 +123,7 @@ class McpHub:
             print(await hub.call_tool("search_knowledge", {"query": "S5700"}))
     """
 
-    def __init__(self, servers: dict[str, list[str]] | None = None):
+    def __init__(self, servers: dict[str, str] | None = None):
         self.servers = dict(servers) if servers is not None else dict(DEFAULT_SERVERS)
         self._stack: AsyncExitStack | None = None
         self._clients: dict[str, Client] = {}
@@ -86,12 +134,14 @@ class McpHub:
     # ------------------------------------------------------------ 生命周期
     async def __aenter__(self) -> "McpHub":
         self._stack = AsyncExitStack()
-        for server, args in self.servers.items():
+        env = _child_env()
+        for server, script in self.servers.items():
+            command, args, cwd = _transport_spec(server, script)
             transport = StdioTransport(
-                command=PYTHON,
+                command=command,
                 args=args,
-                cwd=str(PROJECT_ROOT),
-                env={"PYTHONPATH": str(PROJECT_ROOT), "PYTHONIOENCODING": "utf-8"},
+                cwd=cwd,
+                env=env,
             )
             try:
                 client = await self._stack.enter_async_context(Client(transport))

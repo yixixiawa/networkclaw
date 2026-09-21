@@ -25,9 +25,9 @@
 import datetime
 import json
 import re
-from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+from core.paths import BASE_DIR
+
 AUDIT_LOG = BASE_DIR / "logs" / "command_audit.log"
 
 # ---------------------------------------------------------------- 分级常量

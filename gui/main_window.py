@@ -1,0 +1,977 @@
+"""主窗口：侧边栏（历史 / 状态）+ 对话区 + 运行日志 + 命令控制台。
+
+界面结构（参考 CodeX / KUN 的桌面 Agent 布局）：
+    ┌────────────┬───────────────────────────────────────────────┐
+    │ 会话历史    │ 顶栏：提供方 / 模式 / 思考 / 工具 / 审计 / 设置  │
+    │ ＋ 新建     ├───────────────────────────────────────────────┤
+    │  · 会话1    │ 对话 │ 运行日志 │ 命令     ← 页签               │
+    │  · 会话2    │                                               │
+    │ ─────────  │  （对话：气泡流 + 图片附件 + 输入框）           │
+    │ 服务状态    │                                               │
+    │ 启动/停止   │                                               │
+    └────────────┴───────────────────────────────────────────────┘
+                                    状态栏：状态 ｜ token 统计
+
+线程约定：界面只与 AgentWorker 通过信号交互；模型/MCP 的一切耗时操作都在工作线程里。
+"""
+from __future__ import annotations
+
+import io
+import json
+import os
+import sys
+from pathlib import Path
+
+from PyQt6.QtCore import QObject, QSettings, Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QKeyEvent
+from PyQt6.QtWidgets import (
+    QApplication,
+    QComboBox,
+    QFileDialog,
+    QFrame,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QLineEdit,
+    QListWidgetItem,
+    QMainWindow,
+    QMessageBox,
+    QPlainTextEdit,
+    QPushButton,
+    QSplitter,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
+
+from core.llama_start import find_mmproj, find_model
+from core.paths import BASE_DIR
+from core.vision import IMAGE_EXTS
+from gui.dialogs import HELP_TEXT, AuditDialog, SettingsDialog, ToolsDialog, persist_api_key
+from gui.store import SessionStore
+from gui.theme import build_qss, get_palette
+from gui.widgets import AttachmentBar, ChatView, MessageBubble, SessionList, StatusRow
+from gui.worker import AgentWorker
+
+LOG_TAIL_LINES = 5000
+
+
+class _LogEmitter(QObject):
+    """只用来承载日志信号（QObject 才能跨线程发信号）"""
+
+    text = pyqtSignal(str)
+
+
+# ---------------------------------------------------------------- 输入控件
+
+class InputEdit(QTextEdit):
+    """输入框：回车发送、Shift+回车换行、可拖入图片"""
+
+    submitted = pyqtSignal()
+    images_dropped = pyqtSignal(list)
+
+    def keyPressEvent(self, event: QKeyEvent):
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
+                super().keyPressEvent(event)
+                return
+            self.submitted.emit()
+            return
+        super().keyPressEvent(event)
+
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event: QDropEvent):
+        paths = [u.toLocalFile() for u in event.mimeData().urls() if u.isLocalFile()]
+        images = [p for p in paths if Path(p).suffix.lower() in IMAGE_EXTS]
+        if images:
+            self.images_dropped.emit(images)
+            event.acceptProposedAction()
+
+
+class CommandEdit(QLineEdit):
+    """命令输入框（支持 ↑/↓ 调历史）"""
+
+    submitted = pyqtSignal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._history: list[str] = []
+        self._cursor = 0
+        self.returnPressed.connect(self.submit_current)
+
+    def submit_current(self):
+        text = self.text().strip()
+        if not text:
+            return
+        if not self._history or self._history[-1] != text:
+            self._history.append(text)
+        self._cursor = len(self._history)
+        self.clear()
+        self.submitted.emit(text)
+
+    def keyPressEvent(self, event: QKeyEvent):
+        if event.key() == Qt.Key.Key_Up and self._history:
+            self._cursor = max(0, self._cursor - 1)
+            self.setText(self._history[self._cursor])
+            return
+        if event.key() == Qt.Key.Key_Down and self._history:
+            self._cursor = min(len(self._history), self._cursor + 1)
+            self.setText("" if self._cursor >= len(self._history) else self._history[self._cursor])
+            return
+        super().keyPressEvent(event)
+
+
+# ---------------------------------------------------------------- 标准流转发
+
+class StreamProxy(io.TextIOBase):
+    """把 print 输出同时写进原流与界面日志（便于观察检索/工具调用细节）。
+
+    为什么不用 sys.stdout = StringIO：MCP 子进程与部分库会访问 `.buffer`/`fileno()`，
+    这里保留对原始流与其 buffer 的转发，避免破坏它们。
+    """
+
+    def __init__(self, original, emit):
+        self._orig = original
+        self._emit = emit
+        self._buf = getattr(original, "buffer", None)
+        self.encoding = "utf-8"
+        self.errors = "replace"
+
+    @property
+    def buffer(self):
+        return self._buf if self._buf is not None else self
+
+    def write(self, text):  # type: ignore[override]
+        if not text:
+            return 0
+        try:
+            if self._orig is not None:
+                self._orig.write(text)
+                self._orig.flush()
+        except Exception:
+            pass
+        try:
+            self._emit(text)
+        except Exception:
+            pass
+        return len(text)
+
+    def writable(self) -> bool:
+        return True
+
+    def flush(self):  # type: ignore[override]
+        try:
+            if self._orig is not None:
+                self._orig.flush()
+        except Exception:
+            pass
+
+    def isatty(self) -> bool:
+        return False
+
+
+# ---------------------------------------------------------------- 主窗口
+
+class MainWindow(QMainWindow):
+    def __init__(self, settings: dict, parent=None):
+        super().__init__(parent)
+        self.settings = dict(settings)
+        self.palette_ref = get_palette(self.settings.get("theme", "dark"))
+        self.qsettings = QSettings("NetworkClaw", "Desktop")
+
+        self.store = SessionStore()
+        self.store.load()
+        self.current_session = None
+        self.images: list[str] = []
+        self._pending_think: list[str] = []
+        self._pending_answer: list[str] = []
+        self._active_bubble: MessageBubble | None = None
+        self._last_stats: dict = {}
+        self._last_question = ""
+        self._busy = False
+        self.tools_cache: list[dict] = []
+        self.providers_cache: list[dict] = []
+
+        self.setWindowTitle("NetworkClaw · 网络运维智能助手")
+        self.setMinimumSize(1080, 700)
+
+        self._build_ui()
+        self._restore_geometry()
+        self._wire_stdout()
+
+        self.worker = AgentWorker(self._worker_options(), self)
+        self._connect_worker()
+        self.worker.start()
+
+        # 流式片段合并刷新（避免每个 token 都重排一遍控件）
+        self._flush_timer = QTimer(self)
+        self._flush_timer.setInterval(33)
+        self._flush_timer.timeout.connect(self._flush_stream)
+        self._flush_timer.start()
+
+        # 服务状态轮询
+        self._service_timer = QTimer(self)
+        self._service_timer.setInterval(10000)
+        self._service_timer.timeout.connect(lambda: self.worker.submit("services"))
+        self._service_timer.start()
+
+        self._new_session(first=True)
+        self._append_log("NetworkClaw 已启动，正在初始化…\n")
+
+    # ============================================================ 界面搭建
+    def _build_ui(self):
+        central = QWidget()
+        self.setCentralWidget(central)
+        root = QHBoxLayout(central)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.splitter.addWidget(self._build_sidebar())
+        self.splitter.addWidget(self._build_main())
+        self.splitter.setStretchFactor(0, 0)
+        self.splitter.setStretchFactor(1, 1)
+        self.splitter.setSizes([260, 900])
+        self.splitter.setCollapsible(0, True)
+        self.splitter.setCollapsible(1, False)
+        root.addWidget(self.splitter)
+
+        self.status = self.statusBar()
+        self.status_left = QLabel("正在初始化…")
+        self.status_right = QLabel("token：0")
+        self.status.addWidget(self.status_left, 1)
+        self.status.addPermanentWidget(self.status_right)
+
+    def _build_sidebar(self) -> QWidget:
+        bar = QFrame()
+        bar.setObjectName("Sidebar")
+        bar.setMinimumWidth(220)
+        bar.setMaximumWidth(400)
+        layout = QVBoxLayout(bar)
+        layout.setContentsMargins(10, 12, 10, 10)
+        layout.setSpacing(8)
+
+        head = QVBoxLayout()
+        head.setSpacing(0)
+        title = QLabel("NetworkClaw")
+        title.setObjectName("AppTitle")
+        sub = QLabel("RAG · MCP · 设备运维 · 多模型")
+        sub.setObjectName("AppSubtitle")
+        head.addWidget(title)
+        head.addWidget(sub)
+        layout.addLayout(head)
+
+        new_btn = QPushButton("＋  新建会话")
+        new_btn.setObjectName("Primary")
+        new_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        new_btn.clicked.connect(lambda: self._new_session())
+        layout.addWidget(new_btn)
+
+        label = QLabel("历史记录")
+        label.setObjectName("SidebarTitle")
+        layout.addWidget(label)
+
+        self.session_list = SessionList()
+        self.session_list.itemClicked.connect(self._on_session_clicked)
+        self.session_list.rename_requested.connect(self._rename_session)
+        self.session_list.delete_requested.connect(self._delete_session)
+        layout.addWidget(self.session_list, 1)
+
+        divider = QFrame()
+        divider.setObjectName("Divider")
+        layout.addWidget(divider)
+
+        label2 = QLabel("服务状态")
+        label2.setObjectName("SidebarTitle")
+        layout.addWidget(label2)
+
+        self.row_llama = StatusRow("本地模型", self.palette_ref)
+        self.row_ollama = StatusRow("Ollama 向量", self.palette_ref)
+        self.row_mcp = StatusRow("MCP 工具", self.palette_ref)
+        self.row_vision = StatusRow("图像识别", self.palette_ref)
+        for row in (self.row_llama, self.row_ollama, self.row_mcp, self.row_vision):
+            layout.addWidget(row)
+
+        row = QHBoxLayout()
+        row.setSpacing(6)
+        start = QPushButton("启动本地模型")
+        start.setObjectName("Ghost")
+        start.clicked.connect(self._start_local)
+        stop = QPushButton("停止")
+        stop.setObjectName("Ghost")
+        stop.clicked.connect(lambda: self.worker.submit("stop_local"))
+        row.addWidget(start, 1)
+        row.addWidget(stop)
+        layout.addLayout(row)
+
+        return bar
+
+    def _build_main(self) -> QWidget:
+        host = QWidget()
+        layout = QVBoxLayout(host)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        layout.addWidget(self._build_topbar())
+
+        self.tabs = QTabWidget()
+        self.tabs.addTab(self._build_chat_tab(), "对话")
+        self.tabs.addTab(self._build_log_tab(), "运行日志")
+        self.tabs.addTab(self._build_command_tab(), "命令")
+        layout.addWidget(self.tabs, 1)
+        return host
+
+    def _build_topbar(self) -> QWidget:
+        bar = QFrame()
+        bar.setObjectName("TopBar")
+        layout = QHBoxLayout(bar)
+        layout.setContentsMargins(12, 8, 12, 8)
+        layout.setSpacing(8)
+
+        layout.addWidget(QLabel("模型"))
+        self.provider_box = QComboBox()
+        self.provider_box.setMinimumWidth(210)
+        self.provider_box.currentIndexChanged.connect(self._on_provider_changed)
+        layout.addWidget(self.provider_box)
+
+        layout.addWidget(QLabel("模式"))
+        self.mode_box = QComboBox()
+        for label, value in (("agent 工具调用", "agent"),
+                             ("rag 知识库", "rag"),
+                             ("parallel 多模型并行", "parallel")):
+            self.mode_box.addItem(label, value)
+        idx = self.mode_box.findData(self.settings.get("mode", "agent"))
+        if idx >= 0:
+            self.mode_box.setCurrentIndex(idx)
+        self.mode_box.currentIndexChanged.connect(self._on_mode_changed)
+        layout.addWidget(self.mode_box)
+
+        self.think_btn = QPushButton("思考 ✓" if self.settings.get("show_thinking", True) else "思考 ✕")
+        self.think_btn.setObjectName("Chip")
+        self.think_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.think_btn.clicked.connect(self._toggle_thinking)
+        layout.addWidget(self.think_btn)
+
+        layout.addStretch(1)
+
+        for text, tip, slot in (
+            ("工具", "查看已接入的 MCP 工具", self._show_tools),
+            ("审计", "查看设备命令审计记录", self._show_audit),
+            ("导出", "把当前会话导出为 Markdown", self._export_session),
+            ("帮助", "使用说明", self._show_help),
+            ("设置", "模型、密钥、界面设置", self._show_settings),
+        ):
+            btn = QPushButton(text)
+            btn.setObjectName("Ghost")
+            btn.setToolTip(tip)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.clicked.connect(slot)
+            layout.addWidget(btn)
+        return bar
+
+    def _build_chat_tab(self) -> QWidget:
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        self.chat = ChatView(self.palette_ref)
+        layout.addWidget(self.chat, 1)
+
+        bottom = QWidget()
+        bl = QVBoxLayout(bottom)
+        bl.setContentsMargins(14, 8, 14, 12)
+        bl.setSpacing(6)
+
+        self.attach_bar = AttachmentBar(self.palette_ref)
+        self.attach_bar.remove_requested.connect(self._remove_image)
+        bl.addWidget(self.attach_bar)
+
+        row = QHBoxLayout()
+        row.setSpacing(6)
+        self.input = InputEdit()
+        self.input.setObjectName("Input")
+        self.input.setPlaceholderText(
+            "输入问题，回车发送（Shift+Enter 换行）｜可直接拖入拓扑截图")
+        self.input.setFixedHeight(76)
+        self.input.submitted.connect(self._send)
+        self.input.images_dropped.connect(self._add_images)
+        row.addWidget(self.input, 1)
+
+        col = QVBoxLayout()
+        col.setSpacing(4)
+        self.send_btn = QPushButton("发送")
+        self.send_btn.setObjectName("Primary")
+        self.send_btn.setMinimumHeight(34)
+        self.send_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.send_btn.clicked.connect(self._send)
+        img_btn = QPushButton("图片")
+        img_btn.setObjectName("Ghost")
+        img_btn.setToolTip("附加拓扑截图（可多选）")
+        img_btn.clicked.connect(self._pick_images)
+        col.addWidget(self.send_btn)
+        col.addWidget(img_btn)
+        row.addLayout(col)
+        bl.addLayout(row)
+        layout.addWidget(bottom)
+        return page
+
+    def _build_log_tab(self) -> QWidget:
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(6)
+
+        self.log_view = QPlainTextEdit()
+        self.log_view.setReadOnly(True)
+        self.log_view.setMaximumBlockCount(LOG_TAIL_LINES)
+        self.log_view.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        layout.addWidget(self.log_view, 1)
+
+        row = QHBoxLayout()
+        clear = QPushButton("清空")
+        clear.setObjectName("Ghost")
+        clear.clicked.connect(self.log_view.clear)
+        save = QPushButton("另存为…")
+        save.setObjectName("Ghost")
+        save.clicked.connect(self._save_log)
+        row.addWidget(clear)
+        row.addWidget(save)
+        row.addStretch(1)
+        hint = QLabel("这里显示检索过程、工具调用、连接状态等全部运行细节")
+        hint.setObjectName("Hint")
+        row.addWidget(hint)
+        layout.addLayout(row)
+        return page
+
+    def _build_command_tab(self) -> QWidget:
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(6)
+
+        self.cmd_out = QPlainTextEdit()
+        self.cmd_out.setReadOnly(True)
+        self.cmd_out.setMaximumBlockCount(2000)
+        self.cmd_out.setPlainText(HELP_TEXT)
+        layout.addWidget(self.cmd_out, 1)
+
+        row = QHBoxLayout()
+        self.cmd_edit = CommandEdit()
+        self.cmd_edit.setPlaceholderText(
+            "输入命令，如 /tools 、/call query_command_template {\"intent\":\"配置OSPF\"}")
+        self.cmd_edit.submitted.connect(self._run_command)
+        run = QPushButton("执行")
+        run.setObjectName("Primary")
+        run.clicked.connect(self.cmd_edit.submit_current)
+        row.addWidget(self.cmd_edit, 1)
+        row.addWidget(run)
+        layout.addLayout(row)
+        return page
+
+    # ============================================================ 标准流
+    def _wire_stdout(self):
+        self._log_signal = _LogEmitter()
+        self._log_signal.text.connect(self._append_log)
+        if self.settings.get("capture_stdout", True):
+            for name in ("stdout", "stderr"):
+                original = getattr(sys, name, None)
+                if original is not None and not isinstance(original, StreamProxy):
+                    setattr(sys, name, StreamProxy(original, self._log_signal.text.emit))
+
+    def _append_log(self, text: str):
+        if not text:
+            return
+        self.log_view.moveCursor(self.log_view.textCursor().MoveOperation.End)
+        self.log_view.insertPlainText(text)
+        bar = self.log_view.verticalScrollBar()
+        bar.setValue(bar.maximum())
+
+    def _save_log(self):
+        path, _ = QFileDialog.getSaveFileName(self, "保存运行日志",
+                                             str(BASE_DIR / "logs" / "gui_run.log"),
+                                             "日志文件 (*.log);;文本文件 (*.txt)")
+        if path:
+            Path(path).write_text(self.log_view.toPlainText(), encoding="utf-8")
+            self._append_log(f"\n[日志已保存] {path}\n")
+
+    # ============================================================ Worker
+    def _worker_options(self) -> dict:
+        return {
+            "provider": self.settings.get("provider"),
+            "deepseek_key": self.settings.get("api_key"),
+            "mmproj": self.settings.get("mmproj") or None,
+            "with_search": bool(self.settings.get("with_search")),
+        }
+
+    def _connect_worker(self):
+        w = self.worker
+        w.sig_log.connect(self._append_log)
+        w.sig_state.connect(self._on_state)
+        w.sig_ready.connect(self._on_ready)
+        w.sig_think.connect(self._on_think)
+        w.sig_answer.connect(self._on_answer)
+        w.sig_output_begin.connect(self._on_output_begin)
+        w.sig_answer_done.connect(self._on_answer_done)
+        w.sig_stats.connect(self._on_stats)
+        w.sig_error.connect(self._on_error)
+        w.sig_busy.connect(self._on_busy)
+        w.sig_result.connect(self._on_command_result)
+        w.sig_services.connect(self._on_services)
+        w.sig_providers.connect(self._apply_providers)
+
+    def _on_state(self, text: str):
+        self.status_left.setText(text)
+
+    def _on_ready(self, info: dict):
+        self._apply_providers(info.get("providers") or [])
+        idx = self.provider_box.findData(info.get("active"))
+        if idx >= 0:
+            self.provider_box.blockSignals(True)
+            self.provider_box.setCurrentIndex(idx)
+            self.provider_box.blockSignals(False)
+        self._on_services(info.get("services") or {})
+        tools = info.get("tools") or []
+        self.tools_cache = tools
+        self._append_log(f"\n就绪：{len(tools)} 个 MCP 工具，"
+                         f"{len(info.get('providers') or [])} 个模型提供方\n")
+
+    def _apply_providers(self, providers: list[dict]):
+        current = self.provider_box.currentData()
+        self.provider_box.blockSignals(True)
+        self.provider_box.clear()
+        for p in providers:
+            mark = "✓" if p.get("configured") else "✗"
+            self.provider_box.addItem(
+                f"{mark} {p['label']}（{p['name']}）", p["name"])
+        target = current or self.settings.get("provider")
+        idx = self.provider_box.findData(target)
+        self.provider_box.setCurrentIndex(idx if idx >= 0 else 0)
+        self.provider_box.blockSignals(False)
+        self.providers_cache = providers
+
+    def _on_services(self, snap: dict):
+        if not snap:
+            return
+        self.row_llama.set_state(snap.get("llama"),
+                                 "运行中" if snap.get("llama") else "未启动")
+        self.row_ollama.set_state(snap.get("ollama"), snap.get("ollama_detail", "")[:16])
+        self.row_mcp.set_state(len(snap.get("mcp_servers") or []) > 0,
+                               f"{snap.get('mcp_tools', 0)} 个工具")
+        vision = snap.get("vision")
+        self.row_vision.set_state(vision, "可用" if vision else "不可用")
+        if snap.get("mmproj"):
+            self.row_vision.setToolTip(f"mmproj：{snap['mmproj']}")
+
+    def _on_busy(self, busy: bool):
+        self._busy = busy
+        self.send_btn.setEnabled(not busy)
+        self.send_btn.setText("生成中…" if busy else "发送")
+
+    # -------------------------------------------------- 流式渲染
+    def _on_output_begin(self, kind: str):
+        if self._active_bubble is None:
+            self._active_bubble = self.chat.add_bubble("assistant", "生成中…")
+
+    def _on_think(self, piece: str):
+        self._pending_think.append(piece)
+
+    def _on_answer(self, piece: str):
+        if self._active_bubble is None:
+            self._active_bubble = self.chat.add_bubble("assistant", "生成中…")
+        self._pending_answer.append(piece)
+
+    def _flush_stream(self):
+        if self._pending_think and self._active_bubble is not None:
+            self._active_bubble.append_think("".join(self._pending_think))
+            self._pending_think.clear()
+        if self._pending_answer and self._active_bubble is not None:
+            self._active_bubble.append_answer("".join(self._pending_answer))
+            self._pending_answer.clear()
+            self.chat.scroll_to_bottom()
+
+    def _on_answer_done(self, answer: str, meta: dict):
+        self._flush_stream()
+        if self._active_bubble is None:
+            self._active_bubble = self.chat.add_bubble("assistant", "")
+        self._active_bubble.set_meta(self._meta_text(meta))
+        if answer and answer != self._active_bubble.text():
+            self._active_bubble.set_answer(answer)
+        else:
+            self._active_bubble.finalize()
+        self.chat.scroll_to_bottom(force=True)
+        self._active_bubble = None
+
+        if self.current_session is not None:
+            self.current_session.add_record(
+                meta.get("mode", "agent"), self._last_question, answer,
+                meta.get("provider", ""), meta.get("elapsed", 0.0))
+            self.store.touch(self.current_session.sid)
+            self._refresh_session_list()
+
+    def _on_stats(self, stats: dict):
+        self._last_stats = stats
+        cumulative = stats.get("cumulative") or {}
+        note = "服务端统计" if stats.get("server_side") else "按输出块近似"
+        self.status_right.setText(
+            f"token：{cumulative.get('output_tokens', 0)}（本次 {stats.get('output_tokens', 0)}，"
+            f"思考 {stats.get('think', 0)} ＋ 回答 {stats.get('answer', 0)}，{note}）")
+
+    def _on_error(self, text: str):
+        self._flush_stream()
+        bubble = self.chat.add_bubble("error", "")
+        bubble.append_answer(text)
+        bubble.finalize()
+        self.chat.scroll_to_bottom(force=True)
+        if self._active_bubble is not None:
+            self._active_bubble.finalize()
+        self._active_bubble = None
+
+    @staticmethod
+    def _meta_text(meta: dict) -> str:
+        bits = []
+        if meta.get("provider"):
+            bits.append(str(meta["provider"]))
+        if meta.get("model"):
+            bits.append(str(meta["model"]))
+        if meta.get("kind"):
+            bits.append(str(meta["kind"]))
+        if meta.get("elapsed"):
+            bits.append(f"{meta['elapsed']}s")
+        return " ｜ ".join(bits)
+
+    # ============================================================ 提问
+    def _send(self):
+        text = self.input.toPlainText().strip()
+        if self._busy:
+            return
+        if not text and not self.images:
+            return
+        mode = self.mode_box.currentData()
+        if mode == "parallel":
+            provs = [s.strip() for s in
+                     (self.settings.get("parallel_providers") or "").split(",") if s.strip()]
+        else:
+            provs = []
+        if not provs:
+            provs = [self.provider_box.currentData()] if mode != "parallel" else []
+
+        self._last_question = text
+        bubble = self.chat.add_bubble("user", "")
+        display = text or "（仅图片，无文字）"
+        if self.images:
+            display += "\n\n📎 " + "、".join(Path(p).name for p in self.images)
+        bubble.append_answer(display)
+        bubble.finalize()
+
+        self.input.clear()
+        self.worker.submit(
+            "ask", text=text, mode=mode,
+            provider=self.provider_box.currentData(),
+            parallel=(mode == "parallel"),
+            parallel_providers=provs,
+            images=list(self.images),
+            show_thinking=bool(self.settings.get("show_thinking", True)),
+            max_rounds=int(self.settings.get("max_rounds", 4)),
+        )
+        self.images.clear()
+        self.attach_bar.update_items(self.images)
+        self.tabs.setCurrentIndex(0)
+
+    # ============================================================ 会话
+    def _refresh_session_list(self):
+        if self.current_session is None:
+            return
+        self.session_list.blockSignals(True)
+        self.session_list.clear()
+        for s in self.store.sessions:
+            item = QListWidgetItem(f"{s.title}\n{s.preview}")
+            item.setToolTip(f"{s.title} ｜ {s.preview}")
+            item.setData(Qt.ItemDataRole.UserRole, s.sid)
+            self.session_list.addItem(item)
+            if s.sid == self.current_session.sid:
+                self.session_list.setCurrentItem(item)
+        self.session_list.blockSignals(False)
+
+    def _new_session(self, first: bool = False):
+        if not first and self.current_session is not None and self.current_session.records:
+            self.store.save()
+        self.current_session = self.store.create()
+        self.chat.clear()
+        self._active_bubble = None
+        self.worker.submit("command", name="reset_history")
+        self._refresh_session_list()
+        if not first:
+            self._switch_session(self.current_session.sid)
+
+    def _on_session_clicked(self, item):
+        sid = item.data(Qt.ItemDataRole.UserRole)
+        self._switch_session(sid)
+
+    def _switch_session(self, sid: str):
+        session = self.store.get(sid)
+        if session is None:
+            return
+        self.current_session = session
+        self.chat.clear()
+        self._active_bubble = None
+        for rec in session.records:
+            q = self.chat.add_bubble("user", "")
+            q.append_answer(rec.get("question", ""))
+            q.finalize()
+            a = self.chat.add_bubble("assistant", f"{rec.get('provider', '')} ｜ {rec.get('mode', '')}")
+            a.set_answer(rec.get("answer", ""))
+        self.chat.scroll_to_bottom(force=True)
+        self.worker.submit("command", name="reset_history")
+
+    def _rename_session(self, sid: str):
+        session = self.store.get(sid)
+        if session is None:
+            return
+        text, ok = QInputDialog.getText(self, "重命名会话", "新名称：", text=session.title)
+        if ok and text.strip():
+            self.store.rename(sid, text)
+            self._refresh_session_list()
+
+    def _delete_session(self, sid: str):
+        session = self.store.get(sid)
+        if session is None:
+            return
+        if QMessageBox.question(self, "删除会话", f"确定删除「{session.title}」？") \
+                != QMessageBox.StandardButton.Yes:
+            return
+        self.store.delete(sid)
+        if self.current_session is not None and self.current_session.sid == sid:
+            self.current_session = None
+            self._new_session()
+        else:
+            self._refresh_session_list()
+
+    def _export_session(self):
+        if self.current_session is None:
+            return
+        default = str(BASE_DIR / "logs" / f"session_{self.current_session.sid}.md")
+        path, _ = QFileDialog.getSaveFileName(self, "导出会话", default,
+                                              "Markdown (*.md);;所有文件 (*)")
+        if not path:
+            return
+        try:
+            out = self.current_session.export_markdown(path)
+            QMessageBox.information(self, "导出成功", f"已导出到：\n{out}")
+        except OSError as e:
+            QMessageBox.warning(self, "导出失败", str(e))
+
+    # ============================================================ 图片
+    def _add_images(self, paths: list[str]):
+        for p in paths:
+            if p not in self.images:
+                self.images.append(p)
+        self.attach_bar.update_items(self.images)
+        self._append_log(f"[附件] 已附加 {len(self.images)} 张图片\n")
+
+    def _remove_image(self, path: str):
+        self.images = [p for p in self.images if p != path]
+        self.attach_bar.update_items(self.images)
+
+    def _pick_images(self):
+        exts = " ".join(f"*{e}" for e in sorted(IMAGE_EXTS))
+        paths, _ = QFileDialog.getOpenFileNames(
+            self, "选择拓扑截图", str(Path.home()),
+            f"图片文件 ({exts});;所有文件 (*)")
+        if paths:
+            self._add_images(paths)
+
+    # ============================================================ 命令控制台
+    def _echo(self, text: str):
+        self.cmd_out.moveCursor(self.cmd_out.textCursor().MoveOperation.End)
+        self.cmd_out.insertPlainText(text + "\n")
+        bar = self.cmd_out.verticalScrollBar()
+        bar.setValue(bar.maximum())
+
+    def _run_command(self, raw: str):
+        self._echo(f"> {raw}")
+        if not raw.startswith("/"):
+            self.worker.submit("command", name="call", tool=raw,
+                               args={})
+            return
+        cmd, _, rest = raw[1:].partition(" ")
+        cmd = cmd.strip().lower()
+        rest = rest.strip()
+
+        if cmd == "help":
+            self._echo(HELP_TEXT)
+        elif cmd == "model":
+            if not rest:
+                self.worker.submit("command", name="providers")
+            else:
+                self.worker.submit("set_provider", name=rest)
+        elif cmd == "key":
+            self.worker.submit("set_key", key=rest)
+        elif cmd == "tools":
+            self.worker.submit("command", name="tools")
+        elif cmd == "call":
+            tool, _, arg_text = rest.partition(" ")
+            if not tool:
+                self._echo("用法：/call 工具名 {\"参数\":\"值\"}")
+                return
+            try:
+                args = json.loads(arg_text) if arg_text.strip() else {}
+            except json.JSONDecodeError as e:
+                self._echo(f"参数不是合法 JSON：{e}")
+                return
+            self.worker.submit("command", name="call", tool=tool, args=args)
+        elif cmd == "audit":
+            self.worker.submit("command", name="audit", arg=rest or "10")
+        elif cmd == "vision":
+            self.worker.submit("command", name="vision")
+        elif cmd in ("rebuild", "reindex"):
+            self.worker.submit("command", name="rebuild")
+        elif cmd == "probe":
+            self.worker.submit("command", name="probe")
+        elif cmd == "image":
+            if rest.lower() in ("clear", "none", "-"):
+                self.images.clear()
+                self.attach_bar.update_items(self.images)
+                self._echo("已取消附加图片")
+            elif rest:
+                p = Path(rest.strip('"').strip("'")).expanduser()
+                if p.is_file():
+                    self._add_images([str(p)])
+                    self._echo(f"已附加图片：{p}")
+                else:
+                    self._echo(f"图片不存在：{p}")
+            else:
+                self._echo("已附加图片：" + ("、".join(self.images) or "（无）"))
+        elif cmd in ("agent", "rag", "parallel"):
+            if cmd == "parallel":
+                idx = self.mode_box.findData("parallel")
+            else:
+                idx = self.mode_box.findData(cmd)
+            if idx >= 0:
+                self.mode_box.setCurrentIndex(idx)
+            self._echo(f"已切换到 {cmd} 模式")
+        elif cmd == "export":
+            if rest:
+                try:
+                    self.current_session.export_markdown(rest)
+                    self._echo(f"已导出：{rest}")
+                except (OSError, AttributeError) as e:
+                    self._echo(f"导出失败：{e}")
+            else:
+                self._export_session()
+        elif cmd == "clear":
+            self.cmd_out.clear()
+        else:
+            self._echo(f"未知命令：/{cmd}（输入 /help 查看全部）")
+
+    def _on_command_result(self, name: str, text: str):
+        self._echo(f"[{name}]\n{text}\n")
+
+    # ============================================================ 其它交互
+    def _on_provider_changed(self, _index: int):
+        name = self.provider_box.currentData()
+        if name:
+            self.settings["provider"] = name
+            self.worker.submit("set_provider", name=name)
+
+    def _on_mode_changed(self, _index: int):
+        mode = self.mode_box.currentData()
+        self.settings["mode"] = mode
+        if mode == "parallel":
+            self._append_log("[模式] 多模型并行：同一问题交给多个模型并融合\n")
+        elif mode == "rag":
+            self._append_log("[模式] 知识库问答：固定走检索 + 生成\n")
+        else:
+            self._append_log("[模式] agent：模型自主调用 MCP 工具\n")
+
+    def _toggle_thinking(self):
+        value = not bool(self.settings.get("show_thinking", True))
+        self.settings["show_thinking"] = value
+        self.think_btn.setText("思考 ✓" if value else "思考 ✕")
+        self._save_settings()
+
+    def _start_local(self):
+        vision = bool(self.settings.get("mmproj"))
+        if not find_model():
+            QMessageBox.warning(self, "未找到模型",
+                                f"请在下面的目录放入 gguf 模型文件：\n{BASE_DIR / 'models'}")
+            return
+        if vision and not find_mmproj():
+            vision = False
+            self._append_log("[警告] 未找到 mmproj 视觉投影文件，本次以文本模式启动本地服务\n")
+        self.worker.submit("start_local", vision=vision)
+        self.tabs.setCurrentIndex(1)
+
+    def _show_tools(self):
+        ToolsDialog(getattr(self, "tools_cache", []), self.palette_ref, self).exec()
+
+    def _show_audit(self):
+        AuditDialog(self.palette_ref, self).exec()
+
+    def _show_help(self):
+        box = QMessageBox(self)
+        box.setWindowTitle("使用说明")
+        box.setText(HELP_TEXT)
+        box.exec()
+
+    def _show_settings(self):
+        dialog = SettingsDialog(self.settings, self.palette_ref, self)
+        if dialog.exec() != SettingsDialog.DialogCode.Accepted:
+            return
+        new = dialog.result_settings()
+        if new.get("api_key") and new.get("save_key"):
+            try:
+                path = persist_api_key(new["api_key"])
+                self._append_log(f"[设置] API Key 已写入 {path}\n")
+            except OSError as e:
+                QMessageBox.warning(self, "保存失败", f"写入 .env 失败：{e}")
+        old_theme = self.settings.get("theme")
+        self.settings.update({k: v for k, v in new.items() if k != "save_key"})
+        self._save_settings()
+        if new["theme"] != old_theme:
+            self._apply_theme(get_palette(new["theme"]))
+        self.worker.submit("set_provider", name=new["provider"])
+        self.worker.submit("set_key", key=new["api_key"])
+        self._append_log(
+            f"[设置] 已保存：提供方={new['provider']} 模式={new['mode']} "
+            f"mmproj={'开' if new['mmproj'] else '关'} 联网搜索={'开' if new['with_search'] else '关'}\n")
+        if bool(new["with_search"]) != bool(self.settings.get("with_search")):
+            self._append_log("[设置] 联网搜索 / mmproj 的变更在下次启动时生效\n")
+
+    def _apply_theme(self, palette):
+        self.palette_ref = palette
+        QApplication.instance().setStyleSheet(build_qss(palette))
+        for widget in (self.chat, self.attach_bar):
+            if hasattr(widget, "retint"):
+                widget.retint(palette)
+        for row in (self.row_llama, self.row_ollama, self.row_mcp, self.row_vision):
+            row.palette_ref = palette
+        self._append_log(f"[界面] 已切换到{'深色' if palette.name == 'dark' else '浅色'}主题\n")
+
+    # ============================================================ 设置持久化
+    def _save_settings(self):
+        self.qsettings.setValue("settings", json.dumps(self.settings, ensure_ascii=False))
+
+    def _restore_geometry(self):
+        geo = self.qsettings.value("geometry")
+        if geo:
+            self.restoreGeometry(geo)
+
+    def closeEvent(self, event):
+        try:
+            if self.current_session is not None and self.current_session.records:
+                self.store.save()
+            self.qsettings.setValue("geometry", self.saveGeometry())
+            self._save_settings()
+        except Exception:
+            pass
+        if getattr(self, "worker", None) is not None and self.worker.isRunning():
+            self.worker.stop()
+            if not self.worker.wait(6000):
+                self.worker.terminate()
+                self.worker.wait(2000)
+        event.accept()

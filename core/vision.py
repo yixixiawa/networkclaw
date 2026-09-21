@@ -14,6 +14,7 @@
 """
 import base64
 import io
+from collections.abc import Callable
 from pathlib import Path
 
 import requests
@@ -124,8 +125,11 @@ def vision_status() -> dict:
 def describe_image(image_path: str | Path, question: str = "",
                    system_prompt: str = TOPOLOGY_SYSTEM_PROMPT,
                    show_thinking: bool = False, max_side: int = MAX_SIDE,
-                   timeout: int = 600) -> str:
-    """让本地多模态模型描述一张图片（默认按「网络拓扑识读」提示词处理）。
+                   timeout: int | None = None,
+                   provider=None,
+                   on_think: "Callable[[str], None] | None" = None,
+                   on_answer: "Callable[[str], None] | None" = None) -> str:
+    """让多模态模型描述一张图片（默认按「网络拓扑识读」提示词处理）。
 
     Args:
         image_path: 图片路径
@@ -133,13 +137,24 @@ def describe_image(image_path: str | Path, question: str = "",
         system_prompt: 系统提示词
         show_thinking: 是否打印模型思考过程
         max_side: 图片长边缩放上限
-        timeout: 请求超时秒数
+        timeout: 请求超时秒数；默认取提供方配置
+        provider: 使用的模型提供方（名称或 Provider）；默认当前激活的。
+                  该提供方必须 supports_vision，否则报错提示（DeepSeek 等纯文本模型不支持图片）
+        on_think / on_answer: 流式片段回调（GUI 用）
 
     Raises:
         FileNotFoundError / ValueError: 图片不存在或过大
-        RuntimeError: 服务不可用或模型不支持图片
+        RuntimeError: 提供方不能看图、服务不可用或模型不支持图片
     """
-    from core.llm_client import stream_chat  # 延迟导入，避免环状依赖
+    from core.llm_client import ProviderError, stream_chat  # 延迟导入，避免环状依赖
+    from core.providers import get_provider
+
+    prov = get_provider(provider) if isinstance(provider, str) or provider is None else provider
+    if not getattr(prov, "supports_vision", True):
+        raise RuntimeError(
+            f"{prov.name}（{prov.model}）不支持图片输入，无法识图。\n"
+            f"请改用本地多模态模型：/model local（或让程序自动做多模态桥接）。"
+        )
 
     uri, meta = encode_image_data_uri(image_path, max_side=max_side)
     ask = (question or "").strip() or "请识读这张网络拓扑图，按结构说明设备与链路关系。" + \
@@ -155,19 +170,16 @@ def describe_image(image_path: str | Path, question: str = "",
 
     try:
         result = stream_chat(messages, tools=None, show_thinking=show_thinking,
-                             show_answer=False, timeout=timeout)
-    except requests.HTTPError as e:
-        body = ""
-        try:
-            body = e.response.text[:300]
-        except Exception:
-            pass
+                             show_answer=False, timeout=timeout, provider=prov,
+                             on_think=on_think, on_answer=on_answer)
+    except ProviderError as e:
         raise RuntimeError(
-            f"视觉请求被服务端拒绝（HTTP {getattr(e.response, 'status_code', '?')}）：{body}\n"
-            f"通常是 llama-server 未加载 mmproj。{mmproj_hint()}"
+            f"视觉请求失败：{e}\n\n"
+            f"若提示参数错误，通常是该模型未加载视觉投影文件（mmproj）——"
+            f"本地提供方需要以 --mmproj 启动。{mmproj_hint()}"
         ) from e
     except requests.RequestException as e:
-        raise RuntimeError(f"无法连接 llama-server（{BASE_URL}）：{e}") from e
+        raise RuntimeError(f"无法连接模型服务（{prov.base_url}）：{e}") from e
 
     if not result.content.strip():
         status = vision_status()
@@ -175,6 +187,54 @@ def describe_image(image_path: str | Path, question: str = "",
             f"模型没有返回内容（视觉能力状态：{status['detail']}）。{mmproj_hint()}"
         )
     return result.content
+
+
+# ---------------------------------------------------------------- 多模态桥接
+
+# 把「本地视觉模型读图得到的文字结论」注入给不看图的模型（DeepSeek 等）时用的前缀
+VISION_BRIDGE_PREFIX = """【拓扑图识读结果（由本地视觉模型读取，供你参考）】
+{description}
+
+（说明：以上内容由本地多模态模型对用户提供的拓扑图识读得出，图中未出现的信息不会被编造；
+如果识读结果与用户描述有冲突，请向用户确认。）"""
+
+
+def describe_images(images: list[str] | None, question: str = "",
+                    provider=None, show_thinking: bool = False) -> str:
+    """识读多张图片，返回可直接拼进提问的「识读结论」文本（空串表示没拿到结果）。
+
+    这是「多模态协作」的最小落地：拓扑图含内网 IP/设备名，识图留在本地；
+    识读出的文字结论再交给不看图的云端模型做推理。
+    """
+    from core.providers import Provider, get_provider, vision_capable
+
+    images = [str(i) for i in (images or []) if i]
+    if not images:
+        return ""
+
+    prov = provider
+    if prov is not None and not isinstance(prov, Provider):
+        prov = get_provider(prov)
+    if prov is None or not getattr(prov, "supports_vision", False):
+        prov = vision_capable()
+    if prov is None:
+        print("[警告] 没有可用的视觉提供方（需本地多模态模型 + mmproj），已忽略图片")
+        return ""
+
+    parts: list[str] = []
+    for img in images:
+        print(f"[多模态桥接] 由 {prov.name} 识读 {img} …")
+        try:
+            parts.append(describe_image(img, question=question, provider=prov,
+                                        show_thinking=show_thinking).strip())
+        except Exception as e:
+            print(f"[警告] 识图失败（{type(e).__name__}）：{e}")
+
+    text = "\n\n".join(p for p in parts if p)
+    if not text:
+        return ""
+    print(f"[多模态桥接] 已取得识图结论（{len(text)} 字），将以文字形式提供给不看图的模型")
+    return VISION_BRIDGE_PREFIX.format(description=text)
 
 
 def list_local_images(directory: str | Path | None = None, limit: int = 20) -> list[dict]:

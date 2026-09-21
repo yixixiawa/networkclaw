@@ -1,0 +1,8 @@
+# Git 的钩子由 sh 执行：行尾必须是 LF，否则报 "bad interpreter"
+.githooks/* text eol=lf
+
+# 打包产物是二进制：禁止行尾转换，也不参与文本 diff
+dist/** -text -diff
+
+# 供 PowerShell 执行的脚本：检出为 CRLF，避免 5.1 的解析怪问题
+*.ps1 text eol=crlf

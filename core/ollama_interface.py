@@ -18,13 +18,14 @@
 import hashlib
 import json
 import time
-from pathlib import Path
 
 import chromadb
 from chromadb.utils.embedding_functions.ollama_embedding_function import OllamaEmbeddingFunction
 
-# 项目根目录（core/ 的上一级）
-BASE_DIR = Path(__file__).resolve().parent.parent
+from core.net import ensure_localhost_bypass  # noqa: F401  (让 127.0.0.1:11434 绕过系统代理)
+from core.paths import BASE_DIR  # 统一路径层：打包后指向 exe 所在目录
+
+ensure_localhost_bypass()
 
 CHROMA_PATH = BASE_DIR / "data" / "Rag_data"
 INDEX_STATE_FILE = BASE_DIR / "data" / "index_state.json"
