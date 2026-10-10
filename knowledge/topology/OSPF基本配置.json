@@ -1,0 +1,132 @@
+{
+ "experiment": "OSPF基本配置",
+ "source": "data\\ensp_labs\\src\\OSPF基本配置\\1OSPF基本配置.topo",
+ "device_count": 5,
+ "devices": [
+  {
+   "id": "5009FFB7-160C-4a80-B6ED-7FFF4BEDF3C8",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "782A045A-A033-4294-BB0B-BA89BFFE54AD",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "974B12BE-C805-4564-99BB-4767C842A448",
+   "name": "AR3",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "F124D225-A14B-4785-9BEE-3D520E44D6F3",
+   "name": "AR4",
+   "model": "AR2220",
+   "console_port": 2003
+  },
+  {
+   "id": "3636E50B-EF30-44dd-87BE-B8B2DAC6AAD8",
+   "name": "AR5",
+   "model": "AR2220",
+   "console_port": 2004
+  }
+ ],
+ "pc_count": 0,
+ "link_count": 5,
+ "links": [
+  {
+   "src": "AR2",
+   "dst": "AR1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "AR1",
+   "dst": "AR3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR2",
+   "dst": "AR4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR3",
+   "dst": "AR5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "AR2",
+   "dst": "AR3",
+   "interfaces": [
+    {
+     "cable": "Serial",
+     "src_index": 4,
+     "src_if": "Ethernet0/0/1",
+     "dst_index": 4,
+     "dst_if": "Ethernet0/0/1"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "Lo0:1.1.1.1/32\r\nLo1:11.11.11.11/24\r\n企业总部",
+  "Lo0:2.2.2.2/32\r\n地区总部A",
+  "Lo0：3.3.3.3/32\r\n地区总部B",
+  "Lo0：4.4.4.4/32\r\nLo1:44.44.44.44.44/24\r\n分支机构1",
+  "Lo0:5.5.5.5/32\r\nLo1:55.55.55.55/24\r\n分支机构2",
+  "10.0.12.0/24",
+  "1",
+  "2",
+  "10.0.13.0/24",
+  "1",
+  "3",
+  "10.2.23.0/24",
+  "2",
+  "3",
+  "10.0.24.0/24",
+  "10.0.24.0/24",
+  "2",
+  "4",
+  "3",
+  "5",
+  "Area 0",
+  "Area1",
+  "Area2",
+  "1、完成拓扑中各路由器的基本IP配置，并使用ping命令检测AR1与AR2之间的连通性\r\n2、配置OSPF协议，AR1、AR2、AR3为area0，AR4、AR5为area1，AR3和AR5为area2，配置完成后完成以下内容：\r\n（1）查看AR1、AR2、AR3上OSPF邻居建立情况是否成功建立？截图。（display ospf peer vrief）\r\n（2）查看AR1、AR4的IP路由表，看是否已经获得所有网段路由？截图。（display ip routing-table）\r\n（3）查看DR/BDR选举情况，载图。（display ospf interface）)\r\n（4）查看AR2路由表中的开销值。截图。"
+ ]
+}

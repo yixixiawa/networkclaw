@@ -1,0 +1,32 @@
+# 训练配置样例：Qwen3.5-9B QLoRA（命令生成 SFT）
+# train_sft.py 目前以命令行参数为准，此文件是「复现实验时实际使用的参数快照」，
+# 毕设报告可直接引用：bash 复现命令 = train_sft.py 逐项 --flag 对应这里的值。
+
+base: Qwen/Qwen3.5-9B          # 或 --gguf models/Qwen3.5-9B-Q4_K_M.gguf
+data: data/finetune/chat_20261001   # prepare_data.py 产物（train/val.jsonl）
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+
+train:
+  epochs: 3
+  lr: 2.0e-4
+  scheduler: cosine
+  warmup_ratio: 0.03
+  batch: 2
+  grad_accum: 4                # 有效 batch = 8
+  max_seq: 2048
+  precision: bf16
+  seed: 42
+
+export:
+  merge: true
+  gguf: q4_k_m                 # 与主程序 models/Qwen3.5-9B-Q4_K_M.gguf 同量化档
+
+notes: >-
+  数据来自 58 个 eNSP 实验（tools/build_sft.py --min-pct 60 --min-net 1 导出，
+  --min-net 剔除「设备开机自带答案」的假阳性）。当前正样本量少（个位数），
+  需要把 71 个实验跑完后扩充到百级再正式训练；此配置为最终目标形态。

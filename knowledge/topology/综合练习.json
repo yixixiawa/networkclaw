@@ -1,0 +1,136 @@
+{
+ "experiment": "综合练习",
+ "source": "data\\ensp_labs\\src\\综合练习\\OSPF配置\\paper\\paper.topo",
+ "device_count": 5,
+ "devices": [
+  {
+   "id": "9BE530AF-04B4-426a-A8A9-09ACD7C5B9CC",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "FF61B55F-FDDA-483e-B350-B74F085C1911",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "3C0DDF50-6FF9-449e-9E46-EDFC76A6C1BA",
+   "name": "AR3",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "06763530-2149-4744-9394-7DFF8247A7EE",
+   "name": "AR4",
+   "model": "AR2220",
+   "console_port": 2003
+  },
+  {
+   "id": "FD4DF8A4-DD1D-42a9-B24A-9C9F13DAFFFB",
+   "name": "AR5",
+   "model": "AR2220",
+   "console_port": 2004
+  }
+ ],
+ "pc_count": 1,
+ "link_count": 5,
+ "links": [
+  {
+   "src": "AR2",
+   "dst": "AR1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR1",
+   "dst": "AR4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR1",
+   "dst": "AR3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "PC1",
+   "dst": "AR4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "AR3",
+   "dst": "AR5",
+   "interfaces": [
+    {
+     "cable": "Serial",
+     "src_index": 3,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 3,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "10.10.12.0/24",
+  "2",
+  "1",
+  "RID:2.2.2.2\r\nLo0:172.16.3.1/24\r\nLo1:172.16.4.1/24\r\nLo2:172.16.5.1/24",
+  "OSPF 1 area 1",
+  "Area1接口认证MD5 10",
+  "执行区域间路由汇总",
+  "RID:1.1.1.1",
+  "10.10.14.0/24",
+  "1",
+  "4",
+  "10.10.13.0/24",
+  "1",
+  "3",
+  "area 0 区域认证MD5 1",
+  "设置为静默接口",
+  "执行区外部路由汇总",
+  "10.10.35.0/24",
+  "3",
+  "5",
+  "静态路由引入OSPF,引入的cost 10,type 1",
+  "OSPF1 area0",
+  "192.168.4.0/24",
+  "1",
+  "10",
+  "RID:4.4.4.4",
+  "RID:3.3.3.3",
+  "Lo0:1.1.1.1/24\r\nLo1:1.1.2.1/24\r\nLo3:1.1.3.1/24"
+ ]
+}

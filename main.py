@@ -31,6 +31,7 @@
 """
 from __future__ import annotations
 
+
 import argparse
 import asyncio
 import datetime
@@ -47,6 +48,7 @@ from core.providers import (describe_table, get_active, get_provider, list_provi
                             load_env_file, load_providers, set_active)
 from core.rag import ask, build_index
 from core.vision import vision_status
+from core.local_service import LocalService
 from mcp_tools.client import DEFAULT_SERVERS, SEARCH_SERVER, McpHub
 
 LOG_DIR = BASE_DIR / "logs"
@@ -54,7 +56,7 @@ LOG_DIR = BASE_DIR / "logs"
 HELP_TEXT = """
 可用命令：
   /help               显示本帮助
-  /model [名称]       查看/切换模型提供方（local / deepseek / deepseek-reasoner …）
+  /model [名称]       查看/切换模型提供方（local / deepseek-flash / deepseek-pro …）
   /key sk-xxx         临时设置 DeepSeek API Key（更推荐写进 .env 或环境变量）
   /parallel [列表]    开关多模型并行：不带参数切换；/parallel local,deepseek 指定组合；
                       /parallel off 关闭。开启时先识图（如有），再并行回答并融合
@@ -64,6 +66,8 @@ HELP_TEXT = """
                         /call exec_telnet_command {"command":"display version","host":"192.168.183.200","username":"admin","password":"xxx"}
   /image [路径]       附加一张图片（拓扑截图）到后续提问；/image clear 取消
   /vision             查看图像识别能力状态（是否已加载 mmproj）
+  /topology [关键字]  现在看一眼当前拓扑：截取 eNSP/虚拟机窗口并识读（结果自动入库）
+  /autovision on|off  开关启动时的自动拓扑巡检（本次会话内生效）
   /audit [n]          查看最近的设备命令审计记录
   /agent              切换到 agent 模式（模型自主调用 MCP 工具）
   /rag                切换到 rag 模式（固定知识库检索问答）
@@ -80,11 +84,11 @@ def parse_args():
     parser.add_argument("--mode", choices=["agent", "rag"], default="agent",
                         help="启动模式，默认 agent（模型自主调用 MCP 工具）")
     parser.add_argument("--provider", default=None, metavar="名称",
-                        help="模型提供方：local / deepseek / deepseek-reasoner，默认用配置里的激活项")
+                        help="模型提供方：local / deepseek-flash / deepseek-pro，默认用配置里的激活项")
     parser.add_argument("--deepseek-key", default=None, metavar="sk-xxx",
                         help="临时指定 DeepSeek API Key（未设置 DEEPSEEK_API_KEY 时用）")
     parser.add_argument("--deepseek-model", default=None, metavar="模型名",
-                        help="覆盖 DeepSeek 模型名（默认 deepseek-chat）")
+                        help="覆盖 DeepSeek Flash 模型名（默认 deepseek-flash）")
     parser.add_argument("--parallel", action="store_true",
                         help="每轮提问都走多模型并行 + 融合（等效于启动后执行 /parallel）")
     parser.add_argument("--parallel-providers", default=None, metavar="列表",
@@ -97,6 +101,11 @@ def parse_args():
     parser.add_argument("--with-search", action="store_true",
                         help="额外接入联网搜索 MCP 服务端（需 npx + open-websearch）")
     parser.add_argument("--no-thinking", action="store_true", help="不打印模型思考过程")
+    parser.add_argument("--no-auto-vision", action="store_true",
+                        help="关闭启动时的自动拓扑巡检（默认开启：自动截取 eNSP/虚拟机窗口"
+                             "并识读当前拓扑，结论供后续对话引用）")
+    parser.add_argument("--capture-keyword", default=None, metavar="关键字",
+                        help="自动巡检的目标窗口关键字（如 vmware / ensp），默认按内置表匹配")
     parser.add_argument("--max-rounds", type=int, default=4,
                         help="agent 模式最多工具调用轮次，默认 4（设备操作需要更多轮）")
     return parser.parse_args()
@@ -277,6 +286,30 @@ async def chat_loop(hub: McpHub, mode: str, show_thinking: bool, stream: bool,
                 print(f"  当前模型 {active.name}：{'支持图片' if active.supports_vision else '不支持图片（走多模态桥接）'}")
                 if not found:
                     print("  " + mmproj_hint().replace("\n", "\n  "))
+            elif cmd == "topology":
+                # 现场看一眼当前拓扑：截图 → 本地识读 → 快照落盘（自动注入后续对话）
+                from core import auto_topology
+
+                if find_mmproj() is None:
+                    print(f"[提示] {mmproj_hint()}")
+                    continue
+                try:
+                    local.ensure(require_vision=True)
+                    kw = rest.strip() or None
+                    r = await asyncio.to_thread(
+                        auto_topology.auto_inspect, kw, None, True, show_thinking)
+                    print(auto_topology.render_result(r))
+                except Exception as e:
+                    print(f"[失败] {type(e).__name__}: {e}")
+            elif cmd == "autovision":
+                arg = rest.strip().lower()
+                if arg in ("on", "开", "1", "true"):
+                    print("自动拓扑巡检：已开启（下次启动时生效；本次可用 /topology 立即执行）")
+                elif arg in ("off", "关", "0", "false"):
+                    print("自动拓扑巡检：已关闭（本次会话不再自动执行；"
+                          "持久关闭请启动时加 --no-auto-vision）")
+                else:
+                    print("用法：/autovision on|off（持久配置用 --no-auto-vision 或设置项）")
             elif cmd == "audit":
                 n = rest.strip() or "10"
                 print("[审计] " + (await hub.call_tool("recent_audit", {"n": int(n) if n.isdigit() else 10})))
@@ -415,6 +448,30 @@ async def main():
                 status = vision_status()
                 print(f"图像识别状态：{'可用' if status['available'] else ('待确认' if status['available'] is None else '不可用')}"
                       f"（{status['detail']}）")
+
+            # ------------------------------------------------ 自动拓扑巡检
+            # 默认开启（--no-auto-vision 关闭）：截取 eNSP/虚拟机窗口 → 本地模型
+            # 识读 → 快照落盘。执行前打印 notice 明确告知用户，保证自动化透明。
+            if not args.no_auto_vision:
+                if find_mmproj(args.mmproj) is None:
+                    print(f"\n[自动拓扑巡检] 未执行：{mmproj_hint()}")
+                else:
+                    from core import auto_topology
+
+                    print("\n" + auto_topology.notice(args.capture_keyword))
+                    try:
+                        local.ensure(require_vision=True)
+                        state = vision_status()
+                        if state["available"] is False:
+                            print(f"[自动拓扑巡检] 跳过：当前 llama-server 未加载 mmproj"
+                                  f"（{state['detail']}）。kill 旧实例后重启本程序即可。")
+                        else:
+                            r = auto_topology.auto_inspect(
+                                keyword=args.capture_keyword,
+                                show_thinking=not args.no_thinking)
+                            print(auto_topology.render_result(r))
+                    except Exception as e:
+                        print(f"[自动拓扑巡检] 失败：{type(e).__name__}: {e}（不影响后续对话）")
 
             if args.mode == "rag":
                 print("\n当前为 rag 模式：固定知识库检索问答（输入 /agent 可切换到工具模式）")

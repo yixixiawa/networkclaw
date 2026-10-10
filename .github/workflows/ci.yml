@@ -1,0 +1,69 @@
+name: CI
+
+# 守门两件事：
+#   ① 离线单元测试（tests/，不依赖 Ollama / 显卡 / 网络）
+#   ② 知识库一致性校验（实验文档 ↔ 拓扑数据集，防「模型学到错的接口名」）
+#
+# 注意：kb_consistency 依赖 data/ensp_labs 解析产物（knowledge/topology/ 与
+# knowledge/experiments/）。这两个目录已入库，所以 CI 上可直接校验；若它们缺失
+# （比如浅克隆或有人误删），check_all 会返回 error，此时跳过而非失败——
+# 「没数据」不等于「数据不一致」。
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      # requirements.txt 是完整的 pip freeze（含 PyQt6 等重量级依赖），全量装在 CI 上
+      # 又慢又容易因平台差异失败。这里只装被测模块**顶层 import** 真正需要的那几个：
+      # 测试会 import core.rag / core.template_search / mcp_tools.* ，它们分别依赖
+      # langchain_text_splitters、chromadb、fastmcp。其余重依赖（PyQt6 / cv2 /
+      # onnxruntime…）在源码里都是惰性导入，不需要装。
+      - name: 安装测试依赖
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            pytest pytest-timeout pytest-asyncio anyio \
+            chromadb fastmcp langchain-text-splitters python-dotenv requests
+
+      - name: 语法自检（全部模块可编译）
+        run: |
+          python -m py_compile main.py launcher.py core/*.py mcp_tools/*.py tools/*.py
+
+      - name: 知识库一致性校验（实验文档 ↔ 拓扑数据集）
+        run: |
+          python tools/kb_consistency.py --json > kb.json; rc=$?
+          cat kb.json
+          if [ $rc -eq 2 ]; then
+            echo "::warning::知识库数据缺失，跳过一致性校验（不代表通过）"
+            exit 0
+          fi
+          exit $rc
+
+      - name: 运行离线单元测试
+        run: python -m pytest -v
+
+      - name: 命令安全网关自检
+        run: python -m core.command_guard

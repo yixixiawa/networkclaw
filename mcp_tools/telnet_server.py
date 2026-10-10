@@ -30,7 +30,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from fastmcp import FastMCP  # noqa: E402
 
 from core import device_conn  # noqa: E402
-from core.command_guard import LEVEL_CN, audit, check  # noqa: E402
+from core.command_guard import LEVEL_CN, audit, check, split_commands  # noqa: E402
 
 mcp = FastMCP("Network-Device-Telnet")
 
@@ -43,6 +43,27 @@ def _truncate(text: str, limit: int = MAX_OUTPUT) -> str:
         return text
     return (text[:limit]
             + f"\n...（回显共 {len(text)} 字，已截断；可用 display ... | include 缩小范围）")
+
+
+def _record(host: str, port: int, command: str, level: str, confirmed: bool,
+            executed: bool, result: str = "", extra: str = "") -> str:
+    """访问登记 + 命令历史归档（确定性落盘，不依赖模型自觉；失败静默不影响执行）。
+
+    设备名解析：种子清单里 host:port 匹配到的名字 > 登记时绑定的名字 > 地址兜底。
+    返回归档到的文件名（无则空串），供回显里告知用户「已记到哪里」。
+    """
+    name = ""
+    try:
+        from core import device_manual, device_registry
+        device_registry.record_access("telnet", host=host, port=port)
+        name = device_registry.resolve_name("telnet", host=host, port=port)
+        device_manual.append_history(name, command, result, transport="telnet",
+                                     target=f"{host}:{port}", level=level,
+                                     confirmed=confirmed, executed=executed,
+                                     extra=extra)
+    except Exception:
+        return ""
+    return f"data/device_history/{name}.jsonl" if name else ""
 
 
 @mcp.tool
@@ -61,6 +82,9 @@ def check_telnet(host: str, port: int = DEFAULT_TELNET_PORT) -> str:
                 f"排查建议：① 设备是否已开启 Telnet（Huawei/H3C：telnet server enable）；"
                 f"② 中间设备/ACL 是否放通 23 端口；③ VTY 用户是否允许该源地址登录。")
     banner = info.get("banner") or "(设备未主动发送 banner，属正常现象)"
+    if info["ok"]:
+        from core.device_registry import record_access
+        record_access("telnet", host=info["host"], port=info["port"])
     return f"{info['host']}:{info['port']} 端口可达（耗时 {info['elapsed']}s）。banner：{banner}"
 
 
@@ -93,6 +117,8 @@ def exec_telnet_command(command: str, host: str, username: str = "", password: s
     if not allowed:
         audit(command, decision, transport="telnet", target=target,
               confirmed=confirm, executed=False)
+        _record(host.strip(), port, command, decision["level"], confirm, False,
+                result=message)
         return message
 
     sess = None
@@ -102,19 +128,49 @@ def exec_telnet_command(command: str, host: str, username: str = "", password: s
             enable_password=enable_password, timeout=max(5, timeout),
             disable_paging=disable_paging,
         )
-        output = sess.exec_command(command, timeout=max(5, timeout))
+        # 支持 `;`/换行串联的多条命令：同一会话内逐条执行（视图状态自然延续）
+        parts = split_commands(command)
+        if len(parts) == 1:
+            output = sess.exec_command(command, timeout=max(5, timeout))
+        else:
+            chunks = []
+            for part in parts:
+                r = sess.exec_command(part, timeout=max(5, timeout))
+                chunks.append(f"$ {part}\n{r}" if r else f"$ {part}\n(无回显)")
+            output = "\n".join(chunks)
         audit(command, decision, transport="telnet", target=target,
               confirmed=confirm, executed=True)
+        filed = _record(host.strip(), port, command, decision["level"], confirm, True,
+                        result=output)
     except Exception as e:
         audit(command, decision, transport="telnet", target=target,
               confirmed=confirm, executed=False, extra=f"{type(e).__name__}: {e}")
+        _record(host.strip(), port, command, decision["level"], confirm, False,
+                result=f"{type(e).__name__}: {e}")
         return f"Telnet 执行失败：{type(e).__name__}: {e}"
     finally:
         if sess is not None:
             sess.close()
 
-    return (f"[{LEVEL_CN[decision['level']]}] {target} 执行：{command}\n"
-            f"———— 回显 ————\n{_truncate(output) if output else '(设备无回显)'}")
+    tail = f"\n（已记入 {filed}）" if filed else ""
+    # 走到这里说明命令已真正下发（confirm 级带了 confirm=true 也会放行）。
+    # 这里**不能**回写「[需确认]」前缀——实测模型看到它会误判成"命令被拒绝"，
+    # 然后原地打转反复重发同一条命令。执行成功就只说执行成功。
+    errs = [ln.strip() for ln in (output or "").splitlines()
+            if ln.strip().lower().startswith(("error", "错误"))]
+    err_note = ("\n\n[设备报错] 必须据此修正命令，不要原样重发：\n"
+                + "\n".join(errs[:6])) if errs else ""
+    # 光把报错丢回给模型没用——9B 模型看不懂英文报错，只会原样重发。
+    # 附上对应的标准解法，实测能把空转从 8 轮压到 1~2 轮。
+    try:
+        from core.cmd_hints import format_hints
+
+        err_note += format_hints(output or "")
+    except Exception:  # noqa: BLE001
+        pass
+    return (f"[已执行] {target} 执行：{command}\n"
+            f"———— 回显 ————\n{_truncate(output) if output else '(设备无回显)'}"
+            f"{err_note}{tail}")
 
 
 if __name__ == "__main__":

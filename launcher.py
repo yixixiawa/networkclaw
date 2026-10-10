@@ -223,11 +223,13 @@ def _print_usage() -> None:
   {APP_TITLE}.exe --provider deepseek …         参数直接透传给命令行模式
 
 桌面端参数（--gui 之后）：
-  --provider local|deepseek|deepseek-reasoner   默认模型提供方
+  --provider local|deepseek-flash|deepseek-pro  默认模型提供方
   --mode agent|rag|parallel                    默认模式
   --parallel-providers local,deepseek          并行模式参与方
   --mmproj [路径]                               启用图像识别（留空自动探测）
   --image 图片路径                              预载拓扑截图
+  --no-auto-vision                              关闭启动时的自动拓扑巡检
+  --capture-keyword 关键字                      巡检目标窗口关键字（如 vmware）
   --with-search                                接入联网搜索 MCP
   --light / --dark                             主题
   --reset-settings                             忽略上次保存的设置

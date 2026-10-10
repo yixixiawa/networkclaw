@@ -1,0 +1,178 @@
+{
+ "experiment": "ACL与IP-PREFIX配置练习",
+ "source": "data\\ensp_labs\\src\\ACL与IP-PREFIX配置练习\\paper\\paper.topo",
+ "device_count": 5,
+ "devices": [
+  {
+   "id": "123875CC-A5A2-4750-9D1D-30ACB6C7EEE3",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "0E191FE8-062F-417c-9059-545153A31C80",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "93AA66D8-A1C9-447b-9C3A-C1E4C6A7BA7C",
+   "name": "AR3",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "65FD9614-C122-4113-A6D0-87B5008D14BC",
+   "name": "AR4",
+   "model": "AR2220",
+   "console_port": 2003
+  },
+  {
+   "id": "C95808FF-E291-448a-BB2F-6C2D28EA50AE",
+   "name": "LSW1",
+   "model": "S5700",
+   "console_port": 2004
+  }
+ ],
+ "pc_count": 4,
+ "link_count": 9,
+ "links": [
+  {
+   "src": "AR1",
+   "dst": "AR2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR1",
+   "dst": "AR4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR4",
+   "dst": "AR3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR3",
+   "dst": "AR2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "AR3",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "PC4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 3,
+     "src_if": "GigabitEthernet0/0/4",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "PC5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 4,
+     "src_if": "GigabitEthernet0/0/5",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "192.168.3.1/24\r\n192.168.30.1/24 SUB",
+  "192.168.3.10/24",
+  "192.168.30.10/24",
+  "10.10.12.0/24",
+  "1",
+  "2",
+  "1",
+  "4",
+  "Ripv2",
+  "10.10.14.0/24",
+  "10.10.23.0/24",
+  "2",
+  "3",
+  "3",
+  "4",
+  "10.10.34.0/24",
+  "1、按照拓扑图所示信息配置各个设备；\r\n2、配置完成后，查看AR1路由表并截图，观察此时AR1到192.168.3.0/24及192.168.30.0/24的路由的下一跳分别是哪个路由器；\r\n3、在AR1配置一个基本ACL，规则是允许192.168.3.0/24网络通过；\r\n4、在AR1配置一个IP-PREFIX，允许192.168.30.0/24通过；\r\n5、在接口上配置增加RIP接收路由开销，使得192.168.3.0/24的下一条是AR2，192.168.30.0/24的下一跳是AR4。\r\n6、查看路由表并截图，观察是否实现上面目标；\r\n7、提交ANS文档。",
+  "192.168.130.10/24"
+ ]
+}

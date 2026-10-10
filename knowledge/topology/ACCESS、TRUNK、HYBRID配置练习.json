@@ -1,0 +1,164 @@
+{
+ "experiment": "ACCESS、TRUNK、HYBRID配置练习",
+ "source": "data\\ensp_labs\\src\\ACCESS、TRUNK、HYBRID配置练习\\paper\\paper.topo",
+ "device_count": 3,
+ "devices": [
+  {
+   "id": "58F35BC8-6686-4026-A9BF-6FE894205940",
+   "name": "LSW1",
+   "model": "S5700",
+   "console_port": 2000
+  },
+  {
+   "id": "E65DABB8-EABA-433f-BB14-E2738DA157B9",
+   "name": "LSW2",
+   "model": "S3700",
+   "console_port": 2001
+  },
+  {
+   "id": "FFC43F07-DAFA-4951-876B-6971D5D25F05",
+   "name": "LSW3",
+   "model": "S3700",
+   "console_port": 2002
+  }
+ ],
+ "pc_count": 7,
+ "link_count": 9,
+ "links": [
+  {
+   "src": "LSW1",
+   "dst": "LSW3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "Ethernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "Ethernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW3",
+   "dst": "PC3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "Ethernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW3",
+   "dst": "PC4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "Ethernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "PC5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "HUB1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "HUB1",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "Ethernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "PC6",
+   "dst": "HUB1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 2,
+     "dst_if": "Ethernet0/0/2"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "VLAN 10",
+  "Hybrid PVID 20",
+  "vlan 30",
+  "trunk",
+  "trunk",
+  "VLAN 20",
+  "VLAN 10",
+  "192.168.1.10/24",
+  "192.168.1.20/24",
+  "192.168.1.30/24",
+  "192.168.1.40/24",
+  "照拓扑图及信息，对交换机进行配置，除标明的配置信息外，其他的配置自行决定，达如下效果：\r\n1、PC1、CP4可以互通。\r\n2、PC2、PC3可以互通。\r\n3、PC2、PC5、PC6可以互通\r\n4、除上述三种情况外，其余不能互通。\r\n\r\n提交资料：\r\n1、ans文档；\r\n2、PC上述PC互通情况截图。",
+  "trunk",
+  "192.168.1.50/24",
+  "192.168.1.60/24",
+  "trunk"
+ ]
+}

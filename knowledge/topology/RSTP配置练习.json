@@ -1,0 +1,131 @@
+{
+ "experiment": "RSTP配置练习",
+ "source": "data\\ensp_labs\\src\\RSTP配置练习\\RSTP配置练习拓扑\\RSTP配置练习拓扑.topo",
+ "device_count": 4,
+ "devices": [
+  {
+   "id": "3FE94B5E-0D4F-42e1-8888-C73FF7B92C89",
+   "name": "LSW1",
+   "model": "S5700",
+   "console_port": 2000
+  },
+  {
+   "id": "79FE5256-C3AA-4274-80E7-402732BD69E5",
+   "name": "LSW2",
+   "model": "S5700",
+   "console_port": 2001
+  },
+  {
+   "id": "CBA9B623-59F3-4883-8F21-99BEDB64A9C5",
+   "name": "LSW3",
+   "model": "S5700",
+   "console_port": 2002
+  },
+  {
+   "id": "31D73342-5BE6-4d65-90D8-08B8FB399C8C",
+   "name": "LSW4",
+   "model": "S5700",
+   "console_port": 2003
+  }
+ ],
+ "pc_count": 4,
+ "link_count": 7,
+ "links": [
+  {
+   "src": "LSW2",
+   "dst": "LSW3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "LSW4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW4",
+   "dst": "HUB1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW3",
+   "dst": "LSW4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 2,
+     "dst_if": "GigabitEthernet0/0/3"
+    }
+   ]
+  },
+  {
+   "src": "PC1",
+   "dst": "HUB1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 1,
+     "dst_if": "Ethernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW3",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW4",
+   "dst": "HUB2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 3,
+     "src_if": "GigabitEthernet0/0/4",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "1、所有交换机配置STP模式为RSTP;\r\n2、配置LWS2的网桥优先级为4096，使其下面的网络拓扑中的根桥,查询STP信息，看看LSW2是否为当前的根桥；\r\n3、配置LSW4的G0/0/2的端口为边缘端口，并且激活BPDU过滤功能，观察该端口是否又BPDU报文发出；\r\n4、使PC1与PC2保持通信，LSW4配置BPDU保护，然后把LSW1接入LSW4，观察PC1与PC2通信是否正常；\r\n5、取消LWS1与LSW4的连接，把LSW1改为从HUB1接入，再观察PC1与PC2通信是否正常；\r\n6、在LSW4的G0/0/2中取消BPDU过滤功能，再观察PC1与PC2通信是否正常，注意观察此时LSW4的报警信息及G0/0/2接口状态；\r\n7、在LSW4中配置ERROR端口自动恢复功能，间隔时间为30秒，然后取消LSW1与HUB1的连接，观察30秒后PC1与PC2通信是否恢复；\r\n8、把LSW1的网桥优先级配置为0，在LSW4的G0/0/4中配置根保护功能，然后使LSW1与LSW4的G0/0/4进行连接，观察LSW4的\r\nG0/0/4端口STP状态，接着取消LSW1与LSW4的连接，过30秒后再观察LSW4的G0/0/4端口STP状态。",
+  "192.168.1.10/24",
+  "192.168.1.20/24"
+ ]
+}

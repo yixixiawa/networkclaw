@@ -1,0 +1,160 @@
+{
+ "experiment": "MUX_VLAN练习",
+ "source": "data\\ensp_labs\\src\\MUX_VLAN练习\\paper\\paper.topo",
+ "device_count": 3,
+ "devices": [
+  {
+   "id": "F3EDCA9E-9323-4102-9868-2425509CF697",
+   "name": "LSW1",
+   "model": "S5700",
+   "console_port": 2000
+  },
+  {
+   "id": "B7FC6F21-9753-4905-B722-9C38671EBB77",
+   "name": "LSW2",
+   "model": "S5700",
+   "console_port": 2001
+  },
+  {
+   "id": "ECC40200-6D7E-46ae-87BF-99F490C4BE36",
+   "name": "LSW3",
+   "model": "S5700",
+   "console_port": 2002
+  }
+ ],
+ "pc_count": 7,
+ "link_count": 9,
+ "links": [
+  {
+   "src": "LSW1",
+   "dst": "LSW2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "LSW3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "服务器",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "PC3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 3,
+     "src_if": "GigabitEthernet0/0/4",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "PC4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 4,
+     "src_if": "GigabitEthernet0/0/5",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW3",
+   "dst": "A客户",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW3",
+   "dst": "B客户",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "VALN 10\r\n业务部",
+  "VLAN 20\r\n财务部",
+  "VLAN 30\r\n访客",
+  "VLAN 50",
+  "192.168.10.10/24",
+  "192.168.10.20/24",
+  "192.168.10.30/24",
+  "192.168.10.40/24",
+  "192.168.10.50/24",
+  "192.168.10.60/24",
+  "192.168.10.70/24",
+  "在二层网络中配置MUX VLAN，实现如下功能：\r\n1、业务部、财务部、访客三个VLAN不能互通\r\n2、业务部内部可以互通，财务部内部可以互通，均可以访问服务器。\r\n3、访客电脑之间不能互通，只能访问服务器。"
+ ]
+}

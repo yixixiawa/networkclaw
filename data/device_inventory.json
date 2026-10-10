@@ -1,0 +1,18 @@
+{
+  "_说明": "设备端口映射清单（device-config-recorder skill 维护）。设备名与串口一一对应；密码不写入此文件。",
+  "host": "192.168.10.130",
+  "updated": "2026-09-30",
+  "devices": [
+    {"name": "R1",  "port": 2000, "vendor": "Huawei", "model": "AR2220",  "type": "router", "login": "telnet 无凭据", "manual": "skills/R1/SKILL.md",  "history": "data/device_history/R1.jsonl"},
+    {"name": "R2",  "port": 2001, "vendor": "Huawei", "model": "AR2220",  "type": "router", "login": "telnet 无凭据", "manual": "skills/R2/SKILL.md",  "history": "data/device_history/R2.jsonl"},
+    {"name": "R3",  "port": 2002, "vendor": "Huawei", "model": "AR2220",  "type": "router", "login": "telnet 无凭据", "manual": "skills/R3/SKILL.md",  "history": "data/device_history/R3.jsonl"},
+    {"name": "SW1", "port": 2003, "vendor": "Huawei", "model": "S5700-28C-HI", "type": "switch", "login": "telnet 无凭据", "manual": "skills/SW1/SKILL.md", "history": "data/device_history/SW1.jsonl"},
+    {"name": "SW2", "port": 2004, "vendor": "Huawei", "model": "S5700-28C-HI", "type": "switch", "login": "telnet 无凭据", "manual": "skills/SW2/SKILL.md", "history": "data/device_history/SW2.jsonl"},
+    {"name": "SW3", "port": 2005, "vendor": "Huawei", "model": "S5700-28C-HI", "type": "switch", "login": "telnet 无凭据", "manual": "skills/SW3/SKILL.md", "history": "data/device_history/SW3.jsonl"}
+  ],
+  "topology_notes": [
+    "SW1(2003) GE0/0/1 ↔ SW2(2004) GE0/0/1；SW1 GE0/0/2 ↔ SW2 GE0/0/2（双链路并行 up，2026-09-23 LLDP 确认）",
+    "SW3(2005) 当前所有业务口 down（预留后续 STP 三台串联测试）",
+    "2026-09-23 已为六台设备设置 sysname（SW1-3 / R1-3）并在三台交换机启用全局 LLDP"
+  ]
+}

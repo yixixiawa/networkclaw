@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, QSettings, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QKeyEvent
+from PyQt6.QtGui import QColor, QDragEnterEvent, QDropEvent, QKeyEvent
 from PyQt6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -40,6 +40,8 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QSplitter,
     QTabWidget,
+    QTableWidget,
+    QTableWidgetItem,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -219,6 +221,13 @@ class MainWindow(QMainWindow):
         self._service_timer.timeout.connect(lambda: self.worker.submit("services"))
         self._service_timer.start()
 
+        # 设备在线状态轮询（设备管理页签）
+        self._device_probed = False
+        self._device_timer = QTimer(self)
+        self._device_timer.setInterval(30000)
+        self._device_timer.timeout.connect(self._refresh_devices)
+        self._device_timer.start()
+
         self._new_session(first=True)
         self._append_log("NetworkClaw 已启动，正在初始化…\n")
 
@@ -320,8 +329,10 @@ class MainWindow(QMainWindow):
 
         self.tabs = QTabWidget()
         self.tabs.addTab(self._build_chat_tab(), "对话")
+        self.tabs.addTab(self._build_device_tab(), "设备")
         self.tabs.addTab(self._build_log_tab(), "运行日志")
         self.tabs.addTab(self._build_command_tab(), "命令")
+        self.tabs.currentChanged.connect(self._on_tab_changed)
         layout.addWidget(self.tabs, 1)
         return host
 
@@ -473,6 +484,120 @@ class MainWindow(QMainWindow):
         layout.addLayout(row)
         return page
 
+    # ============================================================ 设备管理
+    DEVICE_LIGHT_ON = "#1fa34a"     # 绿灯：在线（SecureCRT 风格）
+    DEVICE_LIGHT_OFF = "#8b9096"    # 灰灯：离线
+
+    def _build_device_tab(self) -> QWidget:
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(6)
+
+        row = QHBoxLayout()
+        self.device_refresh_btn = QPushButton("刷新状态")
+        self.device_refresh_btn.setObjectName("Ghost")
+        self.device_refresh_btn.clicked.connect(self._refresh_devices)
+        row.addWidget(self.device_refresh_btn)
+
+        self.device_auto_box = QComboBox()
+        self.device_auto_box.addItem("自动刷新：30 秒", 30)
+        self.device_auto_box.addItem("自动刷新：10 秒", 10)
+        self.device_auto_box.addItem("自动刷新：60 秒", 60)
+        self.device_auto_box.addItem("关闭自动刷新", 0)
+        self.device_auto_box.currentIndexChanged.connect(self._on_device_interval)
+        row.addWidget(self.device_auto_box)
+
+        row.addStretch(1)
+        self.device_summary = QLabel("设备状态待探测…")
+        self.device_summary.setObjectName("AppSubtitle")
+        row.addWidget(self.device_summary)
+        layout.addLayout(row)
+
+        self.device_table = QTableWidget(0, 7)
+        self.device_table.setHorizontalHeaderLabels(
+            ["状态", "设备", "型号", "地址", "通道", "最后访问", "说明"])
+        self.device_table.verticalHeader().setVisible(False)
+        self.device_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.device_table.setSelectionBehavior(
+            QTableWidget.SelectionBehavior.SelectRows)
+        self.device_table.setAlternatingRowColors(True)
+        self.device_table.setColumnWidth(0, 52)
+        self.device_table.setColumnWidth(1, 110)
+        self.device_table.setColumnWidth(2, 130)
+        self.device_table.setColumnWidth(3, 170)
+        self.device_table.setColumnWidth(4, 70)
+        self.device_table.setColumnWidth(5, 150)
+        self.device_table.horizontalHeader().setStretchLastSection(True)
+        layout.addWidget(self.device_table, 1)
+
+        hint = QLabel("清单来源：data/device_inventory.json + 智能体实际访问过的设备"
+                      "（Telnet/串口工具连接成功即登记）。状态探测为只读 TCP/串口枚举，不下发任何命令。")
+        hint.setObjectName("AppSubtitle")
+        hint.setWordWrap(True)
+        layout.addWidget(hint)
+        return page
+
+    def _refresh_devices(self):
+        self.device_summary.setText("探测中…")
+        self.worker.submit("device_probe")
+
+    def _on_device_interval(self):
+        sec = self.device_auto_box.currentData() or 0
+        if sec > 0:
+            self._device_timer.setInterval(sec * 1000)
+            self._device_timer.start()
+            self._refresh_devices()
+        else:
+            self._device_timer.stop()
+
+    def _on_tab_changed(self, idx: int):
+        # 第一次切到设备页签时立即探测一次
+        if self.tabs.tabText(idx) == "设备" and not self._device_probed:
+            self._device_probed = True
+            self._refresh_devices()
+
+    def _on_devices(self, devices: list):
+        """填充设备表（绿点=在线，灰点=离线）"""
+        self.device_table.setRowCount(len(devices))
+        online = 0
+        for i, d in enumerate(devices):
+            is_on = bool(d.get("online"))
+            online += is_on
+
+            light = QTableWidgetItem()
+            light.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.device_table.setItem(i, 0, light)
+
+            def _cell(text: str) -> QTableWidgetItem:
+                it = QTableWidgetItem(str(text or "—"))
+                it.setToolTip(str(text or ""))
+                return it
+
+            self.device_table.setItem(i, 1, _cell(d.get("name")))
+            model = d.get("model") or (f"{d.get('vendor')}·{d.get('type')}" if d.get("type") else "")
+            self.device_table.setItem(i, 2, _cell(model))
+            addr = (f"{d['host']}:{d['port']}" if d.get("host")
+                    else d.get("serial_port") or d.get("key"))
+            self.device_table.setItem(i, 3, _cell(addr))
+            self.device_table.setItem(i, 4, _cell(d.get("transport")))
+            self.device_table.setItem(i, 5, _cell(d.get("last_seen")))
+            self.device_table.setItem(i, 6, _cell(d.get("detail")))
+
+            # 灯放最后涂色，行背景也跟着淡淡提示（避免整行扎眼）
+            self._paint_device_row(i, is_on)
+        self.device_summary.setText(
+            f"共 {len(devices)} 台 · 在线 {online} · 离线 {len(devices) - online}")
+
+    def _paint_device_row(self, row: int, is_on: bool):
+        color = self.DEVICE_LIGHT_ON if is_on else self.DEVICE_LIGHT_OFF
+        color = QColor(self.DEVICE_LIGHT_ON if is_on else self.DEVICE_LIGHT_OFF)
+        light = self.device_table.item(row, 0)
+        if light is not None:
+            light.setText("●")
+            light.setForeground(color)
+            light.setToolTip("在线" if is_on else "离线")
+
     # ============================================================ 标准流
     def _wire_stdout(self):
         self._log_signal = _LogEmitter()
@@ -506,6 +631,8 @@ class MainWindow(QMainWindow):
             "deepseek_key": self.settings.get("api_key"),
             "mmproj": self.settings.get("mmproj") or None,
             "with_search": bool(self.settings.get("with_search")),
+            "auto_vision": bool(self.settings.get("auto_vision", True)),
+            "capture_keyword": self.settings.get("capture_keyword") or None,
         }
 
     def _connect_worker(self):
@@ -523,11 +650,15 @@ class MainWindow(QMainWindow):
         w.sig_result.connect(self._on_command_result)
         w.sig_services.connect(self._on_services)
         w.sig_providers.connect(self._apply_providers)
+        w.sig_topology.connect(self._on_topology)
+        w.sig_devices.connect(self._on_devices)
 
     def _on_state(self, text: str):
         self.status_left.setText(text)
 
     def _on_ready(self, info: dict):
+        self._device_probed = True
+        self._refresh_devices()   # 就绪即探测一轮，设备页签不用等 30 秒
         self._apply_providers(info.get("providers") or [])
         idx = self.provider_box.findData(info.get("active"))
         if idx >= 0:
@@ -828,6 +959,21 @@ class MainWindow(QMainWindow):
             self.worker.submit("command", name="audit", arg=rest or "10")
         elif cmd == "vision":
             self.worker.submit("command", name="vision")
+        elif cmd == "topology":
+            # 手动触发自动巡检（force=True：无视画面差分，重新识读）
+            self._echo("自动拓扑巡检：截取 eNSP/虚拟机窗口并识读…")
+            self.worker.submit("auto_vision", force=True,
+                               keyword=rest or None)
+        elif cmd == "autovision":
+            arg = rest.lower()
+            if arg in ("on", "开", "1", "true"):
+                self.settings["auto_vision"] = True
+                self._echo("自动拓扑巡检：已开启（下次启动生效；本次可用 /topology 立即执行）")
+            elif arg in ("off", "关", "0", "false"):
+                self.settings["auto_vision"] = False
+                self._echo("自动拓扑巡检：已关闭（下次启动不再自动执行；可在设置里改回）")
+            else:
+                self._echo("用法：/autovision on|off")
         elif cmd in ("rebuild", "reindex"):
             self.worker.submit("command", name="rebuild")
         elif cmd == "probe":
@@ -870,6 +1016,14 @@ class MainWindow(QMainWindow):
 
     def _on_command_result(self, name: str, text: str):
         self._echo(f"[{name}]\n{text}\n")
+
+    def _on_topology(self, text: str):
+        """自动拓扑巡检结果 → 对话区气泡（用户可见、可追溯）"""
+        bubble = self.chat.add_bubble("assistant", "")
+        bubble.append_answer(text)
+        bubble.set_meta("自动拓扑巡检")
+        bubble.finalize()
+        self.chat.scroll_to_bottom(force=True)
 
     # ============================================================ 其它交互
     def _on_provider_changed(self, _index: int):
@@ -930,6 +1084,8 @@ class MainWindow(QMainWindow):
             except OSError as e:
                 QMessageBox.warning(self, "保存失败", f"写入 .env 失败：{e}")
         old_theme = self.settings.get("theme")
+        old_mmproj = bool(self.settings.get("mmproj"))
+        old_search = bool(self.settings.get("with_search"))
         self.settings.update({k: v for k, v in new.items() if k != "save_key"})
         self._save_settings()
         if new["theme"] != old_theme:
@@ -938,8 +1094,9 @@ class MainWindow(QMainWindow):
         self.worker.submit("set_key", key=new["api_key"])
         self._append_log(
             f"[设置] 已保存：提供方={new['provider']} 模式={new['mode']} "
-            f"mmproj={'开' if new['mmproj'] else '关'} 联网搜索={'开' if new['with_search'] else '关'}\n")
-        if bool(new["with_search"]) != bool(self.settings.get("with_search")):
+            f"mmproj={'开' if new['mmproj'] else '关'} 联网搜索={'开' if new['with_search'] else '关'} "
+            f"自动巡检={'开' if new.get('auto_vision') else '关'}\n")
+        if bool(new["with_search"]) != old_search or bool(new.get("mmproj")) != old_mmproj:
             self._append_log("[设置] 联网搜索 / mmproj 的变更在下次启动时生效\n")
 
     def _apply_theme(self, palette):

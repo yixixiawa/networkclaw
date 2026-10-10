@@ -1,0 +1,138 @@
+{
+ "experiment": "引入课后练习工程",
+ "source": "data\\ensp_labs\\src\\引入课后练习工程\\paper\\paper.topo",
+ "device_count": 5,
+ "devices": [
+  {
+   "id": "3C8AAE26-2423-4d5b-B995-1C4C8C544A28",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "DA9F9B94-01E5-4a43-9954-D85E1680D1BA",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "1A478DA4-7058-4eed-B11B-1522D08E60A2",
+   "name": "AR3",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "33CE52B0-7A8F-4150-89A5-E22DEF99185C",
+   "name": "AR4",
+   "model": "AR2220",
+   "console_port": 2003
+  },
+  {
+   "id": "F95EBC26-A2FB-4def-A94C-DB41D13F24D9",
+   "name": "AR5",
+   "model": "AR2220",
+   "console_port": 2004
+  }
+ ],
+ "pc_count": 1,
+ "link_count": 5,
+ "links": [
+  {
+   "src": "AR2",
+   "dst": "AR1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR1",
+   "dst": "AR5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR1",
+   "dst": "AR3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR1",
+   "dst": "AR4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 3,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR5",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "192.168.5.0/24",
+  "10",
+  "1",
+  "15.1.1.0/24",
+  "5",
+  "1",
+  "13.1.1.0/24",
+  "1",
+  "3",
+  "14.1.1.0/24",
+  "1",
+  "4",
+  "12.1.1.0/24",
+  "1",
+  "2",
+  "ospf 10\r\nAare 0",
+  "ospf 20\r\nArea 0",
+  "RIP",
+  "ISIS 30",
+  "Level-2",
+  "49.0001",
+  "网络B",
+  "网络A",
+  "网络C",
+  "网络D",
+  "Lo0：5.5.5.5/32",
+  "Lo0:2.2.2.2/32",
+  "Lo0:4.4.4.4/32",
+  "Lo0:3.3.3.3/32",
+  "Lo0:1.1.1.1/32"
+ ]
+}

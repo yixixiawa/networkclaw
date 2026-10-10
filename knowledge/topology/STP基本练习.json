@@ -1,0 +1,138 @@
+{
+ "experiment": "STP基本练习",
+ "source": "data\\ensp_labs\\src\\STP基本练习\\STP基本练习拓扑\\STP基本练习拓扑.topo",
+ "device_count": 5,
+ "devices": [
+  {
+   "id": "1D02F8D5-5EE7-4226-8554-DD4A2737EBE0",
+   "name": "LSW1",
+   "model": "S5700",
+   "console_port": 2000
+  },
+  {
+   "id": "CC498C2D-A33F-45a3-86C1-204CE7862720",
+   "name": "LSW2",
+   "model": "S5700",
+   "console_port": 2001
+  },
+  {
+   "id": "109C9C65-D3F6-4177-BD83-442C7B46C8AE",
+   "name": "LSW3",
+   "model": "S5700",
+   "console_port": 2002
+  },
+  {
+   "id": "8C4B5779-AB97-4935-9D78-262404EAA23A",
+   "name": "LSW4",
+   "model": "S5700",
+   "console_port": 2003
+  },
+  {
+   "id": "D28C8694-11F9-41d4-8B28-5878BBC6D7C9",
+   "name": "LSW5",
+   "model": "S5700",
+   "console_port": 2004
+  }
+ ],
+ "pc_count": 2,
+ "link_count": 7,
+ "links": [
+  {
+   "src": "LSW1",
+   "dst": "LSW2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "LSW3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW4",
+   "dst": "LSW3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/2"
+    }
+   ]
+  },
+  {
+   "src": "PC2",
+   "dst": "LSW2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 2,
+     "dst_if": "GigabitEthernet0/0/3"
+    }
+   ]
+  },
+  {
+   "src": "LSW4",
+   "dst": "LSW5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "LSW5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/2"
+    }
+   ]
+  },
+  {
+   "src": "LSW5",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "1、修改各个交换机的STP运行版本为STP;\r\n2、查看当前哪个交换机时根桥；查看当前哪些端口时阻塞端口，思考为什么？\r\n3、修改LSW2 G0/0/1 cost=1000，LSW3 G0/0/1 cost=1000;\r\n4、查询交换机各个接口的角色，比较与第2点查询结果的变化；\r\n5、把LSW3的BID优先级设置为0，查询当前那个交换机是根桥；\r\n6、让PC1与PC2持续进行通信，观察LSW5使用哪个端口进行通信，观察LSW2中PC1的MAC地址在哪个端口上；\r\n7、在PC保持通信的状态下，关闭LSW5 G0/0/1，观察多久两台PC可以恢复通信，当前LSW2中PC1的MAC地址在哪个端口上；\r\n8、在PC保持通信的状态下，恢复LSW5 G0/0/1,观察多长时间可以恢复通信；\r\n9、保存ANS文档提交。",
+  "192.168.1.1/24",
+  "192.168.1.2/24",
+  "54-89-98-A4-51-ED"
+ ]
+}

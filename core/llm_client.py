@@ -289,6 +289,7 @@ def stream_chat(messages: list[dict], tools: list[dict] | None = None,
     """
     prov = provider if isinstance(provider, Provider) else get_provider(provider)
     timeout = timeout or prov.timeout
+    _started = time.time()
     tools_dropped: list[bool] = []
     payload = _build_payload(messages, prov, tools, temperature, tools_dropped)
     if tools_dropped:
@@ -395,7 +396,7 @@ def stream_chat(messages: list[dict], tools: list[dict] | None = None,
         if slot["name"]
     ]
 
-    return ChatResult(
+    result = ChatResult(
         content="".join(answer_parts),
         tool_calls=tool_calls,
         usage=usage,
@@ -405,6 +406,16 @@ def stream_chat(messages: list[dict], tools: list[dict] | None = None,
         model=prov.model,
         tools_dropped=bool(tools_dropped),
     )
+
+    # 运行日志：每次调用都留痕，供复盘与微调数据集导出（失败也要记）
+    try:
+        from core import run_log
+
+        run_log.log_call(messages=messages, result=result,
+                         elapsed=time.time() - _started)
+    except Exception:
+        pass  # 日志绝不能影响主流程
+    return result
 
 
 # ---------------------------------------------------------------- 并行调用

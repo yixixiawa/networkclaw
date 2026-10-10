@@ -1,0 +1,153 @@
+{
+ "experiment": "MPLS解决BGP路由黑洞配置",
+ "source": "data\\ensp_labs\\src\\MPLS解决BGP路由黑洞配置\\paper\\paper.topo",
+ "device_count": 5,
+ "devices": [
+  {
+   "id": "321BC64D-399E-447c-BF4C-0445E732D58D",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "FC95D633-7FFE-43ce-BAAD-60BA437CA57A",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "82AB17F5-4C19-4b9d-AFBA-F8D761508F9A",
+   "name": "AR3",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "6714E4A5-B3F3-46ed-BBEF-4507DEB34754",
+   "name": "AR4",
+   "model": "AR2220",
+   "console_port": 2003
+  },
+  {
+   "id": "92B7ADAF-EB02-4f21-8F6C-BC389EB37912",
+   "name": "AR5",
+   "model": "AR2220",
+   "console_port": 2004
+  }
+ ],
+ "pc_count": 2,
+ "link_count": 6,
+ "links": [
+  {
+   "src": "AR4",
+   "dst": "AR5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR5",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR4",
+   "dst": "AR3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "AR1",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR1",
+   "dst": "AR2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR2",
+   "dst": "AR3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "200.200.12.0/24",
+  "1",
+  "2",
+  "EBGP",
+  "IBGP\r\n使用环路地址",
+  "100.100.23.0/24",
+  "2",
+  "4",
+  "2",
+  "3",
+  "3",
+  "4",
+  "AS100",
+  "AS200",
+  "AS300",
+  "100.100.34.0/24",
+  "200.200.45.0/24",
+  "4",
+  "5",
+  "200.200.10.0/24",
+  "1",
+  "10",
+  "1",
+  "10",
+  "200.200.50.0/24",
+  "ROUTER-ID 1.1.1.1",
+  "RPUTE-ID 2.2.2.2\r\nLSR-ID 2.2.2.2\r\nLO0:2.2.2.2/32",
+  "RPUTE-ID 4.4.4.4\r\nLSR-ID 4.4.4.4\r\nLO0:4.4.4.4/32",
+  "RPUTE-ID 3.3.3.3\r\nLSR-ID 3.3.3.3\r\nLO0:3.3.3.3/32",
+  "ROUTER-ID 5.5.5.5",
+  "OSPF AREA 0\r\nMPLS 网络",
+  "按照下面拓扑要求配置设备，是PC与PC2互通"
+ ]
+}

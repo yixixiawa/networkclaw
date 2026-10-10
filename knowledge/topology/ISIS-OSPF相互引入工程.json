@@ -1,0 +1,114 @@
+{
+ "experiment": "ISIS-OSPF相互引入工程",
+ "source": "data\\ensp_labs\\src\\ISIS-OSPF相互引入工程\\paper\\paper.topo",
+ "device_count": 5,
+ "devices": [
+  {
+   "id": "A48E8F14-BBF8-4adb-B693-4DD16442CE2E",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "8D41D75D-83C2-4b67-BF1D-216AA70339DC",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "8763BB67-7DD9-4cf8-BEA4-558A2D6840A0",
+   "name": "AR3",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "2215EE55-C96B-414a-BE6E-38E988ACCCE0",
+   "name": "AR4",
+   "model": "AR2220",
+   "console_port": 2003
+  },
+  {
+   "id": "6CD86A19-5352-40fe-A124-B4FD802EB185",
+   "name": "AR5",
+   "model": "AR2220",
+   "console_port": 2004
+  }
+ ],
+ "pc_count": 0,
+ "link_count": 4,
+ "links": [
+  {
+   "src": "AR1",
+   "dst": "AR2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "AR2",
+   "dst": "AR3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "AR3",
+   "dst": "AR4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "AR4",
+   "dst": "AR5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "10.10.12.0/24",
+  "1",
+  "2",
+  "10.10.23.0/24",
+  "2",
+  "3",
+  "10.10.34.0/24",
+  "3",
+  "4",
+  "10.10.45.0/24",
+  "4",
+  "5",
+  "Lo0:1.1.1.1/32",
+  "Lo0:2.2.2.2/32",
+  "Lo0:3.3.3.3/32",
+  "Lo0:4.4.4.4/32",
+  "Lo0:5.5.5.5/32",
+  "OSPF Area 0\r\nAR1:RID:1.1.1.1\r\nAR2:RID:2.2.2.2\r\nAR3:RID:3.3.3.3",
+  "ISIS Area 49.0345 -L2\r\nAR3:49.0345.0000.0000.0003.00\r\nAR4:49.0345.0000.0000.0004.00\r\nAR5:49.0345.0000.0000.0005.00"
+ ]
+}

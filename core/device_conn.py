@@ -80,7 +80,7 @@ def strip_iac_bytes(data: bytes) -> bytes:
 
 PROMPT_RE = re.compile(
     r"(?:"
-    r"[<\[]\s*[A-Za-z0-9_\-\u4e00-\u9fa5\.]{1,64}\s*[>\]]\s*$"      # <Huawei>  [SW1]
+    r"[<\[]\s*[A-Za-z0-9_\-\u4e00-\u9fa5\./:]{1,96}\s*[>\]]\s*$"    # <Huawei> [SW1] [SW1-GE0/0/1]
     r"|^[A-Za-z0-9_\-\u4e00-\u9fa5\.]{1,64}[#>]\s*$"                 # SW1#   Router>
     r"|\(config[^)]*\)[#>]\s*$"                                      # (config)#
     r")",
@@ -382,6 +382,9 @@ class TelnetSession(BaseSession):
 
         返回登录过程中收集到的文本（仅用于诊断，不作为命令输出）。
         """
+        # eNSP 等模拟器启动后不主动发 banner/提示符，必须先发一个回车「唤醒」
+        # （对真机无害：最多回显一个空行 + 提示符）
+        self.write_line("")
         seen = self.read_until(
             lambda buf, new: has_prompt(buf)
             or _tail_has(buf, USER_PROMPTS)

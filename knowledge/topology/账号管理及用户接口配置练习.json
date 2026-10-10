@@ -1,0 +1,41 @@
+{
+ "experiment": "账号管理及用户接口配置练习",
+ "source": "data\\ensp_labs\\src\\账号管理及用户接口配置练习\\paper\\paper.topo",
+ "device_count": 2,
+ "devices": [
+  {
+   "id": "E2A453DC-144B-4457-983F-54035695C6EF",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "BEFD7724-ECA5-450b-A0B3-4B0546886EF4",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2001
+  }
+ ],
+ "pc_count": 0,
+ "link_count": 1,
+ "links": [
+  {
+   "src": "AR1",
+   "dst": "AR2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "192.168.1.1/24",
+  "192.168.1.2/24",
+  "要求：\r\n1、按照拓扑图信息完成设备名称、接口配置；\r\n2、AR2中，配置用户接口console 0接口为aaa认证登录模式，配置账号admin服务类型为terminal，密码为huawei;\r\n3、在AR2中，配置用户接口vty0-4为aaa认证登录模式，允许telnet协议包进入；\r\n4、配置账号test1、test2，密码均为123456，服务类型为telnet；test1权限等级为0，test2权限等级为3；\r\n5、确认AR2激活telnet服务，在AR1上使用telent进入AR2，分别使用test1与test2进行登录。\r\n\r\n提交文档：\r\n1、ans文档；\r\n2、AR2重启后，终端登录界面截图；\r\n3、使用test1登录后，截图说明是否可以查看配置信息，是否可以进入系统配置试图；\r\n4、使用test2登录后，截图说明是否可以查看配置信息，是否可以进入系统配置试图。"
+ ]
+}

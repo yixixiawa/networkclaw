@@ -1,0 +1,62 @@
+{
+ "experiment": "配置防止MAC地址漂移",
+ "source": "data\\ensp_labs\\src\\配置防止MAC地址漂移\\paper\\paper.topo",
+ "device_count": 1,
+ "devices": [
+  {
+   "id": "38844818-BD0F-4297-9AFA-BFDE9F8AA011",
+   "name": "LSW5",
+   "model": "S5700",
+   "console_port": 2003
+  }
+ ],
+ "pc_count": 3,
+ "link_count": 3,
+ "links": [
+  {
+   "src": "LSW5",
+   "dst": "PC10",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW5",
+   "dst": "PC11",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW5",
+   "dst": "PC13",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "1、防止发生地址漂移配置练习\r\n1）使用PC10分别与PC13 、PC11与PC13持续进行通信，多次查看MAC地址，观察MAC地址漂移现象；\r\n2）停止所有PC间的通信，清空交换机MAC地址表（undo mac-address dynamic ），启用禁止同级（0级）\r\n端口地址漂移功能，先使用PC11与PC13持续进行通信，此时再使用PC10与PC13进行通信，观察是否成功，\r\n为什么？\r\n3）PC11与PC13、PC11与PC13的通信，在G0/0/1上配置MAC地址学习优先级为3，观察现在上述的两组通信\r\n中，哪个是成功的，为什么？\r\n4）保存配置提交ANS文件。",
+  "192.168.1.113/24",
+  "192.168.1.110/24\r\n54-89-98-3A-21-35",
+  "192.168.1.111/24\r\n54-89-98-3A-21-35"
+ ]
+}

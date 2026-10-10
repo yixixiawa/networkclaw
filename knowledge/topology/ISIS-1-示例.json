@@ -1,0 +1,74 @@
+{
+ "experiment": "ISIS-1-示例",
+ "source": "data\\ensp_labs\\src\\ISIS-1-示例\\ISIS-1-示例.topo",
+ "device_count": 3,
+ "devices": [
+  {
+   "id": "DEE6C9C0-1D41-41a1-829B-4F6CD03435EE",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "6BA02365-E1DE-456c-B4EF-6A662A28D78B",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "AEBFEC12-5F6A-41df-B6C8-960C79728F78",
+   "name": "AR3",
+   "model": "AR2220",
+   "console_port": 2002
+  }
+ ],
+ "pc_count": 0,
+ "link_count": 2,
+ "links": [
+  {
+   "src": "AR1",
+   "dst": "AR2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR2",
+   "dst": "AR3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "Lo0:1.1.1.1/32",
+  "10.1.12.0/24",
+  "1",
+  "2",
+  "10.1.23.0/24",
+  "2",
+  "3",
+  "Lo0:2.2.2.2/32",
+  "lo0:3.3.3.3/32",
+  "level-1",
+  "Level-1-2",
+  "Level-2",
+  "ID:0000.0000.0001",
+  "ID:0000.0000.0002",
+  "ID:0000.0000.0003",
+  "Area 49.0012",
+  "Area 49.0003"
+ ]
+}

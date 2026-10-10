@@ -1,27 +1,148 @@
-华为交换机主要产品线分为S系列和CE系列。S系列面向企业网络，包括：
-- S1700：入门级二层交换机，用于小型办公接入。
-- S2700：百兆接入交换机，适用于小型企业。
-- S3700：三层百兆交换机，支持静态路由和基础VLAN。
-- S5700：全千兆交换机，分LI（二层）和EI（三层），常用于企业汇聚层。
-- S6700：万兆上行交换机，用于高性能汇聚或小型核心。
-- S7700/S12700：核心交换机，支持CSS集群，用于大中型企业骨干网。
+# 华为设备基础参考（知识库基线文档）
 
-华为路由器主要分为AR系列和NE系列：
-- AR系列（AR1200/2200/3200）：企业分支接入，支持路由、交换、语音、安全一体化。
-- NE系列（NE40E/NE5000/NE8000）：运营商骨干网和城域网高端路由器。
+> 用途：设备手册（`skills/<设备名>/SKILL.md`）是**运行期逐步积累**的，新设备第一次
+> 接触时还是空白。本文档提供一份与具体设备无关的**基线知识**，让模型在冷启动时
+> 至少知道该型号的基本盘（端口编号规则、默认行为、常用命令视图），而不是完全凭记忆猜。
+> 具体设备的实际配置仍以 `read_device_manual` 与真机回显为准。
 
-华为交换机基础配置命令：
-- system-view：进入系统视图。
-- sysname SW1：修改设备名。
-- vlan batch 10 20 ：批量创建VLAN。
-- interface GigabitEthernet 0/0/1：进入接口。
-- port link-type access / trunk：设置接口模式。
-- port default vlan 10：Access口加入VLAN。
-- display current-configuration：查看当前配置。
-- save：保存配置。
+## 一、产品线定位
 
-华为路由器基础配置命令：
-- interface GigabitEthernet 0/0/0：进入接口。
-- ip address 192.168.1.1 24：配置IP地址。
-- ip route-static 0.0.0.0 0 192.168.1.254：配置默认路由。
-- display ip routing-table：查看路由表。
+### 交换机
+- **S1700**：入门级二层交换机，小型办公接入，无管理或弱管理。
+- **S2700**：百兆接入交换机，适用于小型企业接入层。
+- **S3700**：三层百兆交换机，支持静态路由与基础 VLAN，常用于实验环境接入。
+- **S5700**：全千兆交换机，分 **LI**（二层）与 **EI**（三层，支持路由/OSPF）两个版本，
+  常用于企业汇聚层。S5700-LI 不能跑 `ip routing`，需要三层功能请选 EI。
+- **S6700**：万兆上行交换机，用于高性能汇聚或小型核心。
+- **S7700 / S12700**：核心交换机，支持 CSS 集群，用于大中型企业骨干网。
+- **CE 系列**：数据中心交换机（CE6800/CE12800），运行与 S 系列略有差异。
+
+### 路由器
+- **AR 系列（AR1200 / AR2200 / AR3200）**：企业分支接入，路由、交换、语音、安全一体化。
+  AR2220 提供 3 个 GE 口（GE0/0/0 ~ GE0/0/2），实验中最常见。
+- **NE 系列（NE40E / NE5000 / NE8000）**：运营商骨干与城域网高端路由器。
+
+## 二、端口编号规则（最容易记错的一点）
+
+| 设备类型 | 起始编号 | 示例 |
+|---|---|---|
+| 路由器（AR 系列） | **0 开始** | 第一个口是 `GigabitEthernet0/0/0` |
+| 交换机（S5700/S3700） | **1 开始** | 第一个口是 `GigabitEthernet0/0/1` |
+
+- 命令中接口名不区分大小写，可缩写：`int g0/0/1`、`int GigabitEthernet0/0/1` 等价。
+- 查看全部物理口：`display interface brief`（含 up/down 与速率）。
+- 交换机的 `Ethernet0/0/x` 是百兆口，`GigabitEthernet0/0/x` 是千兆口，不要混用。
+- **eNSP 的 HUB 是 0 基命名**（`Ethernet0/0/0` 起），与交换机不同。
+
+## 三、视图与模式
+
+| 视图 | 提示符 | 进入方式 | 可做什么 |
+|---|---|---|---|
+| 用户视图 | `<SW1>` | 登录后默认 | 只读 `display`、`ping`、`save` |
+| 系统视图 | `[SW1]` | `system-view` | 全局配置：`sysname`、`vlan`、`interface` |
+| 接口视图 | `[SW1-GigabitEthernet0/0/1]` | `interface X` | 接口属性：`port link-type`、`ip address` |
+| 协议视图 | `[SW1-vlan10]` / `[SW1-ospf-1]` | `vlan 10` / `ospf 1` | 协议参数 |
+
+- 返回上一级：`quit`；直接回用户视图：`return` 或 `Ctrl+Z`。
+- 配置完成后必须 `save` 才会写入下次启动配置，否则重启丢失。
+
+## 四、交换机基础配置
+
+```text
+system-view                      # 进系统视图
+sysname SW1                      # 改设备名
+vlan batch 10 20 30              # 批量创建 VLAN
+
+interface GigabitEthernet0/0/1
+ port link-type access           # 接入模式：连终端/PC
+ port default vlan 10            # 加入 VLAN 10
+
+interface GigabitEthernet0/0/2
+ port link-type trunk            # 干道模式：连交换机
+ port trunk allow-pass vlan 10 20 30
+
+interface GigabitEthernet0/0/3
+ port link-type hybrid           # 混合模式：可同时承载 tagged/untagged
+ port hybrid pvid vlan 10
+ port hybrid untagged vlan 10 20
+
+display current-configuration    # 查看当前配置
+display vlan                     # 查看 VLAN 与成员口
+save                             # 保存（交互确认 y）
+```
+
+**链路聚合（Eth-Trunk）**：
+
+```text
+interface Eth-Trunk 1
+ mode lacp-static                 # 或 mode manual load-balance（手工负载分担）
+ port link-type trunk
+ port trunk allow-pass vlan all
+interface GigabitEthernet0/0/1
+ eth-trunk 1                      # 成员口加入
+interface GigabitEthernet0/0/2
+ eth-trunk 1
+display eth-trunk 1               # 查看成员与状态
+```
+
+## 五、路由器基础配置
+
+```text
+system-view
+sysname R1
+interface GigabitEthernet0/0/0
+ ip address 10.10.12.1 24         # 掩码可写 24 或 255.255.255.0
+ undo shutdown                     # GE 口默认可能处于 shutdown
+interface LoopBack 0
+ ip address 1.1.1.1 32
+quit
+ip route-static 0.0.0.0 0 10.10.12.2   # 默认路由
+display ip interface brief        # 查看接口 IP 与状态
+display ip routing-table          # 查看路由表
+```
+
+## 六、常用诊断命令
+
+| 目的 | 命令 |
+|---|---|
+| 接口状态与 IP | `display ip interface brief` |
+| 接口详细（含错包） | `display interface GigabitEthernet0/0/1` |
+| 路由表 | `display ip routing-table` |
+| VLAN 信息 | `display vlan` |
+| MAC 地址表 | `display mac-address` |
+| OSPF 邻居 | `display ospf peer brief` |
+| OSPF 路由 | `display ospf routing` |
+| BGP 邻居 | `display bgp peer` |
+| 连通性 | `ping 10.10.12.2` |
+| 路径追踪 | `tracert 8.8.8.8` |
+| 当前配置 | `display current-configuration` |
+| 指定接口配置 | `display current-configuration interface GigabitEthernet0/0/1` |
+
+## 七、易错点（真机上反复出现）
+
+1. **接口编号偏 1**：把路由器的 `GE0/0/1` 当成第一个口——路由器是 0 基，第一个是 `GE0/0/0`。
+   接口配错会导致「两端不在同网段」，`display ip interface brief` 一看便知。
+2. **GE 口默认 shutdown**：AR 路由器的 GE 口配完 IP 后仍要 `undo shutdown` 才能 up。
+3. **改接口类型要先清理**：接口上已有 trunk/hybrid 配置时直接改 `port link-type access`
+   会报 `Error: Please renew the default configuration`，需先 `undo port link-type`。
+4. **`save` 要确认**：`save` 后会问 `Are you sure to continue? [Y/N]`，脚本里需补 `y`。
+5. **同 VLAN 隔离**：同一交换机上两个 access 口若都在 VLAN 10 则可互通；
+   要隔离必须放**不同 VLAN**，靠 ACL 或 VLAN 划分，不能靠接口模式。
+6. **Trunk 必须放行**：只配 `port link-type trunk` 而不 `port trunk allow-pass vlan`
+   时只有 VLAN 1 能过，业务 VLAN 全部不通。
+7. **Hybrid 的 untagged/tagged**：`port hybrid untagged vlan` 用于出方向剥标签（接终端），
+   `tagged` 用于带标签（接交换机）。搞反会导致 VLAN 不通。
+
+## 八、三厂商对照（做多厂商设备时参考）
+
+| 功能 | 华为 | H3C | 思科 |
+|---|---|---|---|
+| 进配置模式 | `system-view` | `system-view` | `configure terminal` |
+| 设备名 | `sysname X` | `sysname X` | `hostname X` |
+| 创建 VLAN | `vlan 10` | `vlan 10` | `vlan 10` |
+| 接口 | `interface g0/0/1` | `interface g1/0/1` | `interface g0/1` |
+| 默认路由 | `ip route-static 0.0.0.0 0 X` | `ip route-static 0.0.0.0 0 X` | `ip route 0.0.0.0 0.0.0.0 X` |
+| 查看配置 | `display current-configuration` | `display current-configuration` | `show running-config` |
+| 保存 | `save` | `save` | `write` / `copy run start` |
+| 撤销命令 | `undo X` | `undo X` | `no X` |
+| 查看接口 | `display ip int brief` | `display ip int brief` | `show ip int brief` |

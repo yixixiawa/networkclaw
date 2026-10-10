@@ -1,0 +1,205 @@
+{
+ "experiment": "ISIS-1-基本配置",
+ "source": "data\\ensp_labs\\src\\ISIS-1-基本配置\\ISIS-1-基本配置\\paper\\paper.topo",
+ "device_count": 8,
+ "devices": [
+  {
+   "id": "4F7F75A5-D4B3-44b3-8E19-468BD58EB59D",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "5194FEF8-13C6-4948-90A3-C14253DE7E0D",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "9B81AF6F-991B-4f96-98FD-9FC82C6A3BE6",
+   "name": "AR3",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "CA7C4EA3-661A-4396-9C6E-DFB0CBEC4921",
+   "name": "AR4",
+   "model": "AR2220",
+   "console_port": 2003
+  },
+  {
+   "id": "35C6664F-8348-42d5-8ECF-2702D8A55DA6",
+   "name": "AR5",
+   "model": "AR2220",
+   "console_port": 2004
+  },
+  {
+   "id": "62032BBB-36E7-4f03-9255-4D1FCDD45C4A",
+   "name": "AR6",
+   "model": "AR2220",
+   "console_port": 2005
+  },
+  {
+   "id": "6DD2DA6F-10C0-4646-8BC8-51124D22F353",
+   "name": "AR7",
+   "model": "AR2220",
+   "console_port": 2006
+  },
+  {
+   "id": "29374632-E256-4432-80E0-1D8EA2848C52",
+   "name": "SW1",
+   "model": "S5700",
+   "console_port": 2007
+  }
+ ],
+ "pc_count": 0,
+ "link_count": 8,
+ "links": [
+  {
+   "src": "AR1",
+   "dst": "SW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "SW1",
+   "dst": "AR2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "SW1",
+   "dst": "AR3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR2",
+   "dst": "AR4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR3",
+   "dst": "AR4",
+   "interfaces": [
+    {
+     "cable": "Serial",
+     "src_index": 3,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 3,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR4",
+   "dst": "AR5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR5",
+   "dst": "AR6",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR6",
+   "dst": "AR7",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "Lo0:172.16.1.1/24",
+  "Lo接口激活ISIS",
+  "49.0002",
+  "level-1",
+  "Level-1",
+  "DIS",
+  "10.10.123.0/24",
+  "1",
+  "2",
+  "3",
+  "Level-1-2",
+  "Level-1-2",
+  "10.10.24.0/24",
+  "10.10.34.0/24",
+  "2",
+  "3",
+  "4",
+  "4",
+  "4",
+  "5",
+  "5",
+  "6",
+  "6",
+  "7",
+  "10.10.67.0/24",
+  "10.10.45.0/24",
+  "10.10.56.0/24",
+  "Level-1",
+  "49.0003",
+  "Lo0:192.168.1.1/24",
+  "Level-1",
+  "Lo接口激活ISIS",
+  "Lever-2",
+  "Level-2",
+  "Level-1-2",
+  "1、按照拓扑图配置IP地址\r\n2、按照拓扑图配置IS-IS路由\r\nAR1:49.0002.0000.0000.0001.00\r\nAR2:49.0002.0000.0000.0002.00\r\nAR3:49.0002.0000.0000.0003.00\r\nAR4:49.0001.0000.0000.0004.00\r\nAR5:49.0001.0000.0000.0005.00\r\nAR6:49.0003.0000.0000.0006.00\r\nAR7:49.0003.0000.0000.0007.00\r\n所有ISIS 进程为100\r\n提交内容：\r\n1、RA is-is路由表截图\r\n2、RE路由表截图\r\n3、RG路由表截图\r\n4、RC产生的LSP明细截图\r\n5、骨干区域LSDB截图，并表出那些是DIS\r\n要示，网络互通",
+  "49.0001",
+  "Level-2",
+  "Lo0：10.10.10.5/24",
+  "Lo0接口不激活ISIS，引入直连路由"
+ ]
+}

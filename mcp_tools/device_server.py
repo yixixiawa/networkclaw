@@ -33,7 +33,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from fastmcp import FastMCP  # noqa: E402
 
 from core import device_conn  # noqa: E402
-from core.command_guard import LEVEL_CN, audit, audit_tail, check  # noqa: E402
+from core.command_guard import LEVEL_CN, audit, audit_tail, check, split_commands  # noqa: E402
 
 mcp = FastMCP("Network-Device-Serial")
 
@@ -46,6 +46,22 @@ def _truncate(text: str, limit: int = MAX_OUTPUT) -> str:
         return text
     return (text[:limit]
             + f"\n...（回显共 {len(text)} 字，已截断；如需完整内容可配合 display ... | include 过滤）")
+
+
+def _record(port: str, command: str, level: str, confirmed: bool,
+            executed: bool, result: str = "", extra: str = "") -> str:
+    """访问登记 + 命令历史归档（确定性落盘，失败静默不影响执行）；返回归档文件名"""
+    name = ""
+    try:
+        from core import device_manual, device_registry
+        device_registry.record_access("serial", serial_port=port)
+        name = device_registry.resolve_name("serial", serial_port=port)
+        device_manual.append_history(name, command, result, transport="serial",
+                                     target=port, level=level, confirmed=confirmed,
+                                     executed=executed, extra=extra)
+    except Exception:
+        return ""
+    return f"data/device_history/{name}.jsonl" if name else ""
 
 
 @mcp.tool
@@ -103,25 +119,41 @@ def exec_command(command: str, port: str, baudrate: int = DEFAULT_BAUDRATE,
     if not allowed:
         audit(command, decision, transport="serial", target=port,
               confirmed=confirm, executed=False)
+        _record(port.strip().upper(), command, decision["level"], confirm, False,
+                result=message)
         return message
 
     sess = None
     try:
         sess = device_conn.open_serial(port, baudrate=baudrate, timeout=max(5, timeout),
                                        disable_paging=disable_paging)
-        output = sess.exec_command(command, timeout=max(5, timeout))
+        # 支持 `;`/换行串联的多条命令：同一会话内逐条执行（视图状态自然延续）
+        parts = split_commands(command)
+        if len(parts) == 1:
+            output = sess.exec_command(command, timeout=max(5, timeout))
+        else:
+            chunks = []
+            for part in parts:
+                r = sess.exec_command(part, timeout=max(5, timeout))
+                chunks.append(f"$ {part}\n{r}" if r else f"$ {part}\n(无回显)")
+            output = "\n".join(chunks)
         audit(command, decision, transport="serial", target=port,
               confirmed=confirm, executed=True)
+        filed = _record(port.strip().upper(), command, decision["level"], confirm, True,
+                        result=output)
     except Exception as e:
         audit(command, decision, transport="serial", target=port,
               confirmed=confirm, executed=False, extra=f"{type(e).__name__}: {e}")
+        _record(port.strip().upper(), command, decision["level"], confirm, False,
+                result=f"{type(e).__name__}: {e}")
         return f"串口执行失败：{type(e).__name__}: {e}"
     finally:
         if sess is not None:
             sess.close()
 
+    tail = f"\n（已记入 {filed}）" if filed else ""
     return (f"[{LEVEL_CN[decision['level']]}] {port} 执行：{command}\n"
-            f"———— 回显 ————\n{_truncate(output) if output else '(设备无回显)'}")
+            f"———— 回显 ————\n{_truncate(output) if output else '(设备无回显)'}{tail}")
 
 
 @mcp.tool

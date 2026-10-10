@@ -43,6 +43,7 @@ Agent-Rag-MCP-startup/
 │   ├── device_server.py         # MCP 服务端：串口设备操作（list_serial_ports/classify_command/exec_command/recent_audit）
 │   ├── telnet_server.py         # MCP 服务端：Telnet 设备操作（check_telnet/exec_telnet_command）
 │   ├── vision_server.py         # MCP 服务端：图像识别（vision_ready/list_local_images/analyze_topology_image）
+│   ├── manual_server.py         # MCP 服务端：设备手册自建自维护（建档/读取/追加小节/命令历史）
 │   ├── internet.py              # MCP 服务端：封装 open-websearch 联网搜索工具
 │   ├── client.py                # MCP 客户端层：stdio 拉起服务端、聚合工具、路由调用、重名检测
 │   └── search_client.py         # MCP 客户端测试脚本（联网搜索服务单独试跑用）
@@ -55,30 +56,85 @@ Agent-Rag-MCP-startup/
 │   ├── llm.json                 # 模型提供方配置（可选；含密钥，已加入 .gitignore）
 │   └── llm.example.json         # 配置样例（可安全提交）
 │
-├── knowledge/                   # 知识库源文档
+├── knowledge/                   # 知识库源文档（详见 docs/knowledge_base.md）
 │   ├── huawei_devices_introduce.txt   # 华为设备知识文本（RAG 数据源）
 │   ├── command_templates.csv    # 三厂商命令模板表（阶段一，手工维护，唯一数据源）
+│   ├── experiments/             # 58 个 eNSP 实验文档（题目/设备表/链路/标注/参考答案/验收要点）
+│   │                            #   由 tools/ensp_lab_index.py 生成；是向量库的主要来源
+│   ├── topology/                # 拓扑结构化数据集（57 实验 / 261 设备 / 426 链路 + index.json）
+│   │                            #   由 tools/topo_extract.py 从 .topo 解析
 │   └── review_queue.csv         # 阶段三人工审核队列（由脚手架生成）
 │
 ├── tools/                       # 辅助工具
-│   └── manual_extractor.py      # 阶段三脚手架：从官方手册粗提取命令候选
+│   ├── manual_extractor.py      # 阶段三脚手架：从官方手册粗提取命令候选
+│   ├── ensp_lab_index.py        # 实验包 → knowledge/experiments/*.md（进向量库）
+│   ├── topo_extract.py          # .topo → knowledge/topology/*.json（结构化拓扑数据集）
+│   ├── extract_answers.py       # 实验包参考答案 → data/lab_answers/
+│   ├── kb_consistency.py        # 知识库一致性校验：experiments md ↔ topology json 互校
+│   └── build_sft.py             # 运行日志 → SFT 微调数据集（含假阳性剔除）
+│
+├── training/                    # LoRA/QLoRA 微调（毕设核心，详见 training/README.md）
+│   ├── train_sft.py             # 微调入口（unsloth + trl，产出 adapter / 合并模型 / GGUF）
+│   ├── prepare_data.py          # SFT jsonl → chat 格式 + train/val 切分
+│   ├── config_qwen35_9b_lora.yaml     # 复现参数快照
+│   └── requirements.txt         # 训练依赖（与本体隔离，需 GPU）
+│
+├── tests/                       # pytest 测试（157 项，离线可跑）
+│   ├── conftest.py              # 公共夹具（临时知识库/技能目录等）
+│   ├── test_command_guard.py    # 命令分级 / 实验模式 / 多命令取最高级
+│   ├── test_providers_and_net.py      # 提供方注册表 / 旧名兼容 / 回环代理豁免
+│   ├── test_telnet_session.py   # 线程版"假设备"Telnet 端到端（无需真机）
+│   ├── test_topo_extract.py     # .topo 解析与数据集完整性
+│   ├── test_kb_consistency.py   # 两份拓扑数据交叉一致 + 历史 bug 回归
+│   ├── test_rag.py              # 五个索引来源 / 分级前缀 / 日志摘要 / 检索状态机
+│   ├── test_agent_loop.py       # 工具调用循环（async）：参数错误、轮次上限、回调
+│   ├── test_mcp_servers.py      # 5 个服务端工具清单 + 跨服务端重名检测 + 降级话术
+│   ├── test_template_search.py  # 模板检索：元数据过滤收敛 / 无命中短路
+│   ├── test_device_manual.py    # 设备手册建档 / 型号画像预填 / 小节读写
+│   ├── test_audit_rotation.py   # 审计日志轮转与跨文件 tail
+│   ├── test_run_log.py          # 运行日志：文件名安全 / 截断 / 会话枚举
+│   └── test_topology_flood.py   # 拓扑泛洪：LLDP/ARP/MAC 解析、层级推导、渲染、只读性
+│
+├── .github/workflows/ci.yml     # CI：py_compile + kb_consistency + pytest + 命令分级自检
 │
 ├── docs/                        # 项目文档
-│   └── phase3_extraction_plan.md  # 阶段三：官方手册自动提取方案
+│   ├── architecture.md          # 架构与数据流（mermaid）
+│   ├── knowledge_base.md        # 知识库：五个来源 / 分级 / 检索状态 / 一致性校验 / 重建
+│   ├── mcp_tools.md             # MCP 工具清单（名/参/用途 + 安全约定）
+│   ├── sft_dataset.md           # SFT 数据集说明（来源 / 字段 / 复现）
+│   ├── troubleshooting.md       # 踩坑手册（环境/代理/eNSP/vmrun/打包）
+│   ├── packaging.md             # PyInstaller 打包
+│   ├── startup_and_auto_topology.md   # 启动流程与拓扑自动巡检
+│   └── phase3_extraction_plan.md      # 阶段三：官方手册自动提取方案
 │
 ├── data/                        # 持久化数据
 │   ├── Rag_data/                # ChromaDB 向量库（含 knowledge / command_templates 两个集合）
 │   ├── index_state.json         # 各集合的索引指纹（判断是否需要重建）
-│   └── my_rag_db/               # 旧版向量库（疑似废弃，确认后可删除）
+│   ├── finetune/                # SFT 数据集（sft_*.jsonl + chat_*/，见 docs/sft_dataset.md）
+│   ├── lab_answers/             # 实验参考答案（130 份路由器 .cfg + 58 份交换机 flash 备份）
+│   ├── lab_reports/             # 批量实验报告 + issues.md 踩坑清单（会进知识库）
+│   ├── topology_images/         # 拓扑识图样例（vision 工具输入）
+│   ├── topology_snapshot.*      # 最近一次拓扑巡检结论快照
+│   ├── ensp_labs/               # 58 个实验包原件（不入库，本地保留）
+│   ├── device_history/          # 各设备命令历史（jsonl，运行时追加）
+│   ├── device_inventory.json    # 设备与 console 端口映射
+│   └── vm_bridge/               # 与实验虚拟机之间的文件桥（inbox/outbox）
 │
-├── logs/                        # 运行日志与会话记录
+├── logs/                        # 运行日志与会话记录（不入库）
 │   ├── llama_server.log         # llama-server 运行日志
 │   ├── command_audit.log        # 设备命令审计日志（每次裁决一条 JSON：通道/目标/命令/等级/是否执行）
 │   ├── session_*.md             # 对话会话导出（启动时自动保存）
 │   ├── gui_error.log            # GUI 运行期异常兜底日志
 │   └── cli_output.log           # 打包后 --cli 模式的输出副本（窗口程序没有控制台）
 │
-└── requirements.txt             # Python 依赖清单
+├── LICENSE                      # MIT
+├── CHANGELOG.md                 # 版本变更记录
+├── CONTRIBUTING.md              # 协作与分层铁律
+├── .env.example                 # 密钥/环境变量样例（复制为 .env）
+├── .python-version              # 运行时版本（3.14）
+├── pytest.ini                   # 测试配置（testpaths / timeout）
+├── requirements.txt             # 运行依赖
+└── requirements-dev.txt         # 开发/测试/打包依赖
 ```
 
 ## 模块调用关系
@@ -94,7 +150,8 @@ main.py
   │     ├── core/llm_client.py       # 带 tools 的流式调用（本地实例需 --jinja 支持 tool_calls）
   │     └── core/vision.py           # 能看图则直接送图；不能看图则先本地识图再注入文字（桥接）
   ├── core/parallel.py               # 多模态并行：识图 ∥ 多模型回答 → 融合
-  ├── mcp_tools/client.py            # stdio 拉起 4 个服务端（知识 / 串口 / Telnet / 视觉）
+  ├── core/topology_flood.py         # 拓扑泛洪发现：LLDP/MAC/ARP 解析 → 层级 + 上下级 + Mermaid 图
+  ├── mcp_tools/client.py            # stdio 拉起 6 个服务端（知识 / 串口 / Telnet / 手册 / 拓扑 / 视觉）
   │
   └── 设备操作链路（安全可控）
         mcp_tools/device_server.py ─┐
@@ -122,12 +179,15 @@ main.py
 | 名称 | 类型 | 模型 | 图片 | 工具 | 思考 | 密钥 |
 |------|------|------|:----:|:----:|:----:|------|
 | `local` | 本地 | Qwen3.5-9B（llama-server） | ✓ | ✓ | ✓ | 不需要 |
-| `deepseek` | 云端 | `deepseek-chat`（V3.2 非思考） | ✗ | ✓ | ✗ | `DEEPSEEK_API_KEY` |
-| `deepseek-reasoner` | 云端 | `deepseek-reasoner`（V3.2 思考） | ✗ | ✓ | ✓ | 同上 |
+| `deepseek-flash` | 云端 | `deepseek-flash`（V4.1 Flash 多模态） | ✓ | ✓ | ✓ | `DEEPSEEK_API_KEY` |
+| `deepseek-pro` | 云端 | `deepseek-v4-pro`（V4 Pro 深度推理） | ✗ | ✓ | ✓ | 同上 |
 
-> DeepSeek 走 OpenAI 兼容协议（`https://api.deepseek.com`），两者均已对应 V3.2、128K 上下文，
-> **都支持 Tool Calls**；思考内容在 `reasoning_content` 字段。
-> **注意：DeepSeek API 目前是纯文本，不接受图片输入** —— 这正是下面「多模态桥接 / 并行」存在的原因。
+> DeepSeek 走 OpenAI 兼容协议（`https://api.deepseek.com`），2026-09 起模型线换代：
+> **`deepseek-flash`（V4.1 Flash）原生多模态，可直接接收图片输入**，1M 上下文 / 384K 输出；
+> `deepseek-v4-pro` 为纯文本深度推理（内置默认已开启 `thinking`）。两者都支持 Tool Calls，
+> 思考内容在 `reasoning_content` 字段。旧的 `deepseek-chat` / `deepseek-reasoner` 名称已退役，
+> 但 `/model deepseek`、`/model deepseek-reasoner` 会被自动映射到 flash / pro，无需改习惯。
+> `deepseek-pro` 不看图——发给它的图片会先由本地视觉模型识读成文字再注入（多模态桥接）。
 
 ### 配置与密钥
 
@@ -149,28 +209,31 @@ python main.py --deepseek-key sk-xxx
 **1. 切换使用（`/model`）** —— 单模型回答，能力最完整（含 MCP 工具）
 
 ```bash
-python main.py --provider deepseek     # 启动即用 DeepSeek
-python main.py --provider local        # 用本地模型
+python main.py --provider deepseek-flash   # 启动即用 DeepSeek Flash（多模态）
+python main.py --provider deepseek-pro     # 用 DeepSeek Pro（深度推理）
+python main.py --provider local            # 用本地模型
 # 对话中随时切换：
-/model deepseek-reasoner               # 换成思考模式
+/model deepseek-pro                        # 换成深度推理
+/model deepseek-flash                      # 换回多模态 Flash
 ```
 
 云端模式下**不会启动本地 llama-server**（省下数 GB 内存）；切回 `/model local` 时会按需启动。
 
 **2. 多模态桥接（自动）** —— 文本模型 + 本地视觉模型协作
 
-开启图形后，如果当前提供方不看图而本轮带了图片，程序会先用本地多模态模型把图
-**读成文字结论**，再连同你的问题一起交给 DeepSeek。拓扑图始终在本地解析、不外传，
-文本推理则用云端模型。对话中会出现 `[多模态桥接]` 提示。
+开启图形后，如果当前提供方不看图而本轮带了图片（比如 `deepseek-pro` 或未加载 mmproj 的本地模型），
+程序会先用本地多模态模型把图**读成文字结论**，再连同你的问题一起交给它。拓扑图始终在本地解析、
+不外传，文本推理则用云端模型。对话中会出现 `[多模态桥接]` 提示。当然，也可以直接
+`/model deepseek-flash` 让云端模型原生看图（图片会上传，注意隐私场景）。
 
 **3. 多模型并行（`/parallel`）** —— 同一问题并行跑多路，再融合
 
 ```bash
 python main.py --parallel                                    # 每轮提问都并行
-python main.py --parallel --parallel-providers local,deepseek
+python main.py --parallel --parallel-providers local,deepseek-flash
 # 对话中：
 /parallel                       # 开关
-/parallel deepseek,deepseek-reasoner   # 指定组合
+/parallel deepseek-flash,deepseek-pro   # 指定组合
 /parallel off
 ```
 
@@ -206,7 +269,8 @@ python -m core.llm_client --all --ask "1+1=?"                # 所有已配置�
 命令行版的所有能力都有界面版（`python launcher.py` 或 `python -m gui.app`）：
 
 - **三种模式**：agent / rag / parallel（多模态并行，本地识图 ∥ DeepSeek 融合）随时切换；
-- **模型提供方**：本地 llama-server / DeepSeek / deepseek-reasoner，可在设置里换密钥并探测连通性；
+- **模型提供方**：本地 llama-server / DeepSeek Flash（多模态）/ DeepSeek Pro（深度推理），
+  可在设置里换密钥并探测连通性；
 - **图片附件**：拖拽或选择拓扑截图，不看图的云端模型自动走「本地识图桥接」；
 - **流式上屏**：思考过程与正文分栏实时渲染，带 token 统计（QThread + 信号，不卡界面）；
 - **斜杠命令控制台**：`/tools`（看工具）、`/call 工具名 {json}`（手动调用）、`/audit`（看命令审计）、
@@ -345,23 +409,98 @@ python main.py --max-rounds 6   # 放宽工具调用轮次上限（设备操作�
 > 旧实例（不带 `--jinja`），模型可能无法发起工具调用，此时可用
 > `python -m core.llama_start kill` 清掉再重新启动。
 
+### 自动拓扑巡检（启动时自动"看一眼"当前拓扑）
+
+程序**默认在每次启动时**自动执行一次拓扑巡检（`core/screen_capture.py` +
+`core/auto_topology.py`）：
+
+1. 按内置关键字表（eNSP / VMware / VirtualBox / GNS3…）找到拓扑所在的窗口；
+2. 用 Win32 `PrintWindow` 截取窗口画面（窗口被遮挡也能抓）——若大片区域是黑的
+   （DirectX 渲染的虚拟机画面抓不到），自动降级为「窗口置前 + 屏幕抓取」并择优；
+3. OpenCV 预处理：按客户区裁掉标题栏、去黑边、等比缩放，与上次截图做差分；
+4. 交给本地多模态模型识读，结论落盘 `data/topology_snapshot.md`（JSON 同步一份），
+   之后 agent / rag 的系统提示词会自动注入该快照——模型开局就知道当前拓扑；
+5. 画面与上次一致时直接复用结论，不重复推理。
+
+**知情与可控**：巡检执行前会在日志里明确播报（截哪个窗口、图存哪、怎么关）；
+截图只存本机 `logs/captures/`（保留最近 20 张），识读全程在本地、不上传；
+找不到目标窗口时跳过并列出可见窗口。关闭方式：`--no-auto-vision`（CLI/GUI 启动参数）、
+GUI 设置页「启动时自动巡检拓扑」、对话中 `/autovision off`。手动触发：`/topology [关键字]`。
+模型侧也可自主调用 `capture_topology`（实时重看）与 `get_topology_snapshot`（读快照）两个 MCP 工具。
+
 ## MCP 工具
 
-默认接入 4 个服务端（stdio 传输），共 11 个工具：
+默认接入 6 个服务端（stdio 传输），共 22 个工具：
 
 | 服务端 | 工具 | 参数 | 功能 |
 |--------|------|------|------|
 | `template_server.py`<br>（`Network-Knowledge`） | `query_command_template` | `intent`（必填）、`vendor`、`device_type`、`top` | 命令模板语义检索（语义匹配 + 厂商/设备类型元数据过滤） |
-| | `search_knowledge` | `query`、`top` | 通用知识库检索（设备介绍、配置说明；索引按指纹自动维护） |
+| | `search_knowledge` | `query`、`top` | 通用知识库检索（设备介绍、配置说明、**运行期自建的设备手册**；索引按指纹自动维护） |
 | `device_server.py`<br>（`Network-Device-Serial`） | `list_serial_ports` | — | 列出本机可用串口 |
 | | `classify_command` | `command` | 只做风险分级不执行（建议模型下发配置前先预检） |
-| | `exec_command` | `command`、`port`、`baudrate`、`confirm`、`timeout` | 通过串口执行一条命令（过安全网关） |
+| | `exec_command` | `command`、`port`、`baudrate`、`confirm`、`timeout` | 通过串口执行一条命令（过安全网关；**执行后自动归档命令历史**） |
 | | `recent_audit` | `n` | 查看最近的命令审计记录 |
 | `telnet_server.py`<br>（`Network-Device-Telnet`） | `check_telnet` | `host`、`port` | 探测 Telnet 端口连通性（只读，不下发命令） |
-| | `exec_telnet_command` | `command`、`host`、`username`、`password`、`port`、`enable_password`、`confirm`、`timeout` | Telnet 登录并执行一条命令（过安全网关） |
+| | `exec_telnet_command` | `command`、`host`、`username`、`password`、`port`、`enable_password`、`confirm`、`timeout` | Telnet 登录并执行一条命令（过安全网关；**执行后自动归档命令历史**） |
+| `manual_server.py`<br>（`Network-Device-Manual`） | `list_device_manuals` | — | 查看哪些设备已建档、哪些还没有 |
+| | `read_device_manual` | `device` | 读设备手册（常用配置 / 注意事项） |
+| | `create_device_manual` | `device`、`vendor`、`model`、`address`、`role`、`login`、`note`、`transport`、`host`、`port`、`serial_port` | 首次接触设备时建档（骨架自动生成；可顺带把设备名绑定到地址） |
+| | `update_device_manual_section` | `device`、`section`、`text`、`mode`、`title` | 把有效命令序列 / 踩过的坑写回手册 |
+| | `recent_device_history` | `device`、`n` | 查看设备最近的命令历史（自动记录） |
+| `topology_server.py`<br>（`Network-Topology-Flood`） | `discover_topology` | `workers`、`timeout`、`roots`、`save`、`devices` | **泛洪发现拓扑**：逐台登录下发只读命令，解析 LLDP/MAC/ARP 推导连线与上下级，出 Mermaid 图 |
+| | `load_discovered_topology` | — | 读取上次发现结果（不重新探测，秒回） |
+| | `topology_summary` | — | 只要紧凑摘要（层级 + 链路 + 上下级），适合直接放进上下文 |
+| | `topology_mermaid` | `direction` | 只要 Mermaid 图源码（贴文档即可渲染） |
 | `vision_server.py`<br>（`Network-Vision`） | `vision_ready` | — | 检查识图能力（mmproj）是否就绪 |
 | | `list_local_images` | `directory`、`limit` | 列出最近可用的图片，便于定位拓扑截图 |
 | | `analyze_topology_image` | `image_path`、`question` | 识读拓扑图，输出设备/链路/IP/风险点结构化描述 |
+| | `capture_topology` | `keyword`、`force` | 实时看拓扑：自动截取 eNSP/虚拟机窗口并识读（画面未变时复用结论） |
+| | `get_topology_snapshot` | — | 读取最近一次自动巡检的拓扑结论（瞬时返回，不推理） |
+
+> **设备手册是运行期资产，不在仓库里**：手册由本地模型在首次接触设备时自建
+> （`skills/<设备名>/SKILL.md`），配置验证有效后由模型自己沉淀回手册；
+> 命令历史由工具层确定性追加（`data/device_history/<设备名>.jsonl`）。
+> `skills/`、`data/device_history/`、`data/device_access.json` 均已进 `.gitignore`。
+
+## 拓扑泛洪发现（自动求出上下级关系与拓扑图）
+
+**要解决的问题**：`data/device_inventory.json` 里的 `topology_notes` 是手写的，
+设备一多、链路一改就过期，而且写错了没人发现。但设备自己其实"知道"邻居是谁——
+LLDP 邻居表、MAC 地址表、ARP 表都是现成证据，只要逐台读出来就能把
+「谁连着谁、谁是上级」从人工记录变成**实测事实**。
+
+```bash
+python -m core.topology_flood                    # 泛洪全部 Telnet 设备，打印报告 + Mermaid 图
+python -m core.topology_flood --save             # 顺带落盘 data/topology_discovered.json
+python -m core.topology_flood --roots R1         # 指定出口/核心当根
+python -m core.topology_flood --from-snapshot    # 不重新探测，读上次结果
+python -m core.topology_flood --mermaid-only     # 只出 Mermaid 源码
+python -m core.topology_flood --format dot       # Graphviz DOT
+python -m core.topology_flood --device SW1,SW2   # 只探这两台（调试）
+```
+
+**三级证据**（越靠前越可信）：
+
+| 证据 | 命令 | 说明 |
+|---|---|---|
+| LLDP 邻居表 | `display lldp neighbor brief` | 最硬：直接给出「本端口 → 邻居设备名 + 邻居口」。需对端也开 LLDP 且已设 sysname |
+| CDP（思科） | `show cdp neighbors detail` | 思科设备走这条；命令集按 `vendor` 自动切换 |
+| MAC 地址表 | `display mac-address` | 兜底：两端共享同一 MAC 时推断直连，标为「推测」 |
+| ARP 表 | `display arp` | 只用于标注三层邻居与网段，不产生连线 |
+
+**上下级（层级）怎么定**：链路是无向的（谁连谁），但 LLDP 的**发现方向**有额外信息——
+「A 看到 B、B 没看到 A」说明 A 是 B 的下行端。算法用无向图 BFS 生成**生成树**定层级，
+父节点优先取「被指向方 / 已定级的根 / 度数大者」；生成树之外的边记为**冗余链路**
+（真实的双上行、Eth-Trunk 双链路），记录下来但不参与层级计算，也不会死循环。
+没有 LLDP 的孤立设备标为「孤立」，并给出「请确认已 `lldp enable`」的提示。
+
+**安全性**：本功能只下发 `display` / `show` 开头的**只读**命令，全部命中
+command_guard 的 `allow` 级，**不会修改任何设备配置**，因此模型可以自行调用而无需用户确认
+（有回归测试 `test_all_flood_commands_are_readonly` 守住这条）。
+
+**与图片识读的关系**：`get_topology_snapshot` / `capture_topology` 是"看图猜的"，
+泛洪发现是"设备自己报的"。两者都会注入 prompt，提示词里明确要求
+**冲突时以实测为准**，并说明差异。
 
 `mcp_tools/client.py` 是客户端层：用当前解释器（.venv）以 stdio 拉起服务端、聚合工具清单、
 按工具名路由调用，并可转成 OpenAI 风格工具定义交给模型；若多个服务端出现同名工具会显式告警
@@ -415,6 +554,70 @@ python -m mcp_tools.search_client    # 单独测试联网搜索服务
   因此 `check_embedder()` 会在删除前先探测，失败时抛出带处理建议的错误而不破坏现有索引。
 - 手动重建：`python -m core.template_search --rebuild`、`python -m core.rag --rebuild`。
 
+## 知识库的可信度与可用性（不让模型"假装查过"）
+
+模型最大的失败模式不是不会，而是**不知道自己的依据不可靠**。为此知识库链路做了两件事：
+
+**一、分级前缀。** 五个索引来源（设备介绍 / 实验文档 / 设备手册 / 运行报告 / 逐轮运行日志）
+在入索引前各加一个前缀，把"现行规则"和"上次踩的坑"分开：
+
+| 分级 | 前缀 |
+|---|---|
+| 规则 | `【现行规则｜可据此直接作答】` |
+| 历史 | `【历史记录｜仅供参考，与规则冲突时以规则为准】` |
+| 实例 | `【实例数据｜事实描述，不含操作建议】` |
+
+**二、检索状态。** `retrieve_ex()` 返回 `RetrievalResult(chunks, status, reason)`，
+明确区分「确实没有」和「链路坏了」：
+
+| status | 含义 | 降级 | 模型行为 |
+|---|---|---|---|
+| `ok` | 正常命中 | 否 | 直接依据作答 |
+| `empty` | 集合为空（未建索引） | 否 | 提示需先重建 |
+| `no_match` | 检索通了但无相关内容 | 否 | 如实说没找到，可凭通用知识回答但需标注 |
+| `unavailable` | Ollama / 集合不可用 | **是** | prompt 内注入降级告警 |
+| `embed_failed` | query 向量化失败 | **是** | prompt 内注入降级告警 |
+
+降级时不仅终端打 `[降级]`，更关键的是**把告警写进 prompt 正文**：
+「本轮没有可用的知识片段……不要声称查过知识库」。Agent 模式下 `search_knowledge`
+工具也返回「⚠ 知识库检索不可用……**这不是「知识库中没有相关内容」，而是检索链路故障**」，
+并附带修复命令。**逐轮运行日志**（第五个来源）只取最近 3 天的会话摘要——
+去重后的配置类命令 + 报错回显，刻意剔除 `display`/`ping` 这类只读命令，
+避免它们挤占检索名额。
+
+## 设备手册的冷启动（型号画像）
+
+`skills/<设备名>/SKILL.md` 是模型运行期自建的，但新设备第一次建档时是空白的。
+`knowledge/device_profiles.py` 提供 10 个型号的通用基线（AR2220 / AR2200 / AR1200 /
+S5700 / S3700 / S6700 / S7700 / S12700 / NE40E / USG），`device_manual.skeleton()`
+在建档时把它预填进「注意事项」。例如 S5700 会自动写入：
+
+- 端口 **1 基编号**：`GE0/0/1` 起（与路由器的 0 基相反）
+- 改接口类型前若已有 trunk/hybrid 配置，需先 `undo port link-type`
+- S5700-LI 不支持 `ip routing`，要三层功能必须 EI 版本
+- Trunk 口记得 `port trunk allow-pass vlan`
+
+画像匹配用**最长键优先**（`S5700-28C-HI` 会命中 `S5700` 而不是 `S37`），
+未匹配到型号时**不写占位文字**而是退回通用提示。注意：画像是通用事实，
+**具体以真机回显为准**——预填文本里也这样标注。
+
+## 命令审计日志的轮转
+
+`logs/command_audit.log` 原来只追加、无上限，长期运行会无限增长；
+`audit_tail()` 也要读完整文件再取末尾 n 行。现在：
+
+- 超过阈值自动轮转：`command_audit.log` → `.log.1` → `.log.2` …
+- 阈值与保留份数可用环境变量覆盖：`NETWORKCLAW_AUDIT_MAX_BYTES`（默认 5 MiB）、
+  `NETWORKCLAW_AUDIT_BACKUPS`（默认 5；设为 0 表示直接截断不留备份）
+- `audit_tail(n)` 跨当前文件与备份回读，用 8 KB 反向块扫描，不再整读
+
+## 持续集成
+
+`.github/workflows/ci.yml` 在 push / PR 时跑（Python 3.12 与 3.13 矩阵）：
+`py_compile` 全量语法检查 → `kb_consistency.py --json`（数据缺失时降级为跳过）→
+`pytest` 全量 → `core.command_guard` 分级自检。
+CI 故意只装**测试所需**的轻量依赖，不装完整 `requirements.txt`。
+
 ## 常用命令
 
 ```bash
@@ -431,8 +634,13 @@ python -m core.llm_client --all --ask "1+1=?"   # 各提供方连通性自检（
 python -m core.parallel "问题" --image topo.png --providers local,deepseek   # 多模态并行编排
 python -m core.rag                  # 仅 RAG 问答（需 llama-server 已在运行）
 python -m core.rag --rebuild        # 强制重建知识库索引
+python tools/kb_consistency.py      # 校验实验文档与拓扑数据集是否一致（退出码 1 = 漂移）
+python -m pytest                    # 157 项离线测试（含知识库一致性回归）
+python -m pytest tests/test_rag.py  # 只跑知识库链路（来源/分级/检索状态）
 python -m core.template_search "禁止telnet登录" --device-type router   # 模板语义检索
 python -m core.template_search --rebuild                              # 强制重建模板索引
+python -m core.topology_flood       # 泛洪发现拓扑：自动推导上下级关系并出 Mermaid 图
+python -m core.topology_flood --save # 同上，并把结果落盘（下次 --from-snapshot 秒读）
 python -m core.llama_start          # 单独管理 llama-server
 python -m core.llama_start mmproj   # 查看 mmproj 探测结果与当前实例的视觉状态
 python -m core.llama_start kill     # 强制清理所有残留的 llama-server.exe
@@ -466,7 +674,7 @@ python tools/manual_extractor.py manual.txt --vendor Huawei           # 阶段�
   ISO-8859-1 解码导致中文全乱码，因此改为按字节读取后显式 UTF-8 解码；
 - `ask(query, show_thinking=False)` 可关闭思考过程显示；
   `ask(query, stream=False)` 不在函数内打印回答，由调用方渲染返回值；
-  `ask(query, provider="deepseek")` 可指定本轮使用的提供方。
+  `ask(query, provider="deepseek-flash")` 可指定本轮使用的提供方。
 
 ## 命令模板库（三阶段）
 

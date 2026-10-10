@@ -1,0 +1,102 @@
+{
+ "experiment": "BGP-基本配置工程",
+ "source": "data\\ensp_labs\\src\\BGP-基本配置工程\\paper\\paper.topo",
+ "device_count": 3,
+ "devices": [
+  {
+   "id": "011A1AB5-C312-4667-B850-C2E48F3E8DFB",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "3F7E3A85-1A63-48c4-AA9D-1AE3FCE4D517",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "3F202BEE-EDE1-4a26-AEE5-6BB24F8D0001",
+   "name": "AR3",
+   "model": "AR2220",
+   "console_port": 2002
+  }
+ ],
+ "pc_count": 2,
+ "link_count": 4,
+ "links": [
+  {
+   "src": "AR1",
+   "dst": "AR2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR3",
+   "dst": "AR2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "PC1",
+   "dst": "AR1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "AR3",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "lo0：2.2.2.2/32",
+  "Lo0:3.3.3.3/32",
+  "10.10.23.0/24",
+  "2",
+  "3",
+  "10.10.12.0/24",
+  "1",
+  "2",
+  "lo0:1.1.1.1/32",
+  "AS 65009",
+  "AS 65008",
+  "IBGP",
+  "EBGP",
+  "192.168.10.0/24",
+  "1",
+  "10",
+  "172.16.1.0/24",
+  "1",
+  "10"
+ ]
+}

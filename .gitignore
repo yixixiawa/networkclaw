@@ -1,12 +1,37 @@
 .workbuddy
 __pycache__
 
-# 运行时生成物：不入库
+# ---------------- 运行时生成物：不入库 ----------------
+# 诊断脚本（_*.py）与运行日志都是一次性产物；命令审计日志 logs/command_audit.log 同样只留本地
 logs
+# 模型与打包中间产物：大文件
 models
 build
-data/sessions.json
+artifacts/
 
+# 会话/历史：本地模型运行时产物
+data/sessions.json
+data/device_history/
+data/device_access.json
+data/*.tmp
+data/run_logs/
+# 58 个实验包原件（zip/efz/topo 二进制）：本地保存，结构化结果已导出到
+# knowledge/topology/ 与 data/lab_answers/（这两处入库，可用 tools/topo_extract.py
+# 与 tools/extract_answers.py 从实验包重新生成）
+data/ensp_labs/
+# 由实验包解析生成的实验文档（含题面与设备表），本地保留
+knowledge/experiments/
+# 实验运行报告 / 与 VM 的文件桥（inbox/outbox）/ 巡检快照：运行时生成物
+data/lab_reports/
+data/vm_bridge/
+data/topology_snapshot.json
+data/topology_snapshot.md
+# 拓扑泛洪发现结果（由 core/topology_flood.py 运行时生成，重新探测即可复现）
+data/topology_discovered.json
+# tools 下的临时诊断脚本（与根目录 /_*.py 同性质）
+tools/_*.py
+# 设备手册：由本地模型在运行期自建自维护（skills/<设备名>/SKILL.md），不入库
+skills/
 # 打包/调试期临时文件（仅项目根）
 /_*.txt
 /_*.log
@@ -16,6 +41,6 @@ data/sessions.json
 /dist/NetworkClaw/logs
 /dist/NetworkClaw/data
 
-# 密钥相关：不得提交（参考 config/llm.example.json 自行创建）
+# 密钥相关：不得提交（参考 config/llm.example.json 与 .env.example 自行创建）
 .env
 config/llm.json

@@ -15,6 +15,8 @@ SERVERS: dict[str, str] = {
     "knowledge": "mcp_tools.template_server",
     "device-serial": "mcp_tools.device_server",
     "device-telnet": "mcp_tools.telnet_server",
+    "device-manual": "mcp_tools.manual_server",
+    "topology": "mcp_tools.topology_server",
     "vision": "mcp_tools.vision_server",
     "search": "mcp_tools.internet",
 }

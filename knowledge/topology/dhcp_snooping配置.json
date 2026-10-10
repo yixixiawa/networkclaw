@@ -1,0 +1,128 @@
+{
+ "experiment": "dhcp_snooping配置",
+ "source": "data\\ensp_labs\\src\\dhcp_snooping配置\\DHCP SNOOPING配置拓扑\\DHCP SNOOPING配置拓扑.topo",
+ "device_count": 4,
+ "devices": [
+  {
+   "id": "471602D0-133D-43f5-B5B2-0384A2B28788",
+   "name": "LSW1",
+   "model": "S5700",
+   "console_port": 2000
+  },
+  {
+   "id": "3884BCA9-1A5A-4406-9D66-FC46C313A26C",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "F62BDF7A-1068-4687-9635-9183650A6375",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "D88C07B2-8C2E-4b11-8E27-5D246B698291",
+   "name": "CORE",
+   "model": "S5700",
+   "console_port": 2003
+  }
+ ],
+ "pc_count": 3,
+ "link_count": 6,
+ "links": [
+  {
+   "src": "LSW1",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "PC3",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 3,
+     "dst_if": "GigabitEthernet0/0/4"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "CORE",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "AR1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 4,
+     "src_if": "GigabitEthernet0/0/5",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "AR2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 5,
+     "src_if": "GigabitEthernet0/0/6",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "vlanif 1:192.168.1.1/24\r\nvlanif 10:192.168.10.1/24",
+  "vlan 10",
+  "TRUNK 1 10",
+  "VLAN 1",
+  "VLAN 1",
+  "DHCP服务器\r\n使用接口地址池",
+  "1、按照拓扑图中信息配置交换机,PC1—3使用DHCP获取IP地址，并且查看当前PC获取的IP地址;\r\n2、在交换机LSW1 VLAN 1中配置DHCP SNOOPING，配置G0/0/1为可信端口，让vlan 1中所有PC都使用CORE的\r\nDHCP服务分配IP地址，所有VLAN 1中PC更新地址，观察配置是否成功；\r\n3、在交换机LSW1 接口G0/0/1上配置为可信端口，让vlan 10中所有PC都使用CORE的DHCP服务分配IP地址，\r\n所有VLAN 10中PC更新地址，观察配置是否成功；\r\n4、在VLAN中配置防DHCP服务器饿死攻击；\r\n5、在VLAN中配置DHCP SNOOPING+IPSG，手工绑定192.168.1.10从G0/0/4接入，防止终端私自修改IP地址；\r\n查看DHCP SNOOPING动态地址表及DHCP静态地址表信息，观察两个命令返回的信息。",
+  "VLAN 1",
+  "172.16.1.1/24",
+  "DHCP服务器\r\n使用接口地址池",
+  "vlan 10",
+  "DHCP服务器\r\n使用接口地址池",
+  "172.16.10.1/24"
+ ]
+}

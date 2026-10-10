@@ -1,0 +1,131 @@
+{
+ "experiment": "RIP网络中过滤策略使用配置",
+ "source": "data\\ensp_labs\\src\\RIP网络中过滤策略使用配置\\paper\\paper.topo",
+ "device_count": 5,
+ "devices": [
+  {
+   "id": "DF858B30-D4C6-4911-86BA-CDD203615316",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "02FC0B22-1D6E-4161-A98C-AE63B9218660",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "09515E75-920D-408f-AC1D-3ED5D10FC4B7",
+   "name": "AR3",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "A7CF59E7-F0D5-4c8d-9793-8BBFB84AF2EC",
+   "name": "AR4",
+   "model": "AR2220",
+   "console_port": 2003
+  },
+  {
+   "id": "4EDE8C76-11D4-41bc-8595-CCECEC668C1D",
+   "name": "AR5",
+   "model": "AR2220",
+   "console_port": 2004
+  }
+ ],
+ "pc_count": 0,
+ "link_count": 5,
+ "links": [
+  {
+   "src": "AR1",
+   "dst": "AR2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR2",
+   "dst": "AR3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR3",
+   "dst": "AR4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR4",
+   "dst": "AR5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "AR5",
+   "dst": "AR1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "lo1:192.168.1.1/24\r\nlo2:192.168.2.1/24\r\nlo3:192.168.3.1/24",
+  "10.10.12.0/24",
+  "1",
+  "2",
+  "10.10.23.0/24",
+  "2",
+  "3",
+  "34.1.1.0/24",
+  "1",
+  "4",
+  "3",
+  "5",
+  "10.10.45.0/24",
+  "4",
+  "5",
+  "RIP",
+  "ospf\r\narea 0",
+  "引入静态路由10.10.45.0/24",
+  "引入直连路由",
+  "把OSPF引入到RIP中，\r\n采用路由过滤方法，不向外发送10.10.45.0/24路由",
+  "AR2不接收192.168.1.0/24网络，使用ACL\r\nAR2不向AR3发送192.168.2.0/24的路由使用IP-PREFIX",
+  "15.1.1.0/24",
+  "1、按照拓扑图中配置各网络设备接口IP地址、静态路由及动态路由协议；\r\n2、在AR1配置引入静态路由，在AR3中引入OSPF路由；\r\n3、在AR2路由器中查看路由表，看看当前是否有全部网络的路由，截图；\r\n4、AR2到网络10.10.45.0/24的下一跳是哪个路由器，截图；\r\n5、在AR2中使用ACL配置RIP路由接收路由过滤策略，不接收192.168.1.0/24网络路由，\r\n配置完成后查看AR2路由表看是否除拒绝路由外，其他路由均正常，截图；\r\n6、在AR2中使用IP-PREFIX配置RIP路由发送路由过滤策略，不向AR3发送192.168.2.0/24，\r\n配置完成后，查看AR3路由表，看看是否有192.168.1.0/24及192.168.2.0/24路由，其他路由是否正常，截图；\r\n7、在AR3中，配置RIP引入路由过滤策略，采用ACL配置，不向外发送10.10.45.0/24路由；\r\n配置完成后，查看AR2路由表，看看网络10.10.45.0/24的下一跳是哪个路由器，并且查看34.1.10/24路由是否存在，截图；\r\n8、提交ANS文档。"
+ ]
+}

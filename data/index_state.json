@@ -1,9 +1,9 @@
 {
   "huawei_devices": {
-    "fingerprint": "b8415dcae8f8a583fc3cb5f17c1cec2d",
-    "count": 4,
-    "source": "knowledge\\huawei_devices_introduce.txt",
-    "built_at": "2026-09-21 09:41:43"
+    "fingerprint": "08dd0367e893e39a2340111f37c5ed16",
+    "count": 1681,
+    "source": "huawei_devices_introduce.txt + knowledge/experiments/*.md + skills/*/SKILL.md",
+    "built_at": "2026-10-01 03:13:26"
   },
   "command_templates": {
     "fingerprint": "6b073583d92aa1a4ad233cf7735330fd",

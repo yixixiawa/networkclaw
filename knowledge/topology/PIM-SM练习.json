@@ -1,0 +1,226 @@
+{
+ "experiment": "PIM-SM练习",
+ "source": "data\\ensp_labs\\src\\PIM-SM练习\\paper\\paper.topo",
+ "device_count": 6,
+ "devices": [
+  {
+   "id": "9A049D66-2835-4614-BC07-F40398BBD22B",
+   "name": "LSW1",
+   "model": "S5700",
+   "console_port": 2001
+  },
+  {
+   "id": "5DABCCE0-0E10-4746-912F-2AA79F8353A9",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "179E0321-4D3B-4642-AAEA-A853743E7C8D",
+   "name": "AR4",
+   "model": "AR2220",
+   "console_port": 2003
+  },
+  {
+   "id": "53FF55FC-2670-4dc6-8FFD-C47316BD6EC9",
+   "name": "AR5",
+   "model": "AR2220",
+   "console_port": 2004
+  },
+  {
+   "id": "FA1D2396-BEA8-41ed-B715-0721A9F4A08C",
+   "name": "AR6",
+   "model": "AR2220",
+   "console_port": 2005
+  },
+  {
+   "id": "B57B2E0B-23CA-4a31-8E8B-951D01504773",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2006
+  }
+ ],
+ "pc_count": 5,
+ "link_count": 11,
+ "links": [
+  {
+   "src": "LSW1",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "组播服务器1",
+   "dst": "AR5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR5",
+   "dst": "AR6",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR6",
+   "dst": "AR4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "AR2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 3,
+     "src_if": "GigabitEthernet0/0/4",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR2",
+   "dst": "AR4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "AR2",
+   "dst": "PC3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR4",
+   "dst": "组播服务器2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR1",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "AR6",
+   "dst": "AR1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "组播IP:224.1.1.1",
+  "10.10.12.0/24",
+  "2",
+  "DM-SM组播网络",
+  "10.10.10.0/24",
+  "100",
+  "1",
+  "10.10.56.0/24",
+  "5",
+  "6",
+  "4",
+  "10.10.46.0/24",
+  "6",
+  "10.10.16.0/24",
+  "1",
+  "6",
+  "10.10.24.0/24",
+  "4",
+  "2",
+  "1",
+  "10.10.12.20\r\n加入组播：224.1.1.1",
+  "10.10.12.10\r\n加入组播：224.1.1.2",
+  "192.168.2.0/24",
+  "1",
+  "10",
+  "组播IP:224.1.1.2",
+  "10.10.10.20.0/24",
+  "1",
+  "100",
+  "C-RP lo0:4.4.4.4/32",
+  "C-RP lo0:6.6.6.6/32",
+  "C-BSR lo0:2.2.2.2/32",
+  "实验步骤：\r\n1、根据拓扑图信息完成所有设备接口、名称配置，全网使用OSPF路由协议实现互通；\r\n2、按照组播路由配置信息完成各设备组播配置，AR1的G0/0/0及AR2的G0/0/0、G0/0/1接口激活IGMPv2；其余路由的所有接口激活PIM SM路由协议；\r\n3、在AR5中查看当前的BSR及RP信息，观察当前的BSR和RP情况；\r\n4、使PC1、PC2发送组播成员报告报文，观察当前AR1和AR2哪台是查询器，并且观察当前IGMP组有哪些，查看AR1中组播路由，看是否有组播路由信息；\r\n5、组播源1启动VLC播放视频，PC2、PC3启动VLC进行接收，验证组播数据是否成功，成功后，在AR1、AR2中查看组播路由表，看看组播树是SPT还是RPT，RPT树的RP是哪个。\r\n6、把AR1、AR2的G0/0/0接口改为IGMPv3，组播服务器2设置组播IP为224.1.1.1，PC2、PC3组播改为IGMPv3，组播地址均为224.1.1.1，PC1组播源为\r\n10.10.20.100，PC2组播源为10.10.10.100，两台服务器均启动组播（播放不同的MP4文件），启动PC1、PC2 VLC进行接收，观察是否可以成功按照组播源接收视频。\r\n7、保存，提交ans文档。",
+  "加入组播：224.1.1.1"
+ ]
+}

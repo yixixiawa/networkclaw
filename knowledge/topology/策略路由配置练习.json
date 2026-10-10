@@ -1,0 +1,231 @@
+{
+ "experiment": "策略路由配置练习",
+ "source": "data\\ensp_labs\\src\\策略路由配置练习\\paper\\paper.topo",
+ "device_count": 7,
+ "devices": [
+  {
+   "id": "961DB768-F32C-4510-AE8B-8DA81DA720FF",
+   "name": "LSW1",
+   "model": "S5700",
+   "console_port": 2000
+  },
+  {
+   "id": "1E410F92-F7DD-4fa0-BEE7-12DEDB93A2E3",
+   "name": "AR10",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "E8A8DCCC-0F3F-42ec-8C5C-AB6DD56CAA09",
+   "name": "AR5",
+   "model": "AR2220",
+   "console_port": 2004
+  },
+  {
+   "id": "A0651079-2A28-4df4-B7A0-76694A5A3B95",
+   "name": "AR6",
+   "model": "AR2220",
+   "console_port": 2005
+  },
+  {
+   "id": "12C3A103-D486-4f86-A030-71AB014DFA68",
+   "name": "AR7",
+   "model": "AR2220",
+   "console_port": 2006
+  },
+  {
+   "id": "6C36632A-AFA9-42ef-959F-8CB70B4D5167",
+   "name": "AR8",
+   "model": "AR2220",
+   "console_port": 2007
+  },
+  {
+   "id": "AD9AD45B-41BF-4da4-8CB6-3A530132F525",
+   "name": "AR9",
+   "model": "AR2220",
+   "console_port": 2008
+  }
+ ],
+ "pc_count": 3,
+ "link_count": 11,
+ "links": [
+  {
+   "src": "AR6",
+   "dst": "AR5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR9",
+   "dst": "AR5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 2,
+     "dst_if": "GigabitEthernet0/0/2"
+    }
+   ]
+  },
+  {
+   "src": "AR9",
+   "dst": "PC3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR9",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "PC4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR5",
+   "dst": "AR8",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR6",
+   "dst": "AR7",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR7",
+   "dst": "AR8",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "AR5",
+   "dst": "AR10",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 3,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR10",
+   "dst": "AR8",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 2,
+     "dst_if": "GigabitEthernet0/0/2"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "lo1:172.16.1.1/24\r\nlo2:172.16.2.1/24",
+  "192.168.1.0/24",
+  "192.168.2.0/24",
+  ".10",
+  ".10",
+  ".1",
+  ".1",
+  "1、按照拓扑图中配置各网络设备IP地址及路由协议，拓扑图中路由器的所有接口均加入OSPF；\r\n2、接口策略路由:网络1发往172.16.1.0/24经过AR6，网络1发往172.16.2.0/24经过AR10，其他的流量按照路由表转发；\r\n3、配置流量过滤，AR9配置禁止192.168.1.10发送到172.16.2.0/24流量进入。\r\n4、验证流量过滤配置是否成功，提交截图；\r\n5、验证接口路由策略是否配置成功，提交截图；\r\n6、提交ans文档。",
+  "192.168.59.0/24",
+  ".9",
+  ".5",
+  "192.168.56.0/24",
+  ".5",
+  ".5",
+  "192.168.58.0/24",
+  ".7",
+  ".6",
+  "192.168.78.0/24",
+  "192.168.67.0/24",
+  ".6",
+  ".7",
+  ".8",
+  ".8",
+  "OSPF 1 area 0",
+  "网络1",
+  "网络2",
+  "20",
+  "192.168.150.0/24",
+  "192.168.180.0/24",
+  "10",
+  "10",
+  "5",
+  "8"
+ ]
+}

@@ -1,0 +1,169 @@
+{
+ "experiment": "基于VLAN的MAC地址漂移检测与应对",
+ "source": "data\\ensp_labs\\src\\基于VLAN的MAC地址漂移检测与应对\\paper\\paper.topo",
+ "device_count": 2,
+ "devices": [
+  {
+   "id": "17963CFC-4CF9-4315-A9E3-CAA458D05237",
+   "name": "LSW1",
+   "model": "S5700",
+   "console_port": 2000
+  },
+  {
+   "id": "A854036D-F9E1-4fc5-975B-8994B725E475",
+   "name": "LSW2",
+   "model": "S5700",
+   "console_port": 2001
+  }
+ ],
+ "pc_count": 9,
+ "link_count": 10,
+ "links": [
+  {
+   "src": "LSW1",
+   "dst": "LSW2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "PC3",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 2,
+     "dst_if": "GigabitEthernet0/0/3"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "HUB1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "HUB1",
+   "dst": "PC4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "Ethernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "HUB1",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "Ethernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "PC5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "PC7",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 3,
+     "dst_if": "GigabitEthernet0/0/4"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "HUB2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "HUB2",
+   "dst": "PC6",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "Ethernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "HUB2",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "Ethernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "192.168.1.20/24\r\nMAC:54-89-98-99-60-92",
+  "192.168.1.10/24\r\nMAC:54-89-98-99-60-92",
+  "192.168.1.40/24",
+  "192.168.1.30/24",
+  "192.168.10.50/24",
+  "192.168.10.70/24",
+  "VLAN 10",
+  "VLAN 10",
+  "TRUNK 1 10",
+  "192.168.1.60/24",
+  "VLAN 1",
+  "VLAN 1",
+  "VLAN 1",
+  "基于VLAN的地址漂移检测与应对配置练习\r\n1）配置LSW1 VLAN 1MAC地址漂移检测；\r\n2）持续让PC1与PC3、PC2与PC3通信，在LSW1中观察地址漂移是否有发生；\r\n3）停止所有PC的通信，清空LSW1、LSW2动态MAC地址表；\r\n4）让PC2与PC3持续进行通信，LSW1 G0/0/2接口配置MAC地址学习优先级为3，再使\r\nPC1与PC3进行通信，观察当前PC2是否还能与PC3通信？\r\n5）停止所有PC的通信，清空LSW1、LSW2动态MAC地址表；\r\n6）撤销LSW1 G0/0/2 的MAC地址学习优先级配置，在全局配置试图下，配置禁止MAC\r\n地址学习优先级为0的端口发生地址漂移，再持续让PC1与PC3、PC2与PC3通信，看看\r\n哪个成功，哪个失败，分析原因；\r\n7）撤销配置禁止MAC地址学习优先级为0的端口发生地址漂移配置，停止所有PC的通\r\n信，清空LSW1、LSW2动态MAC地址表；\r\n8）先使PC1与PC3持续进行通信，然后使PC2与PC3、PC6与PC3、PC5与PC7持续进行通\r\n信，观察MAC地址漂移是否发生，然后在LSW1中配置VLAN 1启动MAC地址漂移检测，动\r\n作为接口阻断，具体为阻断10秒后恢复，若冲突次数到达3次，就永久阻断，查看\r\nVLAN 1的地址漂移检测情况，观察上述PC间的通信情况，说明PC间通信成功与失败\r\n的原因；\r\n9）停止所有PC间的通信，恢复阻断的接口，先使PC2与PC3持续通信，再使PC1与PC3、\r\nPC6与PC3、PC5与PC7持续进行通信，观察MAC地址漂移是否发生，查看VLAN 1的地址\r\n漂移检测情况，观察上述PC间的通信情况，思考PC间通信成功与失败的原因；\r\n10）停止所有PC间的通信，恢复阻断的接口，把LSW1中配置VLAN 1改为如果检测到地\r\n址漂移动作为MAC地址阻断，具体为阻断10秒后恢复，再检测到发生漂移，就永久阻\r\n断，观察PC1与PC3、PC2与PC4、PC4与PC6、PC4与间的通信，说明PC间通信成功与失\r\n败的原因。\r\n11）停止PC2与PC3的通信，手工恢复被阻塞的MAC地址，观察PC1与PC3的通信是否恢复。"
+ ]
+}

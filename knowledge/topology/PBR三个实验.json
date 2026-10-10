@@ -1,0 +1,104 @@
+{
+ "experiment": "PBR三个实验",
+ "source": "data\\ensp_labs\\src\\PBR三个实验\\PBR-1-基本配置\\PBR-1-基本配置.topo",
+ "device_count": 4,
+ "devices": [
+  {
+   "id": "61EB7604-D46B-48bd-8702-FA1205784245",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "EE9970B7-DAD8-40d6-BD5A-CFB4A67BCAD9",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "2BD21479-BB9C-40ad-9BCA-0E695DB281F7",
+   "name": "AR3",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "31279E58-10E9-462c-833F-D94F42668AFB",
+   "name": "AR4",
+   "model": "AR2220",
+   "console_port": 2003
+  }
+ ],
+ "pc_count": 0,
+ "link_count": 4,
+ "links": [
+  {
+   "src": "AR1",
+   "dst": "AR2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "AR1",
+   "dst": "AR3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR2",
+   "dst": "AR4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "AR3",
+   "dst": "AR4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "OSPF area 0",
+  "10.10.12.0/24",
+  "10.10.24.0/24",
+  "10.10.13.0/24",
+  "10.10.34.0/24",
+  "1",
+  "1",
+  "2",
+  "2",
+  "3",
+  "3",
+  "4",
+  "4",
+  "Lo0:192.168.1.1/24\r\nLo1:192.168.2.1/24\r\nLo2:192.168.3.1/24",
+  "Lo0:172.16.1.1/24\r\nLo1:172.16.2.1/24"
+ ]
+}

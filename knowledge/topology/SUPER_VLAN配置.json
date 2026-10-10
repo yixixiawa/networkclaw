@@ -1,0 +1,139 @@
+{
+ "experiment": "SUPER_VLAN配置",
+ "source": "data\\ensp_labs\\src\\SUPER_VLAN配置\\paper\\paper.topo",
+ "device_count": 3,
+ "devices": [
+  {
+   "id": "7833C506-1053-4914-A3DE-948F64C95039",
+   "name": "LSW1",
+   "model": "S5700",
+   "console_port": 2000
+  },
+  {
+   "id": "D17A48F6-A691-4977-9006-9F4A69BF7384",
+   "name": "LSW2",
+   "model": "S5700",
+   "console_port": 2001
+  },
+  {
+   "id": "100E2097-76B0-4611-91C9-FB0D2B171182",
+   "name": "LSW3",
+   "model": "S5700",
+   "console_port": 2003
+  }
+ ],
+ "pc_count": 5,
+ "link_count": 7,
+ "links": [
+  {
+   "src": "LSW1",
+   "dst": "LSW2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "PC3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "PC4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "LSW3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW3",
+   "dst": "PC5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW3",
+   "dst": "PC6",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "PC7",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "VLAN 10",
+  "VLAN 20",
+  "VLAN 200",
+  "VLANIF 100: 192.168.10.1/24\r\nVLANIF 200: 172.16.10.1/24",
+  "172.16.10.10/24",
+  "VLAN 20",
+  "VLAN 10",
+  "192.168.10.30/24",
+  "192.168.10.40/24",
+  "192.168.10.50/24",
+  "192.168.10.60/24",
+  "1、按照拓扑图信息配置PC及交换机，交换机中配置SUPER VLAN 使得客户1的主机、客户2的\r\n主机使用虚拟接口VLANIF 100作为出口与外部网络互通，但是客户1与客户2的主机不能互通。\r\n2、在第1点配置的基础上，在LSW1 的VLAN 100虚拟接口上配置ARP-PROXY使得客户1与客户2\r\n的主机可以通过代理互通。\r\n3、提交ANS文档",
+  "TRUNK 10 20",
+  "TRUNK 10 20",
+  "外部网络",
+  "客户1",
+  "客户2"
+ ]
+}

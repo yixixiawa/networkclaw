@@ -240,7 +240,10 @@ def start_llama_server(mmproj: str | None = None, require_vision: bool = False):
         "-m", str(model_file),
         "--parallel", "1",
         "-ngl", "99",
-        "-c", "4096",
+        # agent 模式：系统提示词 + 18 个工具的 JSON schema 约 4.6K tokens，
+        # 再叠加多轮工具回显，4096 会直接爆上下文（实测 HTTP 400 exceed_context_size_error）。
+        # 16K 起步；显存紧张可用环境变量 NETWORKCLAW_CTX 调低（如 8192）。
+        "-c", os.environ.get("NETWORKCLAW_CTX", "16384"),
         "-fa", "on",
         "--cache-type-k", "q4_0",
         "--cache-type-v", "q4_0",

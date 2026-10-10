@@ -41,6 +41,8 @@ DEFAULT_SERVERS: dict[str, str] = {
     "knowledge": str(PROJECT_ROOT / "mcp_tools" / "template_server.py"),
     "device-serial": str(PROJECT_ROOT / "mcp_tools" / "device_server.py"),
     "device-telnet": str(PROJECT_ROOT / "mcp_tools" / "telnet_server.py"),
+    "device-manual": str(PROJECT_ROOT / "mcp_tools" / "manual_server.py"),
+    "topology": str(PROJECT_ROOT / "mcp_tools" / "topology_server.py"),
     "vision": str(PROJECT_ROOT / "mcp_tools" / "vision_server.py"),
 }
 # 可选服务端：联网搜索（依赖 npx + open-websearch，按需接入）
@@ -82,6 +84,10 @@ def _child_env() -> dict[str, str]:
     for key in ("DEEPSEEK_API_KEY", "NETWORKCLAW_MMPROJ", "NETWORKCLAW_PROVIDER"):
         if os.environ.get(key):
             env[key] = os.environ[key]
+    # 实验模式：跑 eNSP 实验包时由 tools/lab_*.py 设置，
+    # 服务端进程靠它把 undo 类命令从「硬拦」降级为「需确认」
+    if os.environ.get("NETWORKCLAW_LAB_MODE"):
+        env["NETWORKCLAW_LAB_MODE"] = os.environ["NETWORKCLAW_LAB_MODE"]
     return env
 
 

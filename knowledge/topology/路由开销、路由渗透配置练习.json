@@ -1,0 +1,225 @@
+{
+ "experiment": "路由开销、路由渗透配置练习",
+ "source": "data\\ensp_labs\\src\\路由开销、路由渗透配置练习\\paper\\paper.topo",
+ "device_count": 7,
+ "devices": [
+  {
+   "id": "C1F3B950-5F14-42a4-870D-C1F9520B29FA",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "0EF8D703-35B0-49ad-873E-12EC9ADBB480",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "EC3EE43A-0998-4bc2-B342-17DA2701DC87",
+   "name": "AR3",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "19453BFB-107E-4bd2-86B5-FE6FB694179A",
+   "name": "AR4",
+   "model": "AR2220",
+   "console_port": 2003
+  },
+  {
+   "id": "53786E08-B803-4544-94C7-BB1AC70BA179",
+   "name": "AR5",
+   "model": "AR2220",
+   "console_port": 2004
+  },
+  {
+   "id": "7544FAFA-41D0-4886-934D-04E4A1F8AF45",
+   "name": "AR6",
+   "model": "AR2220",
+   "console_port": 2005
+  },
+  {
+   "id": "ED2102B2-084B-44dd-9172-06D4C6444E78",
+   "name": "AR7",
+   "model": "AR2220",
+   "console_port": 2006
+  }
+ ],
+ "pc_count": 2,
+ "link_count": 10,
+ "links": [
+  {
+   "src": "AR1",
+   "dst": "AR2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR4",
+   "dst": "AR6",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR2",
+   "dst": "AR5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR5",
+   "dst": "AR3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR1",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR6",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR2",
+   "dst": "AR3",
+   "interfaces": [
+    {
+     "cable": "Serial",
+     "src_index": 3,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 3,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR6",
+   "dst": "AR7",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR5",
+   "dst": "AR7",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "AR3",
+   "dst": "AR4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "10.10.12.0/24",
+  "1",
+  "2",
+  "10.10.25.0/24",
+  "2",
+  "5",
+  "5",
+  "3",
+  "10.10.35.0/24",
+  "10.10.34.0/24",
+  "3",
+  "4",
+  "4",
+  "6",
+  "10.10.46.0/24",
+  "192.168.10.0/24",
+  "1",
+  "10",
+  "192.168.60.0/24",
+  "1",
+  "10",
+  "7",
+  "5",
+  "7",
+  "6",
+  "49.0002",
+  "49.0001",
+  "49.0003",
+  "LEVEL 1",
+  "LEVEL 1-2",
+  "LEVEL 2",
+  "LEVEL 2",
+  "LEVEL 1-2",
+  "LEVEL 1-2",
+  "LEVEL 1",
+  "AR1:0000.0000.0001     AR2:0000.0000.0002     AR3:0000.0000.0003\r\nAR4:0000.0000.0004     AR5:0000.0000.0005     AR6:0000.0000.0006\r\nAR7:0000.0000.0007\r\n\r\n1、按照拓扑图所示信息及上述system-id配置各IS-IS路由器设备;\r\n2、各路由器配置IS-IS路由协议，并且所有接口均加入IS-IS路由协议进程中，P2P链路配置为不需检查IP地址建立邻居关系；\r\n3、全网路由开销使用NARROW模式，并且自动根据带宽计算各链路的路由开销；\r\n4、在49.0003区域中进行路由渗透，使得AR6到192.168.10.0/24的路径经过AR7。\r\n\r\n提交文档：\r\n1、查看AR2路由表截图，指出到192.168.60.0经过哪个LEVEL-2路由器，路由开销是多少？\r\n2、把AR2的G0/0/1关闭，指出到192.168.60.0经过哪个LEVEL-2路由器，路由开销是多少？\r\n3、查看AR6路由表截图，指出到192.168.10.0/24经由哪台路由器（LEVEL 1-2路由器）；\r\n4、提交ANS文档。",
+  "10.10.57.0/24",
+  "10.10.67.0/24",
+  "10.10.23.2/30",
+  "10.10.23.30/30"
+ ]
+}

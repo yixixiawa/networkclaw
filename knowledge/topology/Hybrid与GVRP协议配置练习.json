@@ -1,0 +1,140 @@
+{
+ "experiment": "Hybrid与GVRP协议配置练习",
+ "source": "data\\ensp_labs\\src\\Hybrid与GVRP协议配置练习\\paper\\paper.topo",
+ "device_count": 4,
+ "devices": [
+  {
+   "id": "4A216BBE-4C34-4848-8B3A-5EA6E45833DC",
+   "name": "LSW1",
+   "model": "S5700",
+   "console_port": 2000
+  },
+  {
+   "id": "4A8436AE-B9D9-4c48-815E-2672890021BC",
+   "name": "LSW2",
+   "model": "S5700",
+   "console_port": 2001
+  },
+  {
+   "id": "8493FA62-53F1-4a1d-A0F8-797B7EA9297C",
+   "name": "LSW3",
+   "model": "S5700",
+   "console_port": 2002
+  },
+  {
+   "id": "B01D52C7-811B-47cd-A7D2-20C5D634A4B7",
+   "name": "LSW4",
+   "model": "S5700",
+   "console_port": 2003
+  }
+ ],
+ "pc_count": 4,
+ "link_count": 7,
+ "links": [
+  {
+   "src": "LSW2",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "LSW4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "LSW3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW4",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW4",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW3",
+   "dst": "PC3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW3",
+   "dst": "PC4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "hybrid PVID vlan 10\r\nuntagged vlan 10 20",
+  "VLAN 20",
+  "VLAN 10",
+  "192.168.10.10/24",
+  "192.168.10.20/24",
+  "192.168.10.30/24",
+  "192.168.10.40/24",
+  "TRUNK ALL",
+  "TRUNK ALL",
+  "TRUNK ALL",
+  "要求：\r\n1、按照拓扑图中信息配置个网络设备；\r\n2、LSW1和LSW2配置GVRP协议动态创建VLAN，LSW3和LSW4的G0/0/1端口激活GVRP协议；\r\n3、配置完成后，观察并回答以下问题：\r\n   PC1与PC3是否可以互通，为什么？\r\n   PC1与PC4是否可以互通，为什么？\r\n   PC2与PC4是否可以互通，为什么？\r\n4、提交ans文档。",
+  "hybrid PVID vlan 20\r\nuntagged vlan 10\r\ntagged vlan 20"
+ ]
+}

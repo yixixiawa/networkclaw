@@ -20,7 +20,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from fastmcp import FastMCP  # noqa: E402
 
-from core.rag import build_index as build_knowledge_index, retrieve  # noqa: E402
+from core.rag import build_index as build_knowledge_index, retrieve_ex  # noqa: E402
 from core.template_search import (  # noqa: E402
     build_index as build_template_index,
     search as search_templates,
@@ -76,6 +76,10 @@ def query_command_template(intent: str, vendor: str = "", device_type: str = "",
 def search_knowledge(query: str, top: int = 3) -> str:
     """通用知识库检索：华为设备产品线介绍、基础配置命令说明等。
 
+    返回内容会带**知识分级**前缀：现行规则 / 历史记录 / 实例数据。
+    检索降级（向量库或 Embedding 服务不可用）时会显式返回"不可用"，
+    此时不要声称"知识库中没有相关内容"——那是故障，不是结论。
+
     Args:
         query: 检索问题，例如“S5700 适用什么场景”
         top: 返回片段数，默认 3
@@ -84,11 +88,17 @@ def search_knowledge(query: str, top: int = 3) -> str:
         if not query.strip():
             return "query 不能为空"
         build_knowledge_index()  # 幂等：索引与知识文档指纹一致时自动跳过
-        docs = retrieve(query.strip(), n_results=max(1, top))
-        if not docs:
-            return f"知识库中没有找到与「{query}」相关的内容"
-        lines = [f"问题「{query}」检索到 {len(docs)} 个知识片段："]
-        for i, doc in enumerate(docs, 1):
+        res = retrieve_ex(query.strip(), n_results=max(1, top))
+        if not res.ok:
+            if res.degraded:
+                # 关键：让模型能区分"没查到"与"检索挂了"
+                return (f"⚠ 知识库检索不可用（{res.status}）：{res.reason}\n"
+                        f"这不是「知识库中没有相关内容」，而是检索链路故障。"
+                        f"请明确告知用户检索失败，不要凭记忆编造命令或结论。"
+                        f"（修复：启动 Ollama 并执行 ollama pull nomic-embed-text）")
+            return f"知识库中没有找到与「{query}」相关的内容（{res.reason}）"
+        lines = [f"问题「{query}」检索到 {len(res.chunks)} 个知识片段："]
+        for i, doc in enumerate(res.chunks, 1):
             lines.append(f"[{i}] {doc}")
         return "\n\n".join(lines)
     except Exception as e:

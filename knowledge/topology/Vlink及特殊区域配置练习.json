@@ -1,0 +1,184 @@
+{
+ "experiment": "Vlink及特殊区域配置练习",
+ "source": "data\\ensp_labs\\src\\Vlink及特殊区域配置练习\\paper\\paper.topo",
+ "device_count": 8,
+ "devices": [
+  {
+   "id": "C7983627-85E6-4ccc-935D-9090BD9619DE",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "2531825E-15DF-4329-A5ED-D2963CE11089",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "F40298FF-A5EF-49e7-9E5F-7EFEB6C3970A",
+   "name": "AR3",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "9BE19D05-9443-45c5-8EEE-7053A59DFC20",
+   "name": "AR4",
+   "model": "AR2220",
+   "console_port": 2003
+  },
+  {
+   "id": "C603A77A-1213-4a50-B615-8436C78A41F0",
+   "name": "AR5",
+   "model": "AR2220",
+   "console_port": 2004
+  },
+  {
+   "id": "9CCD2F2B-5B0C-4cb7-B27E-7B1B76F9B6A7",
+   "name": "AR6",
+   "model": "AR2220",
+   "console_port": 2005
+  },
+  {
+   "id": "EC2B98B0-044E-4988-82AF-6F81A40CF90F",
+   "name": "AR8",
+   "model": "AR2220",
+   "console_port": 2006
+  },
+  {
+   "id": "49DB16AC-799F-4886-8976-BBD3BD2A22AE",
+   "name": "AR9",
+   "model": "AR2220",
+   "console_port": 2007
+  }
+ ],
+ "pc_count": 0,
+ "link_count": 7,
+ "links": [
+  {
+   "src": "AR1",
+   "dst": "AR2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR2",
+   "dst": "AR3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR3",
+   "dst": "AR4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR4",
+   "dst": "AR6",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR1",
+   "dst": "AR5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR5",
+   "dst": "AR9",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR3",
+   "dst": "AR8",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "AREA 0",
+  "AREA 3",
+  "AREA2",
+  "AREA 0",
+  "AREA 4",
+  "10.10.12.0/24",
+  "10.10.34.0/24",
+  "10.10.46.0/24",
+  "10.10.23.0/24",
+  "10.10.15.0/24",
+  "Vlink",
+  "10.10.59.0/24",
+  "1",
+  "2",
+  "10.10.38.0/24",
+  "引入外部静态路由",
+  "引入外部静态路由",
+  "192.168.10.0/24",
+  "192.168.1.0/24\r\n192.168.2.0/24",
+  "1",
+  "2",
+  "下面拓扑图中，各个路由器接口已经配置。\r\n实验步骤：\r\n1、按照拓扑图中信息配置各个路由器接口IP地址；\r\n2、按照图中提示配置OSPF网络及静态路由；\r\n3、按照图中所示，从AR3及AR5中引入静态路由到OSPF中；\r\n4、查看VLINK状态截图；\r\n5、把AREA3配置为stub区域，在AR5中查询LSDB并截图，看看AR1是否产生默认的第3类LSA,是否存在OSPF外部引入路由；\r\n6、把AREA3改为totally stub区域，在AR5中查询LSDB并截图，与步骤5截图比较，指出差异地方；\r\n7、把AREA3改为NSSA区域，查询AR5中LSDB，截图，并指出有几个NSSA-LSA；\r\n8、查询AR6中的LSDB，截图，指出哪个LSA是从7类LSA转换成5类LSA，由哪个路由器产生；\r\n9、提交ANS文档。",
+  "1",
+  "2",
+  "2",
+  "3",
+  "3",
+  "4",
+  "4",
+  "6",
+  "1",
+  "5"
+ ]
+}

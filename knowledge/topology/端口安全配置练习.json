@@ -1,0 +1,116 @@
+{
+ "experiment": "端口安全配置练习",
+ "source": "data\\ensp_labs\\src\\端口安全配置练习\\paper\\paper.topo",
+ "device_count": 1,
+ "devices": [
+  {
+   "id": "CA81E24B-52D7-4ede-8E5E-21C03BDBB514",
+   "name": "LSW1",
+   "model": "S5700",
+   "console_port": 2000
+  }
+ ],
+ "pc_count": 7,
+ "link_count": 7,
+ "links": [
+  {
+   "src": "LSW1",
+   "dst": "HUB1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "HUB1",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "Ethernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "HUB2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "HUB2",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "Ethernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "PC4",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 2,
+     "dst_if": "GigabitEthernet0/0/3"
+    }
+   ]
+  },
+  {
+   "src": "PC6",
+   "dst": "HUB1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 3,
+     "dst_if": "Ethernet0/0/3"
+    }
+   ]
+  },
+  {
+   "src": "HUB1",
+   "dst": "PC3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "Ethernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "192.168.10.10/24",
+  "192.168.10.30/24",
+  "192.168.10.20/24",
+  "192.168.10.40/24",
+  "192.168.10.60/24",
+  "1、体验在端口安全模式下，把学习到的动态MAC地址转换为动态SECURITY地址。\r\n1）激活交换机G0/0/1为端口安全模式\r\n2）先用PC3与PC4进行通信，查看交换机的MAC地址表看PC3的MAC地址是否为动\r\n态安全地址。\r\n3）停止PC3与PC4的通信，把老化时间设为10秒，10秒后查看动态安全地址是否\r\n有变化。\r\n4）让PC1与PC4进行通信，是否成功，注意交换机提示信息，查看端口的信息？\r\n5）把PC3链路连接到HUB2，使PC3与PC4通信，看看是否成功，查看交换机MAC地\r\n址表情况。\r\n6）停止所有的PC通信，恢复PC3链路连接至HUB1，保存配置。\r\n7）重启交换机，再观察交换机MAC地址表。\r\n\r\n2、在1配置的基础上，再进行下面操作，比较静态地址与动态SECURITY地址的\r\n优先级\r\n1）再配置PC1 MAC地址为VLAN1中G0/0/1端口上的静态地址，使PC1与PC4进行通\r\n信，看是否成功；\r\n2）保持PC1与PC4通信，再启动PC3与PC4通信，看看是否成功，再看当前的PC1\r\n与PC4通信情况，查看交换机MAC地址表；\r\n3）配置G0/0/1端口安全模式的最大学习地址数为2，看看PC1与PC4是否可以通信。\r\n4）保存配置。\r\n\r\n3、在2配置的基础上，体验端口安全下的保护动作的应用。\r\n1）使PC6与PC4进行通信，思考一下PC1与PC4之间是否还能通信，为什么？\r\n2）在端口上配置端口安全的保护模式为shutdown，看看此时PC1与PC4、PC3与\r\nPC4、PC6与PC4哪个可以成功通信，查看端口状态(DISPLAY INTERFACE BRIEF)。\r\n3）保存配置。\r\n\r\n4、体验端口安全的STICKY MAC地址的应用。\r\n1）停止所有的PC间的通信，恢复端口G0/0/1(undo shutdown  或 restart);\r\n2）配置端口安全下的MAC-ADDR为STICKY地址，然后使PC3与PC4通信，查看MAC地\r\n址表。\r\n3）停止全部PC间通信，保存配置，重启交换机，重启后再查看MAC地址，比较操\r\n作第1-7小点的不同。"
+ ]
+}

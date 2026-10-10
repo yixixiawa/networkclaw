@@ -1,0 +1,152 @@
+{
+ "experiment": "smart_link练习实验",
+ "source": "data\\ensp_labs\\src\\smart_link练习实验\\paper\\paper.topo",
+ "device_count": 4,
+ "devices": [
+  {
+   "id": "7149658F-6DA4-4eda-82AB-6C9C3CF8F48E",
+   "name": "LSW1",
+   "model": "S5700",
+   "console_port": 2000
+  },
+  {
+   "id": "15E142C7-DE12-4f4c-A5FB-C9B3C389DF4B",
+   "name": "LSW2",
+   "model": "S5700",
+   "console_port": 2001
+  },
+  {
+   "id": "CFC3F1C9-E8AC-4d4d-94BB-5DB65321E4AF",
+   "name": "LSW3",
+   "model": "S5700",
+   "console_port": 2002
+  },
+  {
+   "id": "EE20AAA6-2ED0-46c4-86DC-6FF274323F3B",
+   "name": "LSW4",
+   "model": "S5700",
+   "console_port": 2003
+  }
+ ],
+ "pc_count": 4,
+ "link_count": 8,
+ "links": [
+  {
+   "src": "LSW1",
+   "dst": "LSW2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "LSW4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW4",
+   "dst": "LSW3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW3",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/2"
+    }
+   ]
+  },
+  {
+   "src": "PC3",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 2,
+     "dst_if": "GigabitEthernet0/0/3"
+    }
+   ]
+  },
+  {
+   "src": "PC4",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 3,
+     "dst_if": "GigabitEthernet0/0/4"
+    }
+   ]
+  },
+  {
+   "src": "LSW4",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW4",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 3,
+     "src_if": "GigabitEthernet0/0/4",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "trunk 10 20",
+  "trunk 10 20",
+  "trunk 10 20",
+  "trunk 10 20",
+  "vlan 10",
+  "vlan 20",
+  "vlan 10",
+  "vlan 20",
+  "master",
+  "slave",
+  "smart link配置练习：\r\n1. 按照图中所示配置设备名称创建对应VLAN和配置接口链路\r\n2. 配置smart link group 主从模式，使正常情况流量通过master上行；\r\n    master链路如果发生故障（包括LSW4--LSW2及LSW2--LSW1之间链路及端口故障）\r\n自动切换到slave链路；master链路故障排除后，自动切换回master链路，回切等待时间设置为30秒。\r\n3. 测试PC1与PC3的连通性，同时观察在LSW4 G0/0/1和G0/0/2抓取报文情况。\r\n4. 保持PC1与PC3的通信，关闭LSW1的G0/0/1端口，观察PC1与PC3的通信情况。\r\n5. 恢复LSW1的G0/0/1端口，观察PC1与PC3的通信情况。"
+ ]
+}

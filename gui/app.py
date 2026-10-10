@@ -5,7 +5,7 @@
     - 源码运行：python -m gui.app  或  python launcher.py
 
 可选启动参数（与命令行入口保持一致的语义）：
-    --provider local|deepseek|deepseek-reasoner   指定默认提供方
+    --provider local|deepseek-flash|deepseek-pro   指定默认提供方
     --mode agent|rag|parallel                     指定默认模式
     --parallel-providers local,deepseek           并行模式参与方
     --mmproj [路径]                                启用图像识别（留空自动探测）
@@ -37,6 +37,8 @@ SETTINGS_DEFAULTS: dict = {
     "max_rounds": 4,
     "theme": "dark",
     "capture_stdout": True,
+    "auto_vision": True,       # 启动时自动巡检拓扑（截取 eNSP/虚拟机窗口并识读）
+    "capture_keyword": "",     # 巡检目标窗口关键字（空 = 按内置关键字表匹配）
 }
 
 
@@ -53,6 +55,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--theme", choices=["dark", "light"], default=None)
     parser.add_argument("--dark", action="store_true")
     parser.add_argument("--light", action="store_true")
+    parser.add_argument("--no-auto-vision", action="store_true",
+                        help="关闭启动时的自动拓扑巡检（默认开启）")
+    parser.add_argument("--capture-keyword", default=None, metavar="关键字",
+                        help="自动巡检的目标窗口关键字（如 vmware / ensp）")
     parser.add_argument("--reset-settings", action="store_true",
                         help="忽略上次保存的设置，使用默认值启动")
     return parser.parse_args(argv)
@@ -152,6 +158,10 @@ def run(argv: list[str] | None = None) -> int:
         settings["theme"] = "light"
     if args.theme:
         settings["theme"] = args.theme
+    if args.no_auto_vision:
+        settings["auto_vision"] = False
+    if args.capture_keyword is not None:
+        settings["capture_keyword"] = args.capture_keyword
 
     app.setStyleSheet(build_qss(get_palette(settings.get("theme", "dark"))))
 

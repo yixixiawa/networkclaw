@@ -1,0 +1,160 @@
+{
+ "experiment": "ISIS-4-配置练习",
+ "source": "data\\ensp_labs\\src\\ISIS-4-配置练习\\paper\\paper.topo",
+ "device_count": 6,
+ "devices": [
+  {
+   "id": "5E4755D7-190C-4050-AAD0-0A8FD148ECE5",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "1DB0247F-81EE-411e-A76E-94594755CF3A",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "F68662E3-9942-48fe-99D0-D113E0C12CDB",
+   "name": "AR3",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "41A6ECE6-56AA-43c0-BF3F-F7B00B0BF3DC",
+   "name": "AR4",
+   "model": "AR2220",
+   "console_port": 2003
+  },
+  {
+   "id": "DD9B1961-8B5C-4820-A9ED-E30B329D67E7",
+   "name": "AR5",
+   "model": "AR2220",
+   "console_port": 2004
+  },
+  {
+   "id": "1AD08700-E754-4b39-B802-10EBD3EA3BC5",
+   "name": "AR6",
+   "model": "AR2220",
+   "console_port": 2005
+  }
+ ],
+ "pc_count": 0,
+ "link_count": 6,
+ "links": [
+  {
+   "src": "AR1",
+   "dst": "AR2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR1",
+   "dst": "AR3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "AR2",
+   "dst": "AR3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 2,
+     "dst_if": "GigabitEthernet0/0/2"
+    }
+   ]
+  },
+  {
+   "src": "AR3",
+   "dst": "AR4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR4",
+   "dst": "AR5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "AR6",
+   "dst": "AR5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "10.10.12.0/24",
+  "10.10.13.0/24",
+  "10.10.23.0/24",
+  "10.10.34.0/24",
+  "3",
+  "4",
+  "1",
+  "1",
+  "2",
+  "2",
+  "3",
+  "3",
+  "10.10.45.0/24",
+  "4",
+  "5",
+  "10.10.56.0/24",
+  "6",
+  "5",
+  "49.0123",
+  "49.0004",
+  "49.0056",
+  "公司部门A网络",
+  "公司骨干网络",
+  "公司部门B网络",
+  "Lo0:10.0.1.1/32",
+  "Lo0:10.0.2.2/32",
+  "Lo0:10.0.6.6/32",
+  "L-2",
+  "L-1-2",
+  "L-1-2",
+  "L-1",
+  "L-1",
+  "L-1"
+ ]
+}

@@ -1,0 +1,247 @@
+{
+ "experiment": "MPLS_VPN配置练习",
+ "source": "data\\ensp_labs\\src\\MPLS_VPN配置练习\\paper\\paper.topo",
+ "device_count": 8,
+ "devices": [
+  {
+   "id": "6FB3F59E-5CA4-4742-BC7D-0478522A33C7",
+   "name": "PE1",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "C9F287F8-D204-4560-B9A1-E67E352E8D52",
+   "name": "P1",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "9CBDF6C5-D95E-42dc-B18A-9153B9AF5C08",
+   "name": "P2",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "C29A666C-D42B-48f6-A4E7-33467909CECE",
+   "name": "PE2",
+   "model": "AR2220",
+   "console_port": 2003
+  },
+  {
+   "id": "A45EE47A-D02E-4439-9B09-C04A1CF5AF6C",
+   "name": "CE1",
+   "model": "AR2220",
+   "console_port": 2004
+  },
+  {
+   "id": "1E165E55-A304-4c3f-A1B2-AEAB38B3CF0C",
+   "name": "CE2",
+   "model": "AR2220",
+   "console_port": 2005
+  },
+  {
+   "id": "E062A000-2357-43cc-9026-12EA57A0E843",
+   "name": "CE3",
+   "model": "AR2220",
+   "console_port": 2006
+  },
+  {
+   "id": "DCC0B1CF-EF1F-4f84-B82F-B9D7059BBA24",
+   "name": "CE4",
+   "model": "AR2220",
+   "console_port": 2007
+  }
+ ],
+ "pc_count": 4,
+ "link_count": 11,
+ "links": [
+  {
+   "src": "P1",
+   "dst": "P2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "P2",
+   "dst": "PE2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "PE1",
+   "dst": "P1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "PE1",
+   "dst": "CE1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "PE1",
+   "dst": "CE2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "PE2",
+   "dst": "CE3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "PE2",
+   "dst": "CE4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "CE1",
+   "dst": "PC3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "CE3",
+   "dst": "PC4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "CE2",
+   "dst": "PC5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "CE4",
+   "dst": "PC6",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "1.16.2.2/30",
+  "1.16.2.1/30",
+  "1.17.2.2/30",
+  "192.168.100.10/24",
+  "lo0:1.1.1.1/32",
+  "lo0:2.2.2.2/32",
+  "lo0:3.3.3.3/32",
+  "lo0:4.4.4.4/32",
+  "1.10.12.1/24",
+  "1.10.12.2/24",
+  "1.10.23.1/24",
+  "1.10.23.2/24",
+  "1.10.34.1/24",
+  "1.10.34.2/24",
+  "MPLS骨干网 AS100",
+  "B公司总部",
+  "A公司办事处",
+  "A公司总部",
+  "B公司办事处",
+  "1.17.1.1/30",
+  "1.17.2.1/30",
+  "1.16.1.2/30",
+  "1.16.1.1/30",
+  "1.17.1.2/30",
+  "192.168.1.10/24",
+  "192.168.1.10/24",
+  "192.168.200.10/24",
+  "BGP",
+  "OSPF",
+  "AS65540",
+  "OSPF",
+  "静态路由",
+  "VPNA RD 100:100\r\n     RT EXP 300:100\r\n        IMP 100:100\r\nVPNB RD 100:200\r\n     RT EXP 400:100\r\n        IMP 200:100",
+  "VPNA RD 100:300\r\n     RT EXP 100:100\r\n        IMP 300:100\r\nVPNB RD 100:400\r\n     RT EXP 200:100\r\n        IMP 400:100",
+  "IS-IS",
+  "0000.0000.0002.00",
+  "0000.0000.0003.00",
+  "48.0001",
+  "48.0002",
+  "48.0003",
+  "0000.0000.0001.00",
+  "0000.0000.0004.00",
+  "配置要求：\r\n按照拓扑图中信息完成MPLS VPN 配置，使得A公司与其办事处、B公司与其办事处分别实现互通。\r\n\r\n提交资料：\r\n1、在CE1中查看路由表，观察是否有A公司办事处网络路由，截图提交；\r\n2、在PE2查看BGP VPNV4 全部路由，指出哪些路由是B公司网络路由；\r\n3、提交 ans文档。"
+ ]
+}

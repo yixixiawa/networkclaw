@@ -224,6 +224,16 @@ class SettingsDialog(QDialog):
         self.autolog_check = QCheckBox("把运行日志同步显示在「运行日志」页签")
         self.autolog_check.setChecked(bool(self.settings.get("capture_stdout", True)))
         form.addRow("", self.autolog_check)
+
+        self.autovision_check = QCheckBox(
+            "启动时自动巡检拓扑（截取 eNSP/虚拟机窗口并识读，截图仅存本机）")
+        self.autovision_check.setChecked(bool(self.settings.get("auto_vision", True)))
+        form.addRow("", self.autovision_check)
+
+        self.capture_keyword_edit = QLineEdit(self.settings.get("capture_keyword") or "")
+        self.capture_keyword_edit.setPlaceholderText(
+            "留空 = 自动匹配 eNSP/VMware/VirtualBox 等窗口；也可填如 vmware")
+        form.addRow("巡检目标窗口关键字", self.capture_keyword_edit)
         return page
 
     # -------------------------------------------------- 交互
@@ -273,6 +283,8 @@ class SettingsDialog(QDialog):
             "max_rounds": self.rounds_spin.value(),
             "theme": self.theme_box.currentData(),
             "capture_stdout": self.autolog_check.isChecked(),
+            "auto_vision": self.autovision_check.isChecked(),
+            "capture_keyword": self.capture_keyword_edit.text().strip(),
         }
 
 
@@ -399,12 +411,15 @@ HELP_TEXT = """NetworkClaw 桌面端 使用说明
    parallel  同一问题并行交给多个模型，最后融合成一份答案（可配合识图）
 3. 图像识别：点「图片」附加拓扑截图；若当前模型不看图（如 DeepSeek），
    程序会先用本地多模态模型识读，再把文字结论交给它。
+   启动时会自动巡检拓扑（截取 eNSP/虚拟机窗口识读，截图仅存本机），可在设置里关闭。
 4. 设备操作安全：只读命令（display/show/ping/tracert）直接放行；
    配置类命令需在对话中明确同意；undo/shutdown/reset/reboot 等一律硬拦，
    全部裁决记录在 logs/command_audit.log，可在「审计」中查看。
 5. 「命令」页签支持：
    /help /model [名称] /key sk-xxx /tools /call 工具名 {"参数":"值"}
    /audit [n] /vision /rebuild /probe /rag /agent /parallel [on|off|a,b]
+   /topology [关键字]      现在就看一眼当前拓扑（截图→识读→更新快照）
+   /autovision on|off      开关启动时的自动拓扑巡检
    /image <路径>|clear /export [路径]
 ────────────────────────────────────────────
 """

@@ -1,0 +1,404 @@
+{
+ "total": 57,
+ "labs": [
+  {
+   "experiment": "ACCESS、TRUNK、HYBRID配置练习",
+   "devices": 3,
+   "pcs": 7,
+   "links": 9,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "ACL与IP-PREFIX配置练习",
+   "devices": 5,
+   "pcs": 4,
+   "links": 9,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "BGP-基本配置工程",
+   "devices": 3,
+   "pcs": 2,
+   "links": 4,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "dhcp_snooping配置",
+   "devices": 4,
+   "pcs": 3,
+   "links": 6,
+   "has_answer_dir": false
+  },
+  {
+   "experiment": "DHCP服务器配置",
+   "devices": 7,
+   "pcs": 7,
+   "links": 11,
+   "has_answer_dir": false
+  },
+  {
+   "experiment": "DHCP服务器配置练习V2",
+   "devices": 3,
+   "pcs": 5,
+   "links": 8,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "DHCP服务器防假冒、饿死攻击",
+   "devices": 4,
+   "pcs": 6,
+   "links": 9,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "Hybrid与GVRP协议配置练习",
+   "devices": 4,
+   "pcs": 4,
+   "links": 7,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "IP地址池NAT及服务器端口映射配置练习",
+   "devices": 4,
+   "pcs": 5,
+   "links": 8,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "is-is路由基本配置",
+   "devices": 8,
+   "pcs": 0,
+   "links": 8,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "IS-IS路由汇总、认证、外部路由引入配置练习",
+   "devices": 6,
+   "pcs": 2,
+   "links": 7,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "ISIS-1-基本配置",
+   "devices": 8,
+   "pcs": 0,
+   "links": 8,
+   "has_answer_dir": false
+  },
+  {
+   "experiment": "ISIS-1-示例",
+   "devices": 3,
+   "pcs": 0,
+   "links": 2,
+   "has_answer_dir": false
+  },
+  {
+   "experiment": "ISIS-4-配置练习",
+   "devices": 6,
+   "pcs": 0,
+   "links": 6,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "ISIS-OSPF相互引入工程",
+   "devices": 5,
+   "pcs": 0,
+   "links": 4,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "ISIS高级配置工程",
+   "devices": 7,
+   "pcs": 2,
+   "links": 9,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "MPLS_VPN配置练习",
+   "devices": 8,
+   "pcs": 4,
+   "links": 11,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "MPLS解决BGP路由黑洞配置",
+   "devices": 5,
+   "pcs": 2,
+   "links": 6,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "MSTP配置练习试卷",
+   "devices": 4,
+   "pcs": 8,
+   "links": 13,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "MUX_VLAN练习",
+   "devices": 3,
+   "pcs": 7,
+   "links": 9,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "OSPF-4-VLink-Nssa",
+   "devices": 8,
+   "pcs": 0,
+   "links": 7,
+   "has_answer_dir": false
+  },
+  {
+   "experiment": "OSPF-4-VLink-Nssa-static",
+   "devices": 7,
+   "pcs": 0,
+   "links": 6,
+   "has_answer_dir": false
+  },
+  {
+   "experiment": "OSPF-5-其他配置工程",
+   "devices": 5,
+   "pcs": 1,
+   "links": 5,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "OSPF基本配置",
+   "devices": 5,
+   "pcs": 0,
+   "links": 5,
+   "has_answer_dir": false
+  },
+  {
+   "experiment": "OSPF综合实验",
+   "devices": 10,
+   "pcs": 4,
+   "links": 13,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "OSPF配置(查看LSA信息)",
+   "devices": 8,
+   "pcs": 3,
+   "links": 11,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "OSPF配置实验",
+   "devices": 7,
+   "pcs": 0,
+   "links": 6,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "PBR三个实验",
+   "devices": 4,
+   "pcs": 0,
+   "links": 4,
+   "has_answer_dir": false
+  },
+  {
+   "experiment": "PIM-SM练习",
+   "devices": 6,
+   "pcs": 5,
+   "links": 11,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "RIP 路由开销、汇总、认证配置练习",
+   "devices": 3,
+   "pcs": 3,
+   "links": 6,
+   "has_answer_dir": false
+  },
+  {
+   "experiment": "RIPv1配置练习",
+   "devices": 5,
+   "pcs": 3,
+   "links": 8,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "RIP网络中过滤策略使用配置",
+   "devices": 5,
+   "pcs": 0,
+   "links": 5,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "RIP路由开销、汇总、认证练习试卷",
+   "devices": 3,
+   "pcs": 3,
+   "links": 6,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "RSTP配置练习",
+   "devices": 4,
+   "pcs": 4,
+   "links": 7,
+   "has_answer_dir": false
+  },
+  {
+   "experiment": "smart_link练习实验",
+   "devices": 4,
+   "pcs": 4,
+   "links": 8,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "STP基本练习",
+   "devices": 5,
+   "pcs": 2,
+   "links": 7,
+   "has_answer_dir": false
+  },
+  {
+   "experiment": "SUPER_VLAN配置",
+   "devices": 3,
+   "pcs": 5,
+   "links": 7,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "VLAN间通信",
+   "devices": 5,
+   "pcs": 6,
+   "links": 8,
+   "has_answer_dir": false
+  },
+  {
+   "experiment": "VLAN间通信试题1",
+   "devices": 6,
+   "pcs": 7,
+   "links": 10,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "Vlink及特殊区域配置练习",
+   "devices": 8,
+   "pcs": 0,
+   "links": 7,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "VRRP基本配置_-_交换机",
+   "devices": 4,
+   "pcs": 3,
+   "links": 7,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "全局MAC地址漂移检测应对练习",
+   "devices": 2,
+   "pcs": 9,
+   "links": 10,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "全局的MAC地址漂移检测与应对",
+   "devices": 2,
+   "pcs": 9,
+   "links": 10,
+   "has_answer_dir": false
+  },
+  {
+   "experiment": "基于VLAN的MAC地址漂移检测与应对",
+   "devices": 2,
+   "pcs": 9,
+   "links": 10,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "基于全局MAC地址漂移检测应对练习",
+   "devices": 2,
+   "pcs": 13,
+   "links": 14,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "多交换机MUX_VLAN配置练习",
+   "devices": 3,
+   "pcs": 7,
+   "links": 9,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "引入课后练习工程",
+   "devices": 5,
+   "pcs": 1,
+   "links": 5,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "端口安全配置练习",
+   "devices": 1,
+   "pcs": 7,
+   "links": 7,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "端口管理与端口隔离配置练习",
+   "devices": 2,
+   "pcs": 8,
+   "links": 9,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "端口管理练习试题",
+   "devices": 1,
+   "pcs": 7,
+   "links": 7,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "端口隔离及ARP_PROXY配置练习试卷",
+   "devices": 4,
+   "pcs": 6,
+   "links": 8,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "策略路由配置练习",
+   "devices": 7,
+   "pcs": 3,
+   "links": 11,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "综合练习",
+   "devices": 5,
+   "pcs": 1,
+   "links": 5,
+   "has_answer_dir": false
+  },
+  {
+   "experiment": "账号管理及用户接口配置练习",
+   "devices": 2,
+   "pcs": 0,
+   "links": 1,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "路由开销、路由渗透配置练习",
+   "devices": 7,
+   "pcs": 2,
+   "links": 10,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "路由策略配置及应用练习",
+   "devices": 3,
+   "pcs": 0,
+   "links": 2,
+   "has_answer_dir": true
+  },
+  {
+   "experiment": "配置防止MAC地址漂移",
+   "devices": 1,
+   "pcs": 3,
+   "links": 3,
+   "has_answer_dir": true
+  }
+ ]
+}

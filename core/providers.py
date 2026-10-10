@@ -7,7 +7,8 @@
     端点怎么拼、要不要鉴权、支不支持图片。
 
 能力标记（决定请求怎么组装、能不能接某类任务）：
-    supports_vision         能否接收图片（本地 Qwen3.5-9B + mmproj 可以；DeepSeek 纯文本，不可以）
+    supports_vision         能否接收图片（本地 Qwen3.5-9B + mmproj 可以；
+                            云端 DeepSeek V4.1 Flash 原生多模态，也可以）
     supports_tools          能否返回 tool_calls（Agent 模式依赖）
     supports_thinking       是否输出 reasoning_content（本地 Qwen / DeepSeek 思考模式）
     supports_sampling       是否接受 temperature 等采样参数
@@ -21,7 +22,7 @@
 调用方式：
     from core.providers import get_provider
     p = get_provider()            # 取当前激活的提供方
-    p = get_provider("deepseek")  # 指定
+    p = get_provider("deepseek-flash")  # 指定
 
 命令行自检：
     python -m core.providers            # 列出所有提供方与配置状态（不联网）
@@ -47,6 +48,15 @@ ENV_FILE = BASE_DIR / ".env"
 
 DEFAULT_PROVIDER = "local"
 ENV_ACTIVE = ("NETWORKCLAW_PROVIDER", "NETWORKCLAW_DEFAULT_PROVIDER")
+
+# 旧提供方名 → 现名（DeepSeek 2026-09 模型线换代：chat/reasoner → flash/pro）
+ALIASES = {
+    "deepseek": "deepseek-flash",
+    "deepseek-chat": "deepseek-flash",
+    "deepseek-v4-flash": "deepseek-flash",
+    "deepseek-reasoner": "deepseek-pro",
+    "deepseek-v4-pro": "deepseek-pro",
+}
 
 
 # ---------------------------------------------------------------- 环境变量
@@ -127,7 +137,7 @@ def save_env_file(updates: dict[str, str], path: Path | None = None) -> Path:
 class Provider:
     """一个可调用的模型端点（本地或云端）"""
 
-    name: str                      # 内部标识：local / deepseek / deepseek-reasoner
+    name: str                      # 内部标识：local / deepseek-flash / deepseek-pro
     label: str                     # 展示名
     kind: str = "cloud"            # local | cloud
     base_url: str = ""
@@ -246,34 +256,42 @@ def _builtin() -> dict[str, Provider]:
         supports_thinking=True,
         note="离线可用；图像识别、设备操作均走它",
     )
-    deepseek = Provider(
-        name="deepseek",
-        label="DeepSeek V3.2（非思考模式）",
+    # DeepSeek 事实（2026-09-22 按官方文档 api-docs.deepseek.com 核实）：
+    #   - deepseek-flash    = DeepSeek-V4.1-Flash：原生多模态（图片按 1024 token/张计费），
+    #     1M 上下文 / 384K 输出，thinking/non-thinking 双模式，支持 Tool Calls
+    #   - deepseek-v4-pro   = DeepSeek-V4-Pro：纯文本，同样支持思考模式与工具调用
+    #   - 旧名 deepseek-chat / deepseek-reasoner / deepseek-v4-flash 已退役或即将下线，
+    #     新代码统一用显式 V4 模型 ID；旧提供方名由 ALIASES 兼容
+    deepseek_flash = Provider(
+        name="deepseek-flash",
+        label="DeepSeek V4.1 Flash（多模态）",
         kind="cloud",
         base_url="https://api.deepseek.com",
-        model="deepseek-chat",
+        model="deepseek-flash",
         api_key_env="DEEPSEEK_API_KEY",
         timeout=300,
-        supports_vision=False,    # DeepSeek API 目前为纯文本，不接受 image_url
+        supports_vision=True,     # 原生多模态：可直接接收 image_url（data URI 已实测兼容）
         supports_tools=True,
-        supports_thinking=False,
-        note="文本推理/长文写作/工具调用；不支持图片输入",
+        supports_thinking=True,   # 默认非思考模式；需要时在 config/llm.json 的 extra_body 里加 thinking
+        supports_sampling=True,
+        note="看图/拓扑识读可直接交给它；高并发（2500）、长上下文 1M/输出 384K",
     )
-    deepseek_reasoner = Provider(
-        name="deepseek-reasoner",
-        label="DeepSeek V3.2（思考模式）",
+    deepseek_pro = Provider(
+        name="deepseek-pro",
+        label="DeepSeek V4 Pro（深度推理）",
         kind="cloud",
         base_url="https://api.deepseek.com",
-        model="deepseek-reasoner",
+        model="deepseek-v4-pro",
         api_key_env="DEEPSEEK_API_KEY",
         timeout=600,
-        supports_vision=False,
+        supports_vision=False,    # V4 Pro 为纯文本；图片由视觉桥接转文字后注入
         supports_tools=True,
         supports_thinking=True,
-        supports_sampling=False,  # 思考模式不接受 temperature 等采样参数
-        note="复杂推理/排障分析，输出 reasoning_content",
+        supports_sampling=True,
+        extra_body={"thinking": {"type": "enabled"}},  # 默认开思考；不接受时 400 会自动降级
+        note="复杂推理/排障分析，输出 reasoning_content；不支持图片输入",
     )
-    return {p.name: p for p in (local, deepseek, deepseek_reasoner)}
+    return {p.name: p for p in (local, deepseek_flash, deepseek_pro)}
 
 
 # ---------------------------------------------------------------- 注册表
@@ -285,18 +303,18 @@ _active: str | None = None
 def _apply_env_overrides(table: dict[str, Provider]) -> dict[str, Provider]:
     """环境变量覆盖（最后一层，优先级最高）"""
     out = dict(table)
-    if "deepseek" in out:
-        base = out["deepseek"]
-        out["deepseek"] = base.with_overrides({
+    if "deepseek-flash" in out:
+        base = out["deepseek-flash"]
+        out["deepseek-flash"] = base.with_overrides({
             "base_url": _env("DEEPSEEK_BASE_URL", default=base.base_url),
             "model": _env("DEEPSEEK_MODEL", default=base.model),
             "api_key": _env("DEEPSEEK_API_KEY", default=base.api_key),
         })
-    if "deepseek-reasoner" in out:
-        base = out["deepseek-reasoner"]
-        out["deepseek-reasoner"] = base.with_overrides({
+    if "deepseek-pro" in out:
+        base = out["deepseek-pro"]
+        out["deepseek-pro"] = base.with_overrides({
             "base_url": _env("DEEPSEEK_BASE_URL", default=base.base_url),
-            "model": _env("DEEPSEEK_REASONER_MODEL", default=base.model),
+            "model": _env("DEEPSEEK_PRO_MODEL", default=base.model),
             "api_key": _env("DEEPSEEK_API_KEY", default=base.api_key),
         })
     if "local" in out:
@@ -386,6 +404,8 @@ def get_provider(name: str | None = None, refresh: bool = False) -> Provider:
     lower = {k.lower(): k for k in table}
     if key.lower() in lower:
         return table[lower[key.lower()]]
+    if key.lower() in ALIASES:  # 旧名兼容：deepseek → deepseek-flash 等
+        return table[ALIASES[key.lower()]]
     raise KeyError(f"未知的模型提供方「{name}」，可选：{', '.join(table)}")
 
 

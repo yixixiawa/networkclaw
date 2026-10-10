@@ -24,6 +24,7 @@
 """
 import datetime
 import json
+import os
 import re
 
 from core.paths import BASE_DIR
@@ -123,6 +124,34 @@ def _first_keyword(words: list[str]) -> str:
     return words[0].lower().strip() if words else ""
 
 
+# ---------------------------------------------------------------- 实验模式
+
+# 跑 eNSP 实验包时打开；正常会话与生产环境**永远**是 False。
+# 注意 MCP 服务端是独立子进程，所以在 lab_run_agent 里要设环境变量
+# NETWORKCLAW_LAB_MODE=1（由 mcp_tools/client.py 透传给子进程），
+# 光在父进程调 set_experiment_mode 对服务端无效。
+_EXPERIMENT_MODE = os.environ.get("NETWORKCLAW_LAB_MODE", "") not in ("", "0", "false")
+
+
+def set_experiment_mode(on: bool) -> None:
+    """实验拓扑模式：把 `undo` / `no` 撤销前缀从 block **降级为 confirm**。
+
+    为什么需要：华为交换机改接口类型前必须先清理旧配置，设备会回
+    `Error: Please renew the default configuration`，唯一出路是
+    `undo port link-type` / `undo port trunk allow-pass vlan` 之类。
+    在隔离的实验拓扑里重置成本为零，硬拦会让模型永远配不出来（实测连续 8 轮死循环）。
+
+    **只降级撤销前缀**：shutdown / reset / reboot / delete / save 等真正不可逆或
+    影响持久化的命令依然硬拦，不因实验模式放行。
+    """
+    global _EXPERIMENT_MODE
+    _EXPERIMENT_MODE = bool(on)
+
+
+def experiment_mode() -> bool:
+    return _EXPERIMENT_MODE
+
+
 # ---------------------------------------------------------------- 单条裁决
 
 
@@ -136,8 +165,17 @@ def classify_one(command: str) -> dict:
     stripped, negated = _strip_negation(words)
 
     # 1) 否定前缀：undo x / no x 一律按破坏性处理（Huawei undo、Cisco no）
+    #    实验模式下降级为「需确认」——隔离拓扑里改配置前必须能清理旧配置，
+    #    否则设备只会回 "Please renew the default configuration"，没法往下配。
     if negated:
         target = _first_keyword(stripped) or "配置"
+        if _EXPERIMENT_MODE:
+            return {
+                "level": CONFIRM,
+                "keyword": keyword,
+                "reason": (f"`{words[0]}` 撤销前缀会删除现有配置（目标：{target}）；"
+                           f"实验模式已将其降级为需确认"),
+            }
         return {
             "level": BLOCK,
             "keyword": keyword,
@@ -257,11 +295,51 @@ def check(command: str, confirmed: bool = False) -> tuple[bool, str, dict]:
 
 
 # ---------------------------------------------------------------- 审计
+#
+# 审计日志会随每次设备命令单调增长：批量跑 58 个实验时，一轮实验几百条命令、
+# 几条设备回显，几个月下来就是几十万行。因此写入侧带**轮转**（超过阈值就把
+# 当前文件改名为 .1，依次后移，丢弃最老的 .N），读取侧只读「当前 + 备份的尾部」
+# 而不是把整个文件读进内存。
+#
+# 阈值与保留份数可用环境变量覆盖（便于测试与按需调整）：
+#     NETWORKCLAW_AUDIT_MAX_BYTES   单个文件上限，默认 5 MiB
+#     NETWORKCLAW_AUDIT_BACKUPS     保留的历史文件份数，默认 5
+AUDIT_MAX_BYTES = int(os.environ.get("NETWORKCLAW_AUDIT_MAX_BYTES", 5 * 1024 * 1024))
+AUDIT_BACKUPS = int(os.environ.get("NETWORKCLAW_AUDIT_BACKUPS", 5))
+
+
+def _rotate_if_needed(path: Path) -> None:
+    """当前审计文件超限时轮转：x.log -> x.log.1 -> x.log.2 ...，丢弃最老的。
+
+    只在**写入前**检查，因此单个文件最多超出「一条记录」的大小，不会无限增长。
+    """
+    try:
+        if AUDIT_MAX_BYTES <= 0 or not path.exists() or path.stat().st_size < AUDIT_MAX_BYTES:
+            return
+    except OSError:
+        return
+    if AUDIT_BACKUPS <= 0:          # 不保留历史：直接清空
+        try:
+            path.write_text("", encoding="utf-8")
+        except OSError:
+            pass
+        return
+    for i in range(AUDIT_BACKUPS, 0, -1):
+        older, newer = path.with_name(f"{path.name}.{i}"), (
+            path.with_name(f"{path.name}.{i - 1}") if i > 1 else path)
+        try:
+            if not newer.exists():
+                continue
+            if older.exists():
+                older.unlink()
+            newer.rename(older)
+        except OSError:
+            continue
 
 
 def audit(command: str, decision: dict, *, transport: str, target: str,
           confirmed: bool, executed: bool, extra: str = "") -> None:
-    """把一次裁决写入审计日志（追加，永不覆盖）。失败不影响主流程。"""
+    """把一次裁决写入审计日志（追加；超限自动轮转）。失败不影响主流程。"""
     try:
         AUDIT_LOG.parent.mkdir(parents=True, exist_ok=True)
         record = {
@@ -275,24 +353,54 @@ def audit(command: str, decision: dict, *, transport: str, target: str,
             "reason": decision.get("reason", ""),
             "extra": extra,
         }
+        _rotate_if_needed(AUDIT_LOG)
         with open(AUDIT_LOG, "a", encoding="utf-8") as f:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
     except Exception:
         pass  # 审计失败绝不能阻断（或污染）真正的执行结果
 
 
-def audit_tail(n: int = 20) -> list[dict]:
-    """读取最近 n 条审计记录（供自检 / 命令行查看）"""
-    if not AUDIT_LOG.exists():
+def _tail_lines(path: Path, n: int) -> list[str]:
+    """只读文件末尾 n 行（从后往前按块扫描），避免把整个大文件读进内存。"""
+    if n <= 0 or not path.exists():
         return []
-    lines = AUDIT_LOG.read_text(encoding="utf-8", errors="ignore").splitlines()[-n:]
-    out = []
-    for line in lines:
-        try:
-            out.append(json.loads(line))
-        except json.JSONDecodeError:
-            continue
-    return out
+    block = 8192
+    try:
+        with open(path, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            size = f.tell()
+            data = b""
+            pos = size
+            while pos > 0 and data.count(b"\n") <= n:
+                step = min(block, pos)
+                pos -= step
+                f.seek(pos)
+                data = f.read(step) + data
+    except OSError:
+        return []
+    text = data.decode("utf-8", errors="ignore")
+    return text.splitlines()[-n:]
+
+
+def audit_tail(n: int = 20) -> list[dict]:
+    """读取最近 n 条审计记录（跨轮转文件，从最新的往老的凑）。
+
+    轮转后记录分散在 command_audit.log / .1 / .2…，只读当前文件会"丢历史"，
+    所以依次回退到备份文件，直到凑够 n 条或文件用尽。
+    """
+    out: list[dict] = []
+    candidates = [AUDIT_LOG] + [AUDIT_LOG.with_name(f"{AUDIT_LOG.name}.{i}")
+                                for i in range(1, AUDIT_BACKUPS + 1)]
+    for path in candidates:
+        if len(out) >= n:
+            break
+        for line in reversed(_tail_lines(path, n - len(out))):
+            try:
+                out.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    out.reverse()
+    return out[-n:]
 
 
 if __name__ == "__main__":

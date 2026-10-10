@@ -1,0 +1,145 @@
+{
+ "experiment": "VRRP基本配置_-_交换机",
+ "source": "data\\ensp_labs\\src\\VRRP基本配置_-_交换机\\paper\\paper.topo",
+ "device_count": 4,
+ "devices": [
+  {
+   "id": "43340BE1-7053-4021-8806-94FC0B822799",
+   "name": "LSW2",
+   "model": "S5700",
+   "console_port": 2000
+  },
+  {
+   "id": "7850C2AB-A3D0-438a-843D-77AD06F0834F",
+   "name": "LSW1",
+   "model": "S5700",
+   "console_port": 2001
+  },
+  {
+   "id": "728B1196-E243-4092-B9F6-B50C0BE4E51C",
+   "name": "LSW3",
+   "model": "S5700",
+   "console_port": 2002
+  },
+  {
+   "id": "97EAA57D-BAA9-44cf-8BF9-0781D5AD81EF",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2003
+  }
+ ],
+ "pc_count": 3,
+ "link_count": 7,
+ "links": [
+  {
+   "src": "LSW1",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 3,
+     "src_if": "GigabitEthernet0/0/4",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "PC3",
+   "dst": "AR1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 2,
+     "dst_if": "GigabitEthernet0/0/2"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW3",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/2"
+    }
+   ]
+  },
+  {
+   "src": "LSW3",
+   "dst": "AR1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 23,
+     "src_if": "GigabitEthernet0/0/24",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "AR1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 23,
+     "src_if": "GigabitEthernet0/0/24",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "VLANIF10:192.168.1.2/24\r\nVLANIF20:172.16.1.2/24\r\nVLANIF200:10.10.23.2/24",
+  "VLANIF10:192.168.1.1/24\r\nVLAN20IF:172.16.1.1/24\r\nVLANIF100:10.10.13.1/24",
+  "VRID 10:192.168.1.254\r\nVRID 20:172.16.1.254",
+  "OSPF",
+  "vlan 100",
+  "vlan 200",
+  "10.10.13.3/24",
+  "10.10.23.3/24",
+  "192.168.1.10/24",
+  "172.16.1.10/24",
+  "192.168.3.10/24",
+  "192.168.3.1/24",
+  "VLAN 10",
+  "VLAN 20",
+  "TRUNK ALL",
+  "TRUNK ALL",
+  "1、按照拓扑图提示信息配置网络设备；\r\n2、LSW2中VRID 10配置优先级为120，抢占延时为20秒，VRID 20取消抢占功能，保存所有设备配置；\r\n3、查看此时VRID 10与VRID 20的MASTER分别是哪台交换机，观察PC1到PC3、PC2到PC3分别经过哪台交换机；\r\n4、使PC1与PC3、PC2与PC3持续进行通信，关闭LSW2后，上述两组通信仍然正常；\r\n5、启动LSW2，等两组PC通信正常后，查看两组VRRP的MASTER分别是哪台交换机；\r\n6、提交ANS文档。"
+ ]
+}

@@ -1,0 +1,165 @@
+{
+ "experiment": "RIPv1配置练习",
+ "source": "data\\ensp_labs\\src\\RIPv1配置练习\\paper\\paper.topo",
+ "device_count": 5,
+ "devices": [
+  {
+   "id": "AB015EAE-13FB-4e26-94AF-EFD3DAADF87C",
+   "name": "AR6",
+   "model": "AR2220",
+   "console_port": 2004
+  },
+  {
+   "id": "13676EBF-CD8B-4139-B214-33CC17A571FE",
+   "name": "AR7",
+   "model": "AR2220",
+   "console_port": 2005
+  },
+  {
+   "id": "45CBF98E-A1A7-456d-81CB-95A187625D8B",
+   "name": "AR8",
+   "model": "AR2220",
+   "console_port": 2006
+  },
+  {
+   "id": "38738EAF-6B40-496c-9DD1-50C940BBA116",
+   "name": "LSW1",
+   "model": "S5700",
+   "console_port": 2007
+  },
+  {
+   "id": "9C1E8957-EE1E-440d-9747-7615DC3A8F33",
+   "name": "LSW2",
+   "model": "S5700",
+   "console_port": 2008
+  }
+ ],
+ "pc_count": 3,
+ "link_count": 8,
+ "links": [
+  {
+   "src": "AR6",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "AR8",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR6",
+   "dst": "AR7",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR7",
+   "dst": "AR8",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "AR8",
+   "dst": "LSW2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "PC6",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "PC7",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR6",
+   "dst": "PC5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "68.0.0.0/24",
+  "6",
+  "8",
+  "172.16.1.1/16",
+  "172.16.1.10/24",
+  "172.16.1.20/16",
+  "67.0.0.0/24",
+  "6",
+  "7",
+  "7",
+  "8",
+  "192.168.6.0/24",
+  "10",
+  "1",
+  "网络1",
+  "网络2",
+  "78.0.0.0/24",
+  "配置要求：\r\n1、按照拓扑图信息配置路由器各个接口IP地址。\r\n2、三个路由器分别配置RIPv1路由协议，通告所有接口网络，使全网互通。\r\n3、把AR6接口G0/0/2配置为静默接口。\r\n\r\n提交内容：\r\n1、提交AR6的RIP路由邻居的截图\r\n2、提交AR6路由表截图，并指出哪些路由是通过RIP学习得到的，是否已经具备网路中所有网络的路由。\r\n3、使用WIRESHARK在AR6接口G0/0/1上抓包并截图，在截图中指出从AR7传递了哪些网络的路由。\r\n4、使用WIRESHARK在AR6接口G0/0/2 分别在配置为静默接口前和配置为静默接口后进行抓包，观察前后信息的变化，截图说明。\r\n5、提交 ans文档。"
+ ]
+}

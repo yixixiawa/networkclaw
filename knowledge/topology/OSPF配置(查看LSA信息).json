@@ -1,0 +1,237 @@
+{
+ "experiment": "OSPF配置(查看LSA信息)",
+ "source": "data\\ensp_labs\\src\\OSPF配置(查看LSA信息)\\paper\\paper.topo",
+ "device_count": 8,
+ "devices": [
+  {
+   "id": "8410C3E9-85A1-41b4-9192-FFE0219B968A",
+   "name": "R1  1.1.1.1",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "83269714-FA59-4ba3-8E77-5D13A792467A",
+   "name": "R2  2.2.2.2",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "660B6ADF-A67E-48db-ABC6-DD47EDF6604B",
+   "name": "R3  3.3.3.3",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "CF56F846-0262-4cbc-BF04-AE1F5A49A606",
+   "name": "AR4",
+   "model": "AR2220",
+   "console_port": 2003
+  },
+  {
+   "id": "9B11E0A2-A12A-4c94-B792-467A4A996917",
+   "name": "AR9",
+   "model": "AR2220",
+   "console_port": 2004
+  },
+  {
+   "id": "F67934A4-E37B-473c-B455-0E5CF9CDBA9E",
+   "name": "AR5 5.5.5.5",
+   "model": "AR2220",
+   "console_port": 2005
+  },
+  {
+   "id": "7A4DD653-FAB2-4240-B960-00B2B72B7302",
+   "name": "AR10",
+   "model": "AR1220",
+   "console_port": 2006
+  },
+  {
+   "id": "B23DD647-538F-4e59-8994-1A115F00BDAD",
+   "name": "AR6  6.6.6.6",
+   "model": "AR2220",
+   "console_port": 2007
+  }
+ ],
+ "pc_count": 3,
+ "link_count": 11,
+ "links": [
+  {
+   "src": "R2  2.2.2.2",
+   "dst": "R1  1.1.1.1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "R2  2.2.2.2",
+   "dst": "R3  3.3.3.3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "R2  2.2.2.2",
+   "dst": "HUB1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "HUB1",
+   "dst": "AR5 5.5.5.5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "Ethernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "HUB1",
+   "dst": "AR4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "Ethernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "HUB1",
+   "dst": "AR6  6.6.6.6",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 3,
+     "src_if": "Ethernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "R1  1.1.1.1",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "R1  1.1.1.1",
+   "dst": "AR5 5.5.5.5",
+   "interfaces": [
+    {
+     "cable": "Serial",
+     "src_index": 3,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 3,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "R3  3.3.3.3",
+   "dst": "AR9",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR10",
+   "dst": "R1  1.1.1.1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 2,
+     "dst_if": "GigabitEthernet0/0/2"
+    }
+   ]
+  },
+  {
+   "src": "AR4",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "OSPF 1 AREA 0",
+  "OSPF 1 AREA 1",
+  "10.10.12.0/24",
+  ".1",
+  ".2",
+  "10.10.23.0/24",
+  ".2",
+  ".3",
+  "10.10.24.0/24",
+  ".2",
+  ".4",
+  "5",
+  "6",
+  "192.168.1.0/24",
+  "1",
+  "10.10.15.0/24",
+  "1",
+  "5",
+  "10.10.39.0/24",
+  "3",
+  "9",
+  "静态路由\r\n192.168.10.0/24",
+  "192.168.10.0/24\r\n172.16.10.0/24",
+  "引入静态路由到OSPF",
+  "外网",
+  "默\r\n认\r\n路\r\n由",
+  "引入默认路由到OSPF",
+  "10.10.110.1/24",
+  "10.10.110.10/24",
+  "192.168.4.1/24",
+  "要求：\r\n请按照拓扑图信息完成各设备接口及路由配置，使得拓扑图中所有网络都能互通。\r\n\r\n提交信息：\r\n1、提交ANS文档；\r\n2、观察网络10.10.24.0/24，指出哪个路由器是DR并截图；\r\n3、在R2中查看LSDB指出哪台路由器产生了ASBR-SUMMARY-LSA，哪台是ASBR；\r\n4、观察A6是否有全网的路由，提交AR6 OSPF路由表截图。",
+  "DR",
+  "引入直连网络路由"
+ ]
+}

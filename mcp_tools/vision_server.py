@@ -8,6 +8,11 @@
 3. analyze_topology_image(image_path, question)
    - 识读拓扑图：设备清单（名称/型号/角色/IP）、连接关系（接口对接口）、网段与 VLAN、
      风险点（单点故障、环路）等结构化描述
+4. capture_topology(keyword, force)
+   - 实时查看当前拓扑：自动截取 eNSP / 虚拟机窗口（OpenCV 预处理）后交给本地
+     多模态模型识读；画面未变化时自动复用上次结论
+5. get_topology_snapshot()
+   - 读取最近一次自动拓扑巡检的结论快照（不推理，瞬时返回）
 
 前提：llama-server 必须以多模态方式启动，即主程序带 `--mmproj` 参数
       （core/llama_start.py 会自动探测 models/*mmproj*.gguf）。
@@ -84,6 +89,54 @@ def analyze_topology_image(image_path: str, question: str = "") -> str:
         return f"识图失败：{e}"
     except Exception as e:
         return f"识图异常：{type(e).__name__}: {e}"
+
+
+@mcp.tool
+def capture_topology(keyword: str = "", force: bool = False) -> str:
+    """实时查看当前网络拓扑：自动截取 eNSP / 虚拟机（VMware 等）窗口画面，
+    用 OpenCV 预处理后交给本地多模态模型识读，返回结构化拓扑描述。
+
+    什么时候用：用户提到「当前拓扑 / 现在的网络 / 刚画好的拓扑」且没有给截图，
+    或用户表示拓扑发生了变化需要重新查看时。
+
+    注意：截图只保存在本机（logs/captures/），识读由本地模型完成；若目标窗口
+    被遮挡会短暂把它切到前台。画面与上次一致时会直接复用上次结论。
+
+    Args:
+        keyword: 目标窗口标题关键字（如 "vmware" / "ensp"）；留空按内置关键字表匹配
+        force: True 时即使画面没变化也强制重新识读
+    """
+    from core import auto_topology
+
+    try:
+        result = auto_topology.auto_inspect(keyword=(keyword or "").strip() or None,
+                                            force=bool(force), show_thinking=False)
+    except Exception as e:
+        return f"拓扑巡检异常：{type(e).__name__}: {e}"
+    if not result.get("ok"):
+        return (f"自动巡检未成功：{result.get('message', '')}\n"
+                f"（可让用户手动截图后用 analyze_topology_image 识读）")
+    return auto_topology.render_result(result)
+
+
+@mcp.tool
+def get_topology_snapshot() -> str:
+    """读取最近一次自动拓扑巡检的结论快照（不重新截图、不推理，瞬时返回）。
+
+    什么时候用：回答涉及当前拓扑的问题前，先看这里有没有现成结论；
+    结论过期或用户说拓扑变了时改用 capture_topology。
+    """
+    from core import auto_topology
+
+    snap = auto_topology.load_snapshot()
+    if not snap or not (snap.get("description") or "").strip():
+        return ("（尚无拓扑快照。可调用 capture_topology 实时查看，"
+                "或请用户手动截图后用 analyze_topology_image 识读）")
+    age = auto_topology.snapshot_age_h(snap)
+    head = f"快照时间：{snap.get('time', '未知')}"
+    if age is not None:
+        head += f"（{age:.1f} 小时前{'，已过期，建议用 capture_topology 重新查看' if age > auto_topology.SNAPSHOT_MAX_AGE_H else ''}）"
+    return f"{head}\n来源窗口：{snap.get('window', '')}\n\n{snap['description']}"
 
 
 if __name__ == "__main__":

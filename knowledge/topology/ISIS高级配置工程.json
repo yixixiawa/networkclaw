@@ -1,0 +1,201 @@
+{
+ "experiment": "ISIS高级配置工程",
+ "source": "data\\ensp_labs\\src\\ISIS高级配置工程\\paper\\paper.topo",
+ "device_count": 7,
+ "devices": [
+  {
+   "id": "18D8ED01-7F5F-4f2f-A404-5031D5E34DEB",
+   "name": "R3",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "868B49A2-6B1F-4350-A107-5B2902D66DC6",
+   "name": "R2",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "CF16E75D-1F87-43a7-AEA5-A95AF12F8710",
+   "name": "R7",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "7D3802F9-3AB8-479f-81D6-DE7799FD386F",
+   "name": "R4",
+   "model": "AR2220",
+   "console_port": 2003
+  },
+  {
+   "id": "359819D4-36BD-41a6-BC8F-9095781F8E41",
+   "name": "R5",
+   "model": "AR2220",
+   "console_port": 2004
+  },
+  {
+   "id": "A20F36AC-6735-4cbb-9A62-F0AA8BD0ED96",
+   "name": "R6",
+   "model": "AR2220",
+   "console_port": 2005
+  },
+  {
+   "id": "23C10754-D3AE-4e71-A2C9-8A55D1463270",
+   "name": "LSW1",
+   "model": "S5700",
+   "console_port": 2006
+  }
+ ],
+ "pc_count": 2,
+ "link_count": 9,
+ "links": [
+  {
+   "src": "PC1",
+   "dst": "R3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 2,
+     "dst_if": "GigabitEthernet0/0/2"
+    }
+   ]
+  },
+  {
+   "src": "R3",
+   "dst": "R2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "R2",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "R4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "R7",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "R5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 3,
+     "src_if": "GigabitEthernet0/0/4",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "R4",
+   "dst": "R6",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "R5",
+   "dst": "R6",
+   "interfaces": [
+    {
+     "cable": "Serial",
+     "src_index": 3,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 3,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "R6",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "192.168.3.0/24",
+  "10",
+  "1",
+  "10.10.23.0/24",
+  "3",
+  "2",
+  "2",
+  "10.10.1.0/24",
+  "7",
+  "4",
+  "5",
+  "5",
+  "6",
+  "6",
+  "1",
+  "10",
+  "192.168.6.0/24",
+  "level-1",
+  "level-1-2",
+  "level-2",
+  "level-1-2",
+  "level-1-2",
+  "level-1",
+  "10.10.56.0/24",
+  "49.0010 level-1",
+  "49.0020 level-1",
+  "49.0001 level-2",
+  "10.10.46.0/24",
+  "4"
+ ]
+}

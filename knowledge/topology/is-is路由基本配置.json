@@ -1,0 +1,201 @@
+{
+ "experiment": "is-is路由基本配置",
+ "source": "data\\ensp_labs\\src\\is-is路由基本配置\\is-is路由基本配置\\paper\\paper.topo",
+ "device_count": 8,
+ "devices": [
+  {
+   "id": "18207EA8-E16A-4597-885C-459F2C12A2D9",
+   "name": "RA",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "C78ED922-5F83-4c88-A1D8-464477988CD7",
+   "name": "RB",
+   "model": "AR1220",
+   "console_port": 2001
+  },
+  {
+   "id": "E3816E57-ABA2-4f08-AB5E-FF7C347150F0",
+   "name": "RC",
+   "model": "AR1220",
+   "console_port": 2002
+  },
+  {
+   "id": "25A844A8-732E-46cf-8F50-EF9A10E69865",
+   "name": "RD",
+   "model": "AR1220",
+   "console_port": 2003
+  },
+  {
+   "id": "969CBDEB-CF85-47c7-951A-2E32121653AD",
+   "name": "RF",
+   "model": "AR1220",
+   "console_port": 2004
+  },
+  {
+   "id": "07600FB7-AECA-4a83-8BF7-CA16804EB720",
+   "name": "SW1",
+   "model": "S5700",
+   "console_port": 2005
+  },
+  {
+   "id": "56E5AE0D-8FE5-4a96-98D5-CC6C5640FA67",
+   "name": "RE",
+   "model": "AR2220",
+   "console_port": 2006
+  },
+  {
+   "id": "349DD22C-B23B-408f-B3F4-520496604BD8",
+   "name": "RG",
+   "model": "AR2220",
+   "console_port": 2007
+  }
+ ],
+ "pc_count": 0,
+ "link_count": 8,
+ "links": [
+  {
+   "src": "RA",
+   "dst": "SW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "SW1",
+   "dst": "RB",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "SW1",
+   "dst": "RC",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "RB",
+   "dst": "RD",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "RC",
+   "dst": "RD",
+   "interfaces": [
+    {
+     "cable": "Serial",
+     "src_index": 10,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 10,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "RD",
+   "dst": "RE",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "RF",
+   "dst": "RE",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "RF",
+   "dst": "RG",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "49.0002",
+  "49.0001",
+  "LEVE1-1",
+  "LEVEL-2",
+  "lo0: 192.168.1.0/24\r\nlo1: 192.168.2.0/24\r\nlo3: 192.168.3.0/24",
+  "RA:49.0002.0000.0000.0001.00\r\nRB:49.0002.0000.0000.0002.00\r\nRC:49.0002.0000.0000.0003.00\r\nRD:49.0001.0000.0000.0004.00\r\nRE:49.0001.0000.0000.0005.00\r\nRF:49.0003.0000.0000.0006.00\r\nRG:49.0003.0000.0000.0007.00\r\n所有ISIS 进程为100\r\n\r\n提交内容：\r\nRA is-is路由表截图\r\nRD邻居表截图\r\nRE路由表截图\r\nRG路由表截图\r\nRC产生的LSP明细截图\r\n骨干区域LSDB截图，并表出那些是DIS",
+  "LEVEL-1-2",
+  "LEVEL-1-2",
+  "LEVEL-1",
+  "LEVEL-2",
+  "LEVEL-1-2",
+  "10.10.123.0/24",
+  ".1",
+  ".2",
+  ".3",
+  "10.10.24.0/24",
+  ".2",
+  ".4",
+  "10.10.3.3/32",
+  "10.10.45.0/24",
+  ".4",
+  ".5",
+  "DIS",
+  "172.16.1.0/24\r\n172.16.2.0/24\r\n172.16.3.0/24",
+  "LOOPBACK接口不激活ISIS",
+  "LOOPBACK接口激活ISIS",
+  "LEVEL-1 49.0003",
+  "LEVEL-1-2",
+  "LEVEL-1",
+  "10.10.56.0/24",
+  "5",
+  "6",
+  "10.10.67.0/24",
+  "6",
+  "7",
+  "10.10.4.4/32"
+ ]
+}

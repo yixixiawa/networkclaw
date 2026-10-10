@@ -1,0 +1,166 @@
+{
+ "experiment": "OSPF-4-VLink-Nssa-static",
+ "source": "data\\ensp_labs\\src\\OSPF-4-VLink-Nssa-static\\OSPF-VLink-Nssa-static.topo",
+ "device_count": 7,
+ "devices": [
+  {
+   "id": "1F30A3B0-8A6A-4898-9D39-AE2358FE4986",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "4953093D-DDD7-4c96-A249-AEEE78496AF9",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "80BD3198-D36F-4a7d-A1F2-5D28800751B0",
+   "name": "AR3",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "86FB6DA0-317C-4584-B7F5-2EB172D6CE33",
+   "name": "AR4",
+   "model": "AR2220",
+   "console_port": 2003
+  },
+  {
+   "id": "BBA2C1EB-4576-4342-9206-4C497738DFA0",
+   "name": "AR5",
+   "model": "AR2220",
+   "console_port": 2004
+  },
+  {
+   "id": "0D83857F-BC37-41e9-8CD2-432632D8DD88",
+   "name": "AR6",
+   "model": "AR2220",
+   "console_port": 2006
+  },
+  {
+   "id": "618CC522-A0B5-433b-B081-277703297490",
+   "name": "AR7",
+   "model": "AR2220",
+   "console_port": 2007
+  }
+ ],
+ "pc_count": 0,
+ "link_count": 6,
+ "links": [
+  {
+   "src": "AR6",
+   "dst": "AR5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "AR5",
+   "dst": "AR1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "AR1",
+   "dst": "AR2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR2",
+   "dst": "AR3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR3",
+   "dst": "AR7",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR3",
+   "dst": "AR4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "1、按照图中提示配置OSPF网络及静态路由。\r\n2、从ASBR中引入静态路由到OSPF中\r\n3、在AR5中查询路由表，截图\r\n4、在R2中查询LSDB信息，截图\r\n5、配置area 3为nssa区域\r\n6、再次查询AR5中路由表，截图\r\n7、再次查询R2中LSDB信息，截图\r\n8、在AR2中查询Vlink信息，截图",
+  "vlink",
+  "10.10.12.0/24",
+  "10.10.15.0/24",
+  "10.10.56.0/24",
+  "10.10.23.0/24",
+  "10.10.37.0/24",
+  "10.10.34.0/24",
+  "OSPF 1\r\narea 2",
+  "OSPF 1\r\narea 0",
+  "OSPF 1\r\narea 1",
+  "OSPF 1\r\narea 3\r\nNSSA",
+  "RID:6.6.6.6\r\nLo0:192.168.10.0/24",
+  "RID:7.7.7.7\r\nLo0:192.168.1.0/24\r\nLo1:192.168.2.0/24",
+  "引入外部静态路由",
+  "引入外部静态路由",
+  "1",
+  "5",
+  "1",
+  "2",
+  "2",
+  "3",
+  "3",
+  "4",
+  "3",
+  "7",
+  "5",
+  "6",
+  "RID:10.10.10.10",
+  "RID:2.2.2.2",
+  "RID:4.4.4.4",
+  "RID:3.3.3.3",
+  "RID:5.5.5.5"
+ ]
+}

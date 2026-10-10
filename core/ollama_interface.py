@@ -36,7 +36,31 @@ EMBED_MODEL = "nomic-embed-text"
 KNOWLEDGE_COLLECTION = "huawei_devices"     # 知识库：设备介绍、配置说明
 TEMPLATE_COLLECTION = "command_templates"   # 命令模板：knowledge/command_templates.csv
 
-ollama_ef = OllamaEmbeddingFunction(
+class BatchedOllamaEmbeddingFunction(OllamaEmbeddingFunction):
+    """按小批量切分调用的 Ollama Embedding 函数。
+
+    为什么需要：Chroma 会把**整批**文档一次性交给 embedding function。实测
+    （1675 个知识块）一次提交 512 条就会把 Ollama 的 runner 打崩，接口返回
+    ``400 Post "http://127.0.0.1:51686/tokenize": dial tcp ... refused``；
+    128 条以内稳定。因此在 __call__ 内部切片，对外仍是同一个 Embedding 函数。
+
+    注意：name() / get_config() 全部继承自父类，持久化配置与
+    OllamaEmbeddingFunction 完全一致，不会造成已有集合的 embedding function 冲突。
+    """
+
+    batch_size = 64
+
+    def __call__(self, input):
+        seq = list(input)
+        if len(seq) <= self.batch_size:
+            return super().__call__(seq)
+        out = []
+        for i in range(0, len(seq), self.batch_size):
+            out.extend(super().__call__(seq[i:i + self.batch_size]))
+        return out
+
+
+ollama_ef = BatchedOllamaEmbeddingFunction(
     url=OLLAMA_URL,
     model_name=EMBED_MODEL,
 )

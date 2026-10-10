@@ -56,6 +56,8 @@ hiddenimports = [
     "mcp_tools.template_server",
     "mcp_tools.device_server",
     "mcp_tools.telnet_server",
+    "mcp_tools.manual_server",
+    "mcp_tools.topology_server",
     "mcp_tools.vision_server",
     "mcp_tools.internet",
     "mcp_tools.search_client",
@@ -64,11 +66,18 @@ hiddenimports = [
     "gui.app", "gui.main_window", "gui.widgets", "gui.worker", "gui.store",
     "gui.theme", "gui.dialogs",
     "core.net", "core.local_service", "core.device_conn",
+    "core.screen_capture", "core.auto_topology", "core.device_registry",
+    "core.device_manual", "core.topology_flood",
+    # knowledge 包在 device_manual.skeleton() 里是函数内 try/except 导入，
+    # 静态分析看不到；同时 knowledge/ 整体已作为 datas 打进包。
+    "knowledge.device_profiles",
     "main", "launcher",
     # —— 依赖链里的动态导入
     "dotenv",
     "serial", "serial.tools", "serial.tools.list_ports",
-    "PIL.Image", "PIL.ImageDraw",
+    "PIL.Image", "PIL.ImageDraw", "PIL.ImageGrab",
+    "cv2",                       # 窗口截图的 OpenCV 预处理（screen_capture 内部延迟导入）
+    "win32gui", "win32ui", "win32con", "win32api", "win32process",
     "langchain_text_splitters", "langchain_core",
     "ollama", "openai",
 ]

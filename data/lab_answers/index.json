@@ -1,0 +1,1450 @@
+{
+ "total_labs": 43,
+ "labs": [
+  {
+   "experiment": "ACCESS、TRUNK、HYBRID配置练习",
+   "devices": [
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW3",
+     "file": "LSW3.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW3",
+     "file": "LSW3.flash.efz.orig",
+     "kind": "orig"
+    }
+   ]
+  },
+  {
+   "experiment": "ACL与IP-PREFIX配置练习",
+   "devices": [
+    {
+     "device": "AR2",
+     "file": "AR2.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR4",
+     "file": "AR4.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR3",
+     "file": "AR3.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    }
+   ]
+  },
+  {
+   "experiment": "BGP-基本配置工程",
+   "devices": [
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR3",
+     "file": "AR3.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR2",
+     "file": "AR2.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "DHCP服务器配置练习V2",
+   "devices": [
+    {
+     "device": "SW2",
+     "file": "SW2.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "SW2",
+     "file": "SW2.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "SW1",
+     "file": "SW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "SW1",
+     "file": "SW1.flash.efz.orig",
+     "kind": "orig"
+    }
+   ]
+  },
+  {
+   "experiment": "DHCP服务器防假冒、饿死攻击",
+   "devices": [
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "ACC",
+     "file": "ACC.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "ACC",
+     "file": "ACC.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "CORE",
+     "file": "CORE.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "CORE",
+     "file": "CORE.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "AR2",
+     "file": "AR2.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "Hybrid与GVRP协议配置练习",
+   "devices": [
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW3",
+     "file": "LSW3.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW3",
+     "file": "LSW3.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW4",
+     "file": "LSW4.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW4",
+     "file": "LSW4.flash.efz.orig",
+     "kind": "orig"
+    }
+   ]
+  },
+  {
+   "experiment": "IP地址池NAT及服务器端口映射配置练习",
+   "devices": [
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "AR2",
+     "file": "AR2.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    }
+   ]
+  },
+  {
+   "experiment": "is-is路由基本配置",
+   "devices": [
+    {
+     "device": "RA",
+     "file": "RA.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "RC",
+     "file": "RC.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "RD",
+     "file": "RD.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "RB",
+     "file": "RB.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "IS-IS路由汇总、认证、外部路由引入配置练习",
+   "devices": [
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR4",
+     "file": "AR4.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR3",
+     "file": "AR3.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR2",
+     "file": "AR2.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "ISIS-4-配置练习",
+   "devices": [
+    {
+     "device": "AR6",
+     "file": "AR6.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR2",
+     "file": "AR2.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR4",
+     "file": "AR4.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR5",
+     "file": "AR5.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR3",
+     "file": "AR3.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "ISIS-OSPF相互引入工程",
+   "devices": [
+    {
+     "device": "AR4",
+     "file": "AR4.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR5",
+     "file": "AR5.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR3",
+     "file": "AR3.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR2",
+     "file": "AR2.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "ISIS高级配置工程",
+   "devices": [
+    {
+     "device": "R3",
+     "file": "R3.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "R5",
+     "file": "R5.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "R4",
+     "file": "R4.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "R2",
+     "file": "R2.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "R6",
+     "file": "R6.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "R7",
+     "file": "R7.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "MPLS_VPN配置练习",
+   "devices": [
+    {
+     "device": "CE2",
+     "file": "CE2.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "PE1",
+     "file": "PE1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "P2",
+     "file": "P2.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "CE1",
+     "file": "CE1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "PE2",
+     "file": "PE2.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "P1",
+     "file": "P1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "CE4",
+     "file": "CE4.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "CE3",
+     "file": "CE3.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "MPLS解决BGP路由黑洞配置",
+   "devices": [
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR4",
+     "file": "AR4.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR3",
+     "file": "AR3.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR5",
+     "file": "AR5.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR2",
+     "file": "AR2.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "MSTP配置练习试卷",
+   "devices": [
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW4",
+     "file": "LSW4.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW4",
+     "file": "LSW4.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW3",
+     "file": "LSW3.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW3",
+     "file": "LSW3.flash.efz.orig",
+     "kind": "orig"
+    }
+   ]
+  },
+  {
+   "experiment": "MUX_VLAN练习",
+   "devices": [
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW3",
+     "file": "LSW3.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW3",
+     "file": "LSW3.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    }
+   ]
+  },
+  {
+   "experiment": "OSPF-5-其他配置工程",
+   "devices": [
+    {
+     "device": "AR4",
+     "file": "AR4.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR3",
+     "file": "AR3.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR5",
+     "file": "AR5.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR2",
+     "file": "AR2.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "OSPF综合实验",
+   "devices": [
+    {
+     "device": "R3",
+     "file": "R3.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "R9",
+     "file": "R9.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "R7",
+     "file": "R7.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "R2",
+     "file": "R2.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "R1",
+     "file": "R1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "R5",
+     "file": "R5.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "R8",
+     "file": "R8.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "R6",
+     "file": "R6.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "R4",
+     "file": "R4.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    }
+   ]
+  },
+  {
+   "experiment": "OSPF配置(查看LSA信息)",
+   "devices": [
+    {
+     "device": "R3  3.3.3.3",
+     "file": "R3  3.3.3.3.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "R2  2.2.2.2",
+     "file": "R2  2.2.2.2.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "R1  1.1.1.1",
+     "file": "R1  1.1.1.1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR6  6.6.6.6",
+     "file": "AR6  6.6.6.6.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR4",
+     "file": "AR4.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR5 5.5.5.5",
+     "file": "AR5 5.5.5.5.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "OSPF配置实验",
+   "devices": [
+    {
+     "device": "AR2",
+     "file": "AR2.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR5",
+     "file": "AR5.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR4",
+     "file": "AR4.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR6",
+     "file": "AR6.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "AR3",
+     "file": "AR3.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "PIM-SM练习",
+   "devices": [
+    {
+     "device": "AR4",
+     "file": "AR4.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR5",
+     "file": "AR5.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "AR2",
+     "file": "AR2.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR6",
+     "file": "AR6.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "RIPv1配置练习",
+   "devices": [
+    {
+     "device": "008914BD",
+     "file": "008914BD.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "0F92B5D4",
+     "file": "0F92B5D4.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR7",
+     "file": "AR7.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "AR8",
+     "file": "AR8.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "4847AB9C",
+     "file": "4847AB9C.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "AR6",
+     "file": "AR6.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "C4D0B739",
+     "file": "C4D0B739.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "RIP网络中过滤策略使用配置",
+   "devices": [
+    {
+     "device": "AR2",
+     "file": "AR2.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR3",
+     "file": "AR3.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR5",
+     "file": "AR5.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR4",
+     "file": "AR4.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "RIP路由开销、汇总、认证练习试卷",
+   "devices": [
+    {
+     "device": "AR3",
+     "file": "AR3.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR2",
+     "file": "AR2.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "smart_link练习实验",
+   "devices": [
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW3",
+     "file": "LSW3.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW3",
+     "file": "LSW3.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW4",
+     "file": "LSW4.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW4",
+     "file": "LSW4.flash.efz.orig",
+     "kind": "orig"
+    }
+   ]
+  },
+  {
+   "experiment": "SUPER_VLAN配置",
+   "devices": [
+    {
+     "device": "LSW3",
+     "file": "LSW3.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW3",
+     "file": "LSW3.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz.orig",
+     "kind": "orig"
+    }
+   ]
+  },
+  {
+   "experiment": "VLAN间通信试题1",
+   "devices": [
+    {
+     "device": "AR4",
+     "file": "AR4.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR2",
+     "file": "AR2.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "LSW3",
+     "file": "LSW3.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW3",
+     "file": "LSW3.flash.efz.orig",
+     "kind": "orig"
+    }
+   ]
+  },
+  {
+   "experiment": "Vlink及特殊区域配置练习",
+   "devices": [
+    {
+     "device": "AR2",
+     "file": "AR2.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR4",
+     "file": "AR4.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR6",
+     "file": "AR6.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR5",
+     "file": "AR5.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR3",
+     "file": "AR3.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "VRRP基本配置_-_交换机",
+   "devices": [
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW3",
+     "file": "LSW3.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW3",
+     "file": "LSW3.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "全局MAC地址漂移检测应对练习",
+   "devices": [
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz.orig",
+     "kind": "orig"
+    }
+   ]
+  },
+  {
+   "experiment": "基于VLAN的MAC地址漂移检测与应对",
+   "devices": [
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz.orig",
+     "kind": "orig"
+    }
+   ]
+  },
+  {
+   "experiment": "基于全局MAC地址漂移检测应对练习",
+   "devices": [
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz.orig",
+     "kind": "orig"
+    }
+   ]
+  },
+  {
+   "experiment": "多交换机MUX_VLAN配置练习",
+   "devices": [
+    {
+     "device": "SW2",
+     "file": "SW2.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "SW2",
+     "file": "SW2.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "SW3",
+     "file": "SW3.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "SW3",
+     "file": "SW3.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "SW1",
+     "file": "SW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "SW1",
+     "file": "SW1.flash.efz.orig",
+     "kind": "orig"
+    }
+   ]
+  },
+  {
+   "experiment": "引入课后练习工程",
+   "devices": [
+    {
+     "device": "AR3",
+     "file": "AR3.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR4",
+     "file": "AR4.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR2",
+     "file": "AR2.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR5",
+     "file": "AR5.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "端口安全配置练习",
+   "devices": [
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    }
+   ]
+  },
+  {
+   "experiment": "端口管理与端口隔离配置练习",
+   "devices": [
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    }
+   ]
+  },
+  {
+   "experiment": "端口管理练习试题",
+   "devices": [
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    }
+   ]
+  },
+  {
+   "experiment": "端口隔离及ARP_PROXY配置练习试卷",
+   "devices": [
+    {
+     "device": "LSW3",
+     "file": "LSW3.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW3",
+     "file": "LSW3.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW2",
+     "file": "LSW2.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "策略路由配置练习",
+   "devices": [
+    {
+     "device": "AR7",
+     "file": "AR7.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR10",
+     "file": "AR10.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR8",
+     "file": "AR8.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW1",
+     "file": "LSW1.flash.efz.orig",
+     "kind": "orig"
+    },
+    {
+     "device": "AR6",
+     "file": "AR6.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR9",
+     "file": "AR9.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR5",
+     "file": "AR5.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "账号管理及用户接口配置练习",
+   "devices": [
+    {
+     "device": "AR2",
+     "file": "AR2.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "路由开销、路由渗透配置练习",
+   "devices": [
+    {
+     "device": "AR2",
+     "file": "AR2.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR4",
+     "file": "AR4.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR5",
+     "file": "AR5.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR6",
+     "file": "AR6.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR3",
+     "file": "AR3.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR7",
+     "file": "AR7.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "路由策略配置及应用练习",
+   "devices": [
+    {
+     "device": "AR2",
+     "file": "AR2.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR1",
+     "file": "AR1.cfg",
+     "kind": "answer"
+    },
+    {
+     "device": "AR5",
+     "file": "AR5.cfg",
+     "kind": "answer"
+    }
+   ]
+  },
+  {
+   "experiment": "配置防止MAC地址漂移",
+   "devices": [
+    {
+     "device": "LSW5",
+     "file": "LSW5.flash.efz",
+     "kind": "flash(binary)"
+    },
+    {
+     "device": "LSW5",
+     "file": "LSW5.flash.efz.orig",
+     "kind": "orig"
+    }
+   ]
+  }
+ ]
+}

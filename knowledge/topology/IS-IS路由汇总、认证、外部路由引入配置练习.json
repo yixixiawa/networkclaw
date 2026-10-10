@@ -1,0 +1,171 @@
+{
+ "experiment": "IS-IS路由汇总、认证、外部路由引入配置练习",
+ "source": "data\\ensp_labs\\src\\IS-IS路由汇总、认证、外部路由引入配置练习\\paper\\paper.topo",
+ "device_count": 6,
+ "devices": [
+  {
+   "id": "EF9CBE29-C3F2-4e01-90F6-13BF205C7EFD",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "D4F27F0E-2C09-4067-A2F8-0FBEB5E35313",
+   "name": "AR3",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "77FC3EDF-3F32-452e-A0D9-67888007C810",
+   "name": "AR4",
+   "model": "AR2220",
+   "console_port": 2003
+  },
+  {
+   "id": "D05BC1FA-219B-4acf-8C29-240BEFB56FA3",
+   "name": "AR5",
+   "model": "AR2220",
+   "console_port": 2004
+  },
+  {
+   "id": "6244778C-6EF8-4adf-A8BF-743FBDE92478",
+   "name": "AR6",
+   "model": "AR2220",
+   "console_port": 2005
+  },
+  {
+   "id": "0464755A-F242-42c1-A812-2A4FFCD6812B",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2006
+  }
+ ],
+ "pc_count": 2,
+ "link_count": 7,
+ "links": [
+  {
+   "src": "AR3",
+   "dst": "AR4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR4",
+   "dst": "AR6",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR3",
+   "dst": "AR2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR2",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR3",
+   "dst": "AR1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR1",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR1",
+   "dst": "AR5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "10.10.13.0/24",
+  "1",
+  "level-1",
+  "172.16.13.0/24",
+  "172.16.14.0/24",
+  "10.10.15.0/24",
+  "5",
+  "1",
+  "1",
+  "3",
+  "10.10.23.0/24",
+  "LEVEL-1-2",
+  "3",
+  "2",
+  "level-1",
+  "172.16.12.0/24",
+  "1",
+  "3",
+  "10.10.34.0/24",
+  "4",
+  "LEVLE-2",
+  "4",
+  "10.10.46.0/24",
+  "6",
+  "外部网络",
+  "SYSTEM-ID如下：\r\nAR1:0000.0000.0001，AR2:0000.0000.0002，AR3:0000.0000.0003，AR4:0000.0000.0004。\r\n配置要求：\r\n1、按照拓扑图所示配置各接口IP地址及IS-IS网络路由协议；\r\n2、LEVEL-1区域使用接口认证及区域认证；\r\n3、LEVEL-2路由域使用路由域证；\r\n4、AR1引入静态路由；\r\n5、AR4把默认路由发布到ISIS；\r\n6、在AR3处对LEVEL的172.16.12.0/24、172.16.13.0/24、172.16.14.0/24三个网络进行精确汇总；\r\n\r\n提交资料：\r\n1、在AR4查看路由表，看看汇总路由是否生效；\r\n2、查看AR4 LSP信息，看看那条LSP包含了默认路由发布；\r\n3、在AR3查看LSDB,指出AR1有几条LSP信息，分别包含什么信息，查询AR1所有LSP详细信息截图；\r\n4、提交ANS文档。",
+  "静态路由到网络1",
+  "网络1",
+  "默认路由到外部网络",
+  "49.0002",
+  "49.0001"
+ ]
+}

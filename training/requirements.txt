@@ -1,0 +1,17 @@
+# NetworkClaw 微调依赖（与本体 requirements.txt 隔离，装进独立环境即可）
+# 本体运行（llama-server CPU 推理）不需要这里任何东西。
+#
+# 建议装法（CUDA 12.x）：
+#   pip install -r training/requirements.txt
+#
+# torch 请按本机 CUDA 版本从 pytorch.org 安装对应轮子后再装其余依赖。
+
+unsloth>=2026.1
+trl>=0.30.0
+transformers>=4.60.0
+peft>=0.18.0
+datasets>=4.4.0
+accelerate>=1.12.0
+bitsandbytes>=0.49.0
+sentencepiece>=0.2.1
+tensorboard>=2.20.0

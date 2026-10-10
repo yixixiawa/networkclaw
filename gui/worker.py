@@ -37,7 +37,7 @@ from dataclasses import dataclass, field
 from PyQt6.QtCore import QThread, pyqtSignal
 
 from core.agent import run_agent
-from core.llama_start import find_mmproj, is_server_running
+from core.llama_start import find_mmproj, is_server_running, mmproj_hint
 from core.llm_client import ChatResult, ProviderError, set_stats_hook
 from core.local_service import LocalService
 from core.ollama_interface import check_embedder
@@ -102,6 +102,8 @@ class AgentWorker(QThread):
     sig_result = pyqtSignal(str, str)         # (命令名, 文本结果) → 控制台
     sig_services = pyqtSignal(dict)           # 服务状态快照
     sig_providers = pyqtSignal(list)          # 提供方列表
+    sig_topology = pyqtSignal(str)            # 自动拓扑巡检结果（显示为对话气泡）
+    sig_devices = pyqtSignal(list)            # 设备清单+在线状态（设备管理页签）
 
     def __init__(self, options: dict | None = None, parent=None):
         super().__init__(parent)
@@ -208,9 +210,14 @@ class AgentWorker(QThread):
         elif job.kind == "stop_local":
             await asyncio.to_thread(self._local.stop)
             await self._emit_services()
+        elif job.kind == "auto_vision":
+            await self._auto_vision(force=bool(job.payload.get("force")),
+                                    keyword=job.payload.get("keyword") or None)
         elif job.kind == "reload_providers":
             load_providers(refresh=True)
             self.sig_providers.emit(provider_summary())
+        elif job.kind == "device_probe":
+            await self._device_probe()
         else:
             self.sig_log.emit(f"[警告] 未知任务：{job.kind}")
 
@@ -261,6 +268,11 @@ class AgentWorker(QThread):
             "services": await self._services_snapshot(),
         })
         self.sig_state.emit("就绪")
+
+        # 自动拓扑巡检（默认开启，设置里可关）：先「看一眼」当前拓扑再开始对话。
+        # 放在就绪之后投递，由任务队列接手，不阻塞界面。
+        if self.options.get("auto_vision", True):
+            self.submit("auto_vision", keyword=self.options.get("capture_keyword"))
 
     async def _teardown(self) -> None:
         self.sig_state.emit("正在关闭…")
@@ -434,6 +446,44 @@ class AgentWorker(QThread):
             await asyncio.to_thread(self._local.ensure, True)
         except Exception as e:
             self.sig_log.emit(f"[警告] 本地视觉服务启动失败：{type(e).__name__}: {e}")
+
+    # ------------------------------------------------------------ 自动拓扑巡检
+    async def _auto_vision(self, force: bool = False, keyword: str | None = None) -> None:
+        """启动时/手动触发的拓扑巡检：截图 → 本地识读 → 快照落盘 → 界面播报。
+
+        透明化（用户要求）：执行前先把「要做什么、图存哪、怎么关」发到运行日志，
+        结果以对话气泡呈现，用户始终知道程序看了什么、得出了什么结论。
+        """
+        from core import auto_topology
+
+        if find_mmproj() is None:
+            self.sig_log.emit("[自动拓扑巡检] 未执行：" + mmproj_hint())
+            return
+        self.sig_log.emit(auto_topology.notice(keyword))
+        self.sig_state.emit("自动拓扑巡检：截取窗口并识读…")
+        try:
+            await self._ensure_vision()
+            result = await asyncio.to_thread(
+                auto_topology.auto_inspect, keyword, None, force, False)
+            self.sig_topology.emit(auto_topology.render_result(result))
+        except Exception as e:
+            self.sig_log.emit(f"[自动拓扑巡检] 失败：{type(e).__name__}: {e}（不影响对话）")
+        finally:
+            self.sig_state.emit("就绪")
+            await self._emit_services()
+
+    # ------------------------------------------------------------ 设备管理
+    async def _device_probe(self) -> None:
+        """设备清单 + 在线探测（只读 TCP/串口枚举），结果发设备页签"""
+        from core import device_registry
+
+        def _run() -> list[dict]:
+            return device_registry.probe_all()
+
+        try:
+            self.sig_devices.emit(await asyncio.to_thread(_run))
+        except Exception as e:
+            self.sig_log.emit(f"[设备管理] 探测失败：{type(e).__name__}: {e}")
 
     # ------------------------------------------------------------ 控制台命令
     async def _command(self, p: dict) -> None:

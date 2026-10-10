@@ -1,0 +1,242 @@
+{
+ "experiment": "MSTP配置练习试卷",
+ "source": "data\\ensp_labs\\src\\MSTP配置练习试卷\\paper\\paper.topo",
+ "device_count": 4,
+ "devices": [
+  {
+   "id": "8A587247-5A40-4b44-8A97-960978D9EAF9",
+   "name": "LSW1",
+   "model": "S5700",
+   "console_port": 2000
+  },
+  {
+   "id": "084E6EDE-F969-4f76-8258-B7F950B9E35B",
+   "name": "LSW2",
+   "model": "S5700",
+   "console_port": 2001
+  },
+  {
+   "id": "C9785F8A-8FDA-4c21-B40F-39C86ECC09C7",
+   "name": "LSW3",
+   "model": "S5700",
+   "console_port": 2002
+  },
+  {
+   "id": "5DF535E2-6F27-4807-9D4C-4E4946F4040F",
+   "name": "LSW4",
+   "model": "S5700",
+   "console_port": 2003
+  }
+ ],
+ "pc_count": 8,
+ "link_count": 13,
+ "links": [
+  {
+   "src": "LSW2",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 22,
+     "src_if": "GigabitEthernet0/0/23",
+     "dst_index": 22,
+     "dst_if": "GigabitEthernet0/0/23"
+    },
+    {
+     "cable": "Copper",
+     "src_index": 23,
+     "src_if": "GigabitEthernet0/0/24",
+     "dst_index": 23,
+     "dst_if": "GigabitEthernet0/0/24"
+    },
+    {
+     "cable": "Copper",
+     "src_index": 21,
+     "src_if": "GigabitEthernet0/0/22",
+     "dst_index": 21,
+     "dst_if": "GigabitEthernet0/0/22"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "LSW3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/2"
+    }
+   ]
+  },
+  {
+   "src": "LSW4",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "PC5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "PC6",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "PC7",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/2"
+    }
+   ]
+  },
+  {
+   "src": "PC8",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 2,
+     "dst_if": "GigabitEthernet0/0/3"
+    }
+   ]
+  },
+  {
+   "src": "LSW3",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW3",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 3,
+     "src_if": "GigabitEthernet0/0/4",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW4",
+   "dst": "PC3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW4",
+   "dst": "PC4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 3,
+     "src_if": "GigabitEthernet0/0/4",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW3",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 3,
+     "dst_if": "GigabitEthernet0/0/4"
+    }
+   ]
+  },
+  {
+   "src": "LSW4",
+   "dst": "LSW2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 3,
+     "dst_if": "GigabitEthernet0/0/4"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "ETH-TRUNK 0/LACP\r\ntrunk all",
+  "VLAN 10",
+  "VLAN 20",
+  "VLAN 30",
+  "VLAN 40",
+  "VLAN 10",
+  "VLAN 20",
+  "VLAN 30",
+  "VLAN 40",
+  "192.168.10.10/24",
+  "192.168.20.20/24",
+  "192.168.30.30/24",
+  "192.168.40.40/24",
+  "192.168.10.50/24",
+  "192.168.20.60/24",
+  "192.168.30.70/24",
+  "192.168.40.80/24",
+  "1、按照拓扑图信息完成下面的配置;\r\n2、查看链路聚合配置是否成功；\r\n3、查看当前那些VLAN没有使用最优路径进行通信；\r\n4、在MSTP region1中建立两个实例:期中instance 10包含 VLAN10、20；instance 20 包含VLAN 30、40;\r\n5、找出该网络当前的总跟桥是哪台交换机；\r\n6、对于instance 10，LSW2配置为根桥，把LSW1配置为备用根桥；对于instance 20，LSW1配置为根桥，LSW2为备用根桥；\r\n7、观察验证当前是否所有VLAN已经使用最优路径进行通信；\r\n8、把LWS1 G0/0/1、G0/0/24关闭，看看相同VLAN 30中的PC之间是否依然互通，查看LWS2当前各个端口的STP的角色和状态；\r\n9、保存配置，生成ANS文档提交。",
+  "trunk all",
+  "trunk all",
+  "trunk all",
+  "trunk all"
+ ]
+}

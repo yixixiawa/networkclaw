@@ -1,38 +1,41 @@
 {
   "_说明": [
-    "模型提供方配置。此文件可选：删掉也能跑（内置默认见 core/providers.py）。",
+    "模型提供方配置样例。复制为 config/llm.json 后按需修改。",
     "密钥优先从环境变量读取（api_key_env 指定的名字），其次才用这里的 api_key 字段。",
     "推荐做法：把密钥写进项目根 .env（DEEPSEEK_API_KEY=sk-xxx），不要把密钥提交到版本库。",
-    "local 提供方故意不在此声明：它的端口/模型由 core/llama_start.py 统一管理，写了反而会覆盖。"
+    "local 提供方故意不在此声明：它的端口/模型由 core/llama_start.py 统一管理，写了反而会覆盖。",
+    "DeepSeek 模型线（2026-09 起）：deepseek-flash=V4.1-Flash 原生多模态（支持图片输入），",
+    "deepseek-v4-pro=V4 Pro 深度推理（纯文本）。旧的 deepseek-chat/deepseek-reasoner 已退役。",
+    "flash 开思考模式：本条目加 \"extra_body\": {\"thinking\": {\"type\": \"enabled\"}}。"
   ],
   "default": "local",
   "providers": {
-    "deepseek": {
-      "label": "DeepSeek V3.2（非思考模式）",
+    "deepseek-flash": {
+      "label": "DeepSeek V4.1 Flash（多模态）",
       "kind": "cloud",
       "base_url": "https://api.deepseek.com",
-      "model": "deepseek-chat",
+      "model": "deepseek-flash",
       "api_key": "",
       "api_key_env": "DEEPSEEK_API_KEY",
       "timeout": 300,
-      "supports_vision": false,
+      "supports_vision": true,
       "supports_tools": true,
-      "supports_thinking": false,
-      "note": "文本推理/工具调用；不支持图片输入"
+      "supports_thinking": true,
+      "note": "原生多模态：拓扑图可直接发给它识读；1M 上下文 / 384K 输出"
     },
-    "deepseek-reasoner": {
-      "label": "DeepSeek V3.2（思考模式）",
+    "deepseek-pro": {
+      "label": "DeepSeek V4 Pro（深度推理）",
       "kind": "cloud",
       "base_url": "https://api.deepseek.com",
-      "model": "deepseek-reasoner",
+      "model": "deepseek-v4-pro",
       "api_key": "",
       "api_key_env": "DEEPSEEK_API_KEY",
       "timeout": 600,
       "supports_vision": false,
       "supports_tools": true,
       "supports_thinking": true,
-      "supports_sampling": false,
-      "note": "复杂推理，输出 reasoning_content；不接受 temperature"
+      "extra_body": {"thinking": {"type": "enabled"}},
+      "note": "复杂推理/排障分析，输出 reasoning_content；图片由视觉桥接转文字"
     }
   }
 }

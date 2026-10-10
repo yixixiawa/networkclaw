@@ -1,0 +1,116 @@
+{
+ "experiment": "端口管理练习试题",
+ "source": "data\\ensp_labs\\src\\端口管理练习试题\\paper\\paper.topo",
+ "device_count": 1,
+ "devices": [
+  {
+   "id": "CA81E24B-52D7-4ede-8E5E-21C03BDBB514",
+   "name": "LSW1",
+   "model": "S5700",
+   "console_port": 2000
+  }
+ ],
+ "pc_count": 7,
+ "link_count": 7,
+ "links": [
+  {
+   "src": "LSW1",
+   "dst": "HUB1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "HUB1",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "Ethernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "HUB2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "HUB2",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "Ethernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "PC4",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 2,
+     "dst_if": "GigabitEthernet0/0/3"
+    }
+   ]
+  },
+  {
+   "src": "PC6",
+   "dst": "HUB1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 3,
+     "dst_if": "Ethernet0/0/3"
+    }
+   ]
+  },
+  {
+   "src": "PC3",
+   "dst": "HUB2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 2,
+     "dst_if": "Ethernet0/0/2"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "192.168.10.10/24",
+  "192.168.10.30/24",
+  "192.168.10.20/24",
+  "192.168.10.40/24",
+  "练习步骤如下：\r\n1、PC1与PC2通信，PC3与PC4通信，查看交换机的MAC地址情况；\r\n2、配置LSW1 MAC地址老化时间为60秒，停止所有PC的通信，过60秒后再查看交换机MAC地址表，看看交换机内MAC地址情况；\r\n3、把g0/0/1、g0/0/、g0/0/3 端口设置为access模式，PVID为vlan 10。\r\n4、观察PC3与PC4是否可以通信，把PC3的MAC地址在G0/0/1 VLAN 10进行绑定，再观察PC3与PC4是否可以通信；\r\n5、把PC3改为连接至HUB1，再观察PC3与PC4是否可以通信；\r\n6、限制G0/0/1端口的MAC地址学习数量为1，此时先让PC6与PC2一直保持通信，再让PC3与PC4一直保持通信，查看交换机MAC地址表情况。\r\n7、让PC1与PC2、PC6与PC2、PC3与PC4一直保持通信的情况下，使用WIRESHARP在端口G0/0/3观察，发现有哪些数据在该链路上，思考\r\n为什有这些帧在该链路上？\r\n8、配置PC2的MAC地址为黑洞，观察PC1与PC2是否可以通信？\r\n9、保存上述配置，提交ANS文档。",
+  "192.168.10.60/24"
+ ]
+}

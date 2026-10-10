@@ -1,0 +1,129 @@
+{
+ "experiment": "RIP 路由开销、汇总、认证配置练习",
+ "source": "data\\ensp_labs\\src\\RIP 路由开销、汇总、认证配置练习\\RIP 路由开销、汇总、认证配置练习.topo",
+ "device_count": 3,
+ "devices": [
+  {
+   "id": "20C649FC-159E-4437-BD36-67C2C02C847C",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "918AF38E-7DE7-4e2e-AEEC-EB8AA6F4B0FB",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "06EAA855-2105-4ec4-B1BA-4E6993B58C81",
+   "name": "AR3",
+   "model": "AR2220",
+   "console_port": 2002
+  }
+ ],
+ "pc_count": 3,
+ "link_count": 6,
+ "links": [
+  {
+   "src": "AR1",
+   "dst": "AR2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR2",
+   "dst": "AR3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR1",
+   "dst": "AR3",
+   "interfaces": [
+    {
+     "cable": "Serial",
+     "src_index": 3,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 3,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR1",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "PC2",
+   "dst": "AR1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 2,
+     "dst_if": "GigabitEthernet0/0/2"
+    }
+   ]
+  },
+  {
+   "src": "AR3",
+   "dst": "PC3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "10.10.13.0/24",
+  "1",
+  "3",
+  "10.10.12.0/24",
+  "1",
+  "2",
+  "2",
+  "3",
+  "10.10.23.0/24",
+  "RIP",
+  "192.168.1.16/28",
+  "22",
+  "21",
+  "192.168.1.32/28",
+  "41",
+  "40",
+  "192.168.30.0/24",
+  "1",
+  "10",
+  "配置要求：\r\n1、按照拓扑图中信息对各个设备接口进行配置，全网使用置RIPv2协议；\r\n2、在所用需要向邻居通告路由的接口配置认证信息，认证密文为“huawei”，使用标准（usual）MD5 加密；\r\n3、在AR1通告给邻居的接口上均进行手工路由汇总配置，要求进行精确汇总；\r\n4、为保证高带宽路由优先选择，需要在AR1与AR3对于从串口上接收的路由信息增加5个metric。\r\n\r\n提交要求：\r\n1、ANS文档；\r\n2、提交AR2路由表截图，指出AR3路由表中192.168.1.16.0/28和192.168.1.32/28两条路由是否已经被汇总路由所替代；\r\n3、提交AR1路由表截图，指出192.168.30.0/24下一跳是哪个路由器；\r\n4、把AR2的G0/0/0关闭，再提交AR1路由表。指出指出192.168.30.0/24下一跳是哪个路由器，路由开销是多少。"
+ ]
+}

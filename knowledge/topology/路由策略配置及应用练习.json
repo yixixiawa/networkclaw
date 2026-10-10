@@ -1,0 +1,69 @@
+{
+ "experiment": "路由策略配置及应用练习",
+ "source": "data\\ensp_labs\\src\\路由策略配置及应用练习\\paper\\paper.topo",
+ "device_count": 3,
+ "devices": [
+  {
+   "id": "83F1B28B-F79C-4ea2-A06E-93EE2C28EBD8",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2000
+  },
+  {
+   "id": "6D33491F-CDB2-4c51-9892-3228773E0D58",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "EF1F3EF4-6B0C-40b4-A51D-BEA1D1729AA4",
+   "name": "AR5",
+   "model": "AR2220",
+   "console_port": 2003
+  }
+ ],
+ "pc_count": 0,
+ "link_count": 2,
+ "links": [
+  {
+   "src": "AR1",
+   "dst": "AR2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR2",
+   "dst": "AR5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "10.10.12.0/24",
+  "1",
+  "2",
+  "lo1:10.0.1.1/24\r\nlo2:10.0.2.1/24\r\nlo3:10.0.3.1/24",
+  "AR1引入直连路由\r\n1、不要引入10.0.3.0/24路由（使用ACL)；\r\n2、把10.0.1.0/24的路由标记改为10(使用IP-PREFIX)；\r\n3、把10.0.2.0/24的路由标记改为20(使用IP-PREFIX)。",
+  "AREA 0",
+  "RIP",
+  "2",
+  "5",
+  "10.10.25.0/24",
+  "AR2 RIP从OSPF引入路由时，据绝tag=20的路由。",
+  "1、按照拓扑图配置网络设备的接口地址及相关路由协议；\r\n2、在AR1中引入直连路由，按照拓扑图中提示信息配置路由策略，配置完成后，在AR2中查看LSDB，看看是否有10.0.3.0/24的第五类LSA信息，截图；\r\n3、在AR2中查看第五类LSA，看看网路10.0.1.0/24和网路10.0.2.0/24的路由标记（tag）是多少，截图；\r\n4、在AR2中RIP配置引入OSPF路由（不做任何过滤），查看RIP DATABASE中的网路10.0.1.0/24和网路10.0.2.0/24信息中的路由标记是否从OSPF中传递过来。\r\n5、在AR2中，按照拓扑图信息把RIP从OSPF引入中进行过滤，然后打开wireshark从AR2 G0/0/2 接口链路对RIP报文进行抓包，看看是否有10.0.2.0/24的路由\r\n从AR2 G0/0/2中的RIP报文发出；截图。\r\n6、查看AR5中路由表，看看是否符合拓扑中的信息路由截图；\r\n7、提交ANS文档。"
+ ]
+}

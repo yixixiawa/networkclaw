@@ -1,0 +1,164 @@
+{
+ "experiment": "DHCP服务器防假冒、饿死攻击",
+ "source": "data\\ensp_labs\\src\\DHCP服务器防假冒、饿死攻击\\paper\\paper.topo",
+ "device_count": 4,
+ "devices": [
+  {
+   "id": "410E90BA-7578-423e-BBC2-903B07C20589",
+   "name": "ACC",
+   "model": "S5700",
+   "console_port": 2000
+  },
+  {
+   "id": "3884BCA9-1A5A-4406-9D66-FC46C313A26C",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "F62BDF7A-1068-4687-9635-9183650A6375",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "D88C07B2-8C2E-4b11-8E27-5D246B698291",
+   "name": "CORE",
+   "model": "S5700",
+   "console_port": 2003
+  }
+ ],
+ "pc_count": 6,
+ "link_count": 9,
+ "links": [
+  {
+   "src": "ACC",
+   "dst": "CORE",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "ACC",
+   "dst": "AR1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "ACC",
+   "dst": "AR2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "ACC",
+   "dst": "PC3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 3,
+     "src_if": "GigabitEthernet0/0/4",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "ACC",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 5,
+     "src_if": "GigabitEthernet0/0/6",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "ACC",
+   "dst": "PC4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 6,
+     "src_if": "GigabitEthernet0/0/7",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "HUB1",
+   "dst": "ACC",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "Ethernet0/0/0",
+     "dst_index": 4,
+     "dst_if": "GigabitEthernet0/0/5"
+    }
+   ]
+  },
+  {
+   "src": "HUB1",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "Ethernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "HUB1",
+   "dst": "PC5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "Ethernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "vlanif 1:192.168.1.1/24\r\nvlanif 10:192.168.10.1/24",
+  "TRUNK ALL",
+  "VLAN 1",
+  "DHCP服务器\r\n使用接口地址池",
+  "1、按照拓扑图中信息配置交换机及路由器,PC1—PC4使用DHCP获取IP地址，并且查看当前PC获取的IP地址;\r\n2、交换机ACC全局激活DHCP SNOOPING，在所有的端口上激活DHCP SNOOPING，让全部PC重新获取IP地址，观察是否成功；\r\n3、交换机ACC分别在VLAN 1和VLAN 10中配置G0/0/1为可信端口，再让全部PC重新获取IP地址，观察是否成功；\r\n4、在ACC的G0/0/2-G0/0/7中配置防DHCP服务器饿死攻击，设定端口可绑定MAC地址数量为1；\r\n5、让PC1与PC5重新获取IP地址，观察结果；\r\n5、保存配置，提交ans文档。",
+  "172.16.1.1/24",
+  "DHCP服务器\r\n使用接口地址池",
+  "VLAN 10",
+  "DHCP服务器\r\n使用接口地址池",
+  "172.16.10.1/24"
+ ]
+}

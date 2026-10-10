@@ -1,0 +1,177 @@
+{
+ "experiment": "VLAN间通信",
+ "source": "data\\ensp_labs\\src\\VLAN间通信\\VLAN间通信拓扑\\VLAN间通信.topo",
+ "device_count": 5,
+ "devices": [
+  {
+   "id": "88181C18-DEC3-4099-B987-A8A6277AB98B",
+   "name": "LSW2",
+   "model": "S5700",
+   "console_port": 2000
+  },
+  {
+   "id": "1BD6214E-1E14-4f53-B42A-BAB2DAB70AC6",
+   "name": "AR2",
+   "model": "AR2220",
+   "console_port": 2001
+  },
+  {
+   "id": "A96BB4F4-3325-4880-8F40-31BA581021EE",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "4172A73D-93F7-4ef4-86EF-505372B0F383",
+   "name": "LSW1",
+   "model": "S5700",
+   "console_port": 2003
+  },
+  {
+   "id": "DB7129A1-D265-4e4c-B9A0-3F9C08198D28",
+   "name": "LSW3",
+   "model": "S5700",
+   "console_port": 2004
+  }
+ ],
+ "pc_count": 6,
+ "link_count": 8,
+ "links": [
+  {
+   "src": "AR2",
+   "dst": "LSW2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR1",
+   "dst": "LSW1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    },
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 1,
+     "dst_if": "GigabitEthernet0/0/2"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "PC3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "PC4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 3,
+     "src_if": "GigabitEthernet0/0/4",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW3",
+   "dst": "PC5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW3",
+   "dst": "PC6",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "192.168.10.10/24",
+  "192.168.20.10/24",
+  "VLAN 10",
+  "VLAN 20",
+  "TRUNK 10 20",
+  "1:vlan10 192.168.10.1/24\r\n2:vlan10 192.168.20.1/24",
+  "单臂路由模式",
+  "接口路由模式",
+  "192.168.10.10/24",
+  "192.168.20.10/24",
+  "192.168.10.1/24",
+  "192.168.20.1/24",
+  "VLAN 10",
+  "VLAN 10",
+  "VLAN 20",
+  "VLAN 20",
+  "三层交换机虚接口模式",
+  "VLAN 10",
+  "VLAN 20",
+  "192.168.10.10/24",
+  "192.168.20.10/24",
+  "vlanif1： 192.168.10.1/24\r\nvlanif2： 192.168.20.1/24",
+  "要求：按照拓扑图提示信息配置，实现VLAN间互通"
+ ]
+}

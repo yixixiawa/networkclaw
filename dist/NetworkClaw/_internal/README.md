@@ -122,12 +122,15 @@ main.py
 | 名称 | 类型 | 模型 | 图片 | 工具 | 思考 | 密钥 |
 |------|------|------|:----:|:----:|:----:|------|
 | `local` | 本地 | Qwen3.5-9B（llama-server） | ✓ | ✓ | ✓ | 不需要 |
-| `deepseek` | 云端 | `deepseek-chat`（V3.2 非思考） | ✗ | ✓ | ✗ | `DEEPSEEK_API_KEY` |
-| `deepseek-reasoner` | 云端 | `deepseek-reasoner`（V3.2 思考） | ✗ | ✓ | ✓ | 同上 |
+| `deepseek-flash` | 云端 | `deepseek-flash`（V4.1 Flash 多模态） | ✓ | ✓ | ✓ | `DEEPSEEK_API_KEY` |
+| `deepseek-pro` | 云端 | `deepseek-v4-pro`（V4 Pro 深度推理） | ✗ | ✓ | ✓ | 同上 |
 
-> DeepSeek 走 OpenAI 兼容协议（`https://api.deepseek.com`），两者均已对应 V3.2、128K 上下文，
-> **都支持 Tool Calls**；思考内容在 `reasoning_content` 字段。
-> **注意：DeepSeek API 目前是纯文本，不接受图片输入** —— 这正是下面「多模态桥接 / 并行」存在的原因。
+> DeepSeek 走 OpenAI 兼容协议（`https://api.deepseek.com`），2026-09 起模型线换代：
+> **`deepseek-flash`（V4.1 Flash）原生多模态，可直接接收图片输入**，1M 上下文 / 384K 输出；
+> `deepseek-v4-pro` 为纯文本深度推理（内置默认已开启 `thinking`）。两者都支持 Tool Calls，
+> 思考内容在 `reasoning_content` 字段。旧的 `deepseek-chat` / `deepseek-reasoner` 名称已退役，
+> 但 `/model deepseek`、`/model deepseek-reasoner` 会被自动映射到 flash / pro，无需改习惯。
+> `deepseek-pro` 不看图——发给它的图片会先由本地视觉模型识读成文字再注入（多模态桥接）。
 
 ### 配置与密钥
 
@@ -149,28 +152,31 @@ python main.py --deepseek-key sk-xxx
 **1. 切换使用（`/model`）** —— 单模型回答，能力最完整（含 MCP 工具）
 
 ```bash
-python main.py --provider deepseek     # 启动即用 DeepSeek
-python main.py --provider local        # 用本地模型
+python main.py --provider deepseek-flash   # 启动即用 DeepSeek Flash（多模态）
+python main.py --provider deepseek-pro     # 用 DeepSeek Pro（深度推理）
+python main.py --provider local            # 用本地模型
 # 对话中随时切换：
-/model deepseek-reasoner               # 换成思考模式
+/model deepseek-pro                        # 换成深度推理
+/model deepseek-flash                      # 换回多模态 Flash
 ```
 
 云端模式下**不会启动本地 llama-server**（省下数 GB 内存）；切回 `/model local` 时会按需启动。
 
 **2. 多模态桥接（自动）** —— 文本模型 + 本地视觉模型协作
 
-开启图形后，如果当前提供方不看图而本轮带了图片，程序会先用本地多模态模型把图
-**读成文字结论**，再连同你的问题一起交给 DeepSeek。拓扑图始终在本地解析、不外传，
-文本推理则用云端模型。对话中会出现 `[多模态桥接]` 提示。
+开启图形后，如果当前提供方不看图而本轮带了图片（比如 `deepseek-pro` 或未加载 mmproj 的本地模型），
+程序会先用本地多模态模型把图**读成文字结论**，再连同你的问题一起交给它。拓扑图始终在本地解析、
+不外传，文本推理则用云端模型。对话中会出现 `[多模态桥接]` 提示。当然，也可以直接
+`/model deepseek-flash` 让云端模型原生看图（图片会上传，注意隐私场景）。
 
 **3. 多模型并行（`/parallel`）** —— 同一问题并行跑多路，再融合
 
 ```bash
 python main.py --parallel                                    # 每轮提问都并行
-python main.py --parallel --parallel-providers local,deepseek
+python main.py --parallel --parallel-providers local,deepseek-flash
 # 对话中：
 /parallel                       # 开关
-/parallel deepseek,deepseek-reasoner   # 指定组合
+/parallel deepseek-flash,deepseek-pro   # 指定组合
 /parallel off
 ```
 
@@ -206,7 +212,8 @@ python -m core.llm_client --all --ask "1+1=?"                # 所有已配置�
 命令行版的所有能力都有界面版（`python launcher.py` 或 `python -m gui.app`）：
 
 - **三种模式**：agent / rag / parallel（多模态并行，本地识图 ∥ DeepSeek 融合）随时切换；
-- **模型提供方**：本地 llama-server / DeepSeek / deepseek-reasoner，可在设置里换密钥并探测连通性；
+- **模型提供方**：本地 llama-server / DeepSeek Flash（多模态）/ DeepSeek Pro（深度推理），
+  可在设置里换密钥并探测连通性；
 - **图片附件**：拖拽或选择拓扑截图，不看图的云端模型自动走「本地识图桥接」；
 - **流式上屏**：思考过程与正文分栏实时渲染，带 token 统计（QThread + 信号，不卡界面）；
 - **斜杠命令控制台**：`/tools`（看工具）、`/call 工具名 {json}`（手动调用）、`/audit`（看命令审计）、
@@ -466,7 +473,7 @@ python tools/manual_extractor.py manual.txt --vendor Huawei           # 阶段�
   ISO-8859-1 解码导致中文全乱码，因此改为按字节读取后显式 UTF-8 解码；
 - `ask(query, show_thinking=False)` 可关闭思考过程显示；
   `ask(query, stream=False)` 不在函数内打印回答，由调用方渲染返回值；
-  `ask(query, provider="deepseek")` 可指定本轮使用的提供方。
+  `ask(query, provider="deepseek-flash")` 可指定本轮使用的提供方。
 
 ## 命令模板库（三阶段）
 

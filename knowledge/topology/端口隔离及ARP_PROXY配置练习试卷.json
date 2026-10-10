@@ -1,0 +1,156 @@
+{
+ "experiment": "端口隔离及ARP_PROXY配置练习试卷",
+ "source": "data\\ensp_labs\\src\\端口隔离及ARP_PROXY配置练习试卷\\paper\\paper.topo",
+ "device_count": 4,
+ "devices": [
+  {
+   "id": "7833C506-1053-4914-A3DE-948F64C95039",
+   "name": "LSW1",
+   "model": "S5700",
+   "console_port": 2000
+  },
+  {
+   "id": "D17A48F6-A691-4977-9006-9F4A69BF7384",
+   "name": "LSW2",
+   "model": "S5700",
+   "console_port": 2001
+  },
+  {
+   "id": "F5E64E77-58C1-4e84-923B-407204B73F44",
+   "name": "AR1",
+   "model": "AR2220",
+   "console_port": 2002
+  },
+  {
+   "id": "100E2097-76B0-4611-91C9-FB0D2B171182",
+   "name": "LSW3",
+   "model": "S5700",
+   "console_port": 2003
+  }
+ ],
+ "pc_count": 6,
+ "link_count": 8,
+ "links": [
+  {
+   "src": "AR1",
+   "dst": "PC1",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/0",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "AR1",
+   "dst": "PC2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "LSW2",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 0,
+     "src_if": "GigabitEthernet0/0/1",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "PC3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW2",
+   "dst": "PC4",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW1",
+   "dst": "LSW3",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "GigabitEthernet0/0/1"
+    }
+   ]
+  },
+  {
+   "src": "LSW3",
+   "dst": "PC5",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 1,
+     "src_if": "GigabitEthernet0/0/2",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  },
+  {
+   "src": "LSW3",
+   "dst": "PC6",
+   "interfaces": [
+    {
+     "cable": "Copper",
+     "src_index": 2,
+     "src_if": "GigabitEthernet0/0/3",
+     "dst_index": 0,
+     "dst_if": "Ethernet0/0/0"
+    }
+   ]
+  }
+ ],
+ "annotations": [
+  "192.168.10.10/24",
+  "192.168.10.130/24",
+  "路由式ARP-PROXY配置练习\r\n\r\n1、PC1、PC2、AR1按照如下IP地址配置，观察\r\nPC1与PC2是否可以互通。\r\n2、在AR1 G0/0/0及G0/0/1激活ARP-PROXY，再\r\n观察PC1与PC2是否可以互通,查看PC的ARP缓存，\r\n发现什么现象？",
+  "192.168.10.1/25",
+  "192.168.10.129/25",
+  "VLAN 10",
+  "VLANIF 100: 192.168.10.1/24",
+  "VLAN 20",
+  "192.168.10.30/24",
+  "192.168.10.40/24",
+  "192.168.10.50/24",
+  "192.168.10.60/24",
+  "VLAN间及VLAN内ARP PROXY 练习\r\n\r\n1、按照拓扑图信息配置PC及交换机，交换机LSW1配置VLAN 100\r\n 为SUPER VLAN，VLAN 10 20为Sub VLAN。\r\n2、LSW2中，配置端口G0/0/2与G0/0/3加入端口隔离组10，实现\r\nPC3与PC4实现端口隔离；测试验证。\r\n3、LSW3中，配置端口G0/0/2与G0/0/3加入端口隔离组20，实现\r\nPC5与PC6实现端口隔离；测试验证。\r\n4、在LSW1中配置ARP PROXY功能，使得PC3、PC4、PC5、PC6互通。",
+  "TRUNK 10",
+  "TRUNK 20"
+ ]
+}
