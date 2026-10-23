@@ -11,11 +11,14 @@ from core import rag
 
 # ---------------------------------------------------------------- 数据源装配
 
-def test_all_five_sources_are_loaded():
-    """五个来源都要进知识库：设备介绍 / 实验文档 / 设备手册 / 实验报告 / 运行日志。"""
+def test_all_four_sources_are_loaded():
+    """四个来源都要进知识库：设备介绍 / 实验文档 / 实验报告 / 运行日志摘要。
+
+    设备手册**不在**索引里——它按会话隔离到 session/<sid>/skill/<设备>/，
+    改为直注系统提示词（塞进全局索引会在切换会话时串味），见 test_session_skills.py。
+    """
     texts = {
         "experiments": rag._experiment_texts(),
-        "manuals": rag._manual_texts(),
         "reports": rag._lab_report_texts(),
         "runlogs": rag._run_log_digests(),
     }
@@ -25,6 +28,8 @@ def test_all_five_sources_are_loaded():
     for name, items in texts.items():
         for t in items:
             assert t.strip(), f"{name} 来源里出现空文本"
+    # 手册来源确认已移除（不是漏改）
+    assert not hasattr(rag, "_manual_texts")
 
 
 def test_experiment_source_skips_overview():

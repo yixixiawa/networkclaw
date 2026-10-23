@@ -1,0 +1,22 @@
+id: DB-BND-AC-05
+vendor: any
+device_type: firewall
+category: 安全区域边界-访问控制
+control_point: 访问控制
+requirement: e)应对进出网络的数据流实现基于应用协议和应用内容的访问控制
+weight_level: 3
+severity: high
+source: 《等保2.0初级教材 测评操作.xlsx》sheet「安全区域边界」第10行「e)」；权重见《…权重-参考材料.xlsx》行47（二级无此项，三级=1）
+check:
+  type: manual_confirm
+  target: 应用层访问控制策略
+  expect: 存在基于应用协议/应用内容的控制策略，并已生效
+  pattern: ''
+remediation:
+- display current-configuration
+- show running-config
+evidence_hint: 资料（第10行预期结果）只给出『配置应用访问控制策略，对 QQ/优酷/Web/FTP 进行管控』，没有任何可解析的命令形式，且不同厂商（下一代防火墙 / WAF）配置差异极大。需要：①设备上应用识别/应用控制策略列表截图
+  ②对特定应用（如 QQ）的阻断测试结果。纯路由交换设备本项判 not_applicable
+weight_detail:
+  level2: null
+  level3: 1

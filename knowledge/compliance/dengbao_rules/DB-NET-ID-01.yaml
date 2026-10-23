@@ -1,0 +1,23 @@
+id: DB-NET-ID-01
+vendor: any
+device_type: network_device
+category: 安全计算环境-网络设备
+control_point: 身份鉴别
+requirement: a)应对登录的用户进行身份标识和鉴别，身份标识具有唯一性，身份鉴别信息具有复杂度要求并定期更换
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行2（路由器）/行25（交换机）；整改建议见 B 表 sheet「安全计算环境-网络设备」行2；权重见 C 表行60（二/三级均=1）
+check:
+  type: config_regex
+  target: local-user / username 条目
+  expect: 存在本地用户或 AAA 认证配置，且不存在空口令用户
+  pattern: (?im)^\s*(?:local-user\s+\S+\s+(?:password|service-type)|username\s+\S+\s+(?:privilege|password|secret|privilege\s+\d+\s+secret)|aaa\s*$|authentication-mode\s+(?:aaa|scheme)|hwtacacs\s+scheme)
+remediation:
+- local-user netadmin password irreversible-cipher Huawei@123
+- username admin privilege 15 secret Admin@123
+- aaa
+- aaa new-model
+evidence_hint: 复杂度与定期更换无法从配置判定（需人工/访谈）：B 表行2 整改建议要求『口令至少8位，由数字、字母或特殊字符中2种方式组成』。本条只自动判『有无用户体系 + 有无空口令』；复杂度、更换周期需访谈记录
+weight_detail:
+  level2: 1
+  level3: 1

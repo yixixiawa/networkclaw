@@ -9,6 +9,10 @@
 2. 所有设备通道（Telnet/串口）必须过 `core/command_guard.py`，不得绕行。
 3. 向量库集合名只在 `core/ollama_interface.py` 注册，句柄现取现用。
 4. 两个 MCP 服务端**不得定义同名工具**（McpHub 按名路由会串）。
+   冲突在装配期就会暴露：`mcp_tools/client.py` 的 `McpHub._load_tools()` 检测到重名
+   会打印 `[MCP] 警告：工具名冲突 <工具名>（<原属主> 与 <新属主>），调用将路由到 <后注册者>`。
+   静态防线：`tests/test_mcp_servers.py::test_no_duplicate_tool_names_across_servers`
+   断言跨服务端无重名，`test_mcp_client_detects_duplicate_names` 断言 client 里确有重名检测逻辑。
 
 ## 提交约定
 
@@ -19,11 +23,15 @@
 ## 测试与验证
 
 ```bash
-python -m pytest                                  # 36 项离线测试
+.venv/Scripts/python.exe -m pytest                  # 全量离线测试（用例数会变，别在文档里写死）
 python -m core.command_guard                      # 命令分级自检
 python -m mcp_tools.client                        # MCP 自检
 .venv/Scripts/python.exe -m py_compile main.py core/*.py mcp_tools/*.py tools/*.py
 ```
+
+测试数据读 **JSON 而非 xlsx**：等保规则原文存
+`knowledge/compliance/dengbao_source_lines.json`（项目 venv 无 openpyxl，
+直接读 xlsx 会让最关键的「命令出处」断言在 CI 里被 skip）。
 
 ## 改了 MCP 工具后
 

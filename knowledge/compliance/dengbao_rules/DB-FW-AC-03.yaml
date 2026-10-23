@@ -1,0 +1,20 @@
+id: DB-FW-AC-03
+vendor: any
+device_type: firewall
+category: 安全计算环境-安全设备
+control_point: 访问控制
+requirement: c)应及时删除或停用多余的、过期的账户，避免共享账户的存在
+weight_level: 3
+severity: medium
+source: A 表 sheet「安全计算环境」行54；B 表行8；C 表行66
+check:
+  type: manual_confirm
+  target: 账户清单时效性
+  expect: 无多余/过期账户，无共享账户
+  pattern: ''
+remediation:
+- display current-configuration
+evidence_hint: 需要：①防火墙用户账户列表 ②账户用途说明（证明一一对应）③已停用账户的状态截图（若无法删除）
+weight_detail:
+  level2: 0.7
+  level3: 0.7

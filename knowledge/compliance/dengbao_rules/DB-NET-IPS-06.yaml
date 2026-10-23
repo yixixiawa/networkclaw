@@ -1,0 +1,20 @@
+id: DB-NET-IPS-06
+vendor: any
+device_type: network_device
+category: 安全计算环境-网络设备
+control_point: 入侵防范
+requirement: f)应能够检测到对重要节点进行入侵的行为，并在发生严重入侵事件时提供报警
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行22/行45（原文即『此项不适合』）；B 表行22；C 表行80（三级=1）
+check:
+  type: manual_confirm
+  target: 不适用判定/转由 IPS 覆盖
+  expect: 该项一般在入侵防护系统上实现
+  pattern: ''
+remediation:
+- display current-configuration
+evidence_hint: A 表行22 原文『此项不适合，该项要求一般在入侵防护系统上实现』。对网络设备本身结论为 not_applicable，但应在报告中注明由边界 IPS 项（DB-BND-IPS-01）承接
+weight_detail:
+  level2: null
+  level3: 1

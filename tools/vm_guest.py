@@ -23,7 +23,7 @@ import tempfile
 import time
 from pathlib import Path
 
-VMRUN = os.environ.get("VM_VMRUN", r"D:\vmware\vmrun.exe")
+VMRUN = os.environ.get("VM_VMRUN", r"D:\VMware\vmrun.exe")
 VM_ROOT = os.environ.get("VM_ROOT", r"D:\virtualmachine")
 
 

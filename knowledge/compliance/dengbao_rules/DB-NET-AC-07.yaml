@@ -1,0 +1,20 @@
+id: DB-NET-AC-07
+vendor: any
+device_type: network_device
+category: 安全计算环境-网络设备
+control_point: 访问控制
+requirement: g)应对重要主体和客体设置安全标记，并控制主体对有安全标记信息资源的访问
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行12/行35（原文即『此项不适合』）；B 表行12；C 表行70（三级=1）
+check:
+  type: manual_confirm
+  target: 不适用判定
+  expect: 网络设备一般不实现强制访问控制标记
+  pattern: ''
+remediation:
+- display current-configuration
+evidence_hint: A 表行12 原文『此项不适合』。若非涉密强制保护场景，结论应为 not_applicable；若系统确有强访要求，则需厂商提供安全标记能力证明
+weight_detail:
+  level2: null
+  level3: 1

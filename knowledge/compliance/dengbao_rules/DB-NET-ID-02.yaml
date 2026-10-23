@@ -1,0 +1,24 @@
+id: DB-NET-ID-02
+vendor: any
+device_type: network_device
+category: 安全计算环境-网络设备
+control_point: 身份鉴别
+requirement: b)应具有登录失败处理功能，应配置并启用结束会话、限制非法登录次数和当登录连接超时自动退出等相关措施
+weight_level: 3
+severity: medium
+source: A 表 sheet「安全计算环境」行3/行26；B 表行3；C 表行61（二/三级均=0.7）
+check:
+  type: config_regex
+  target: VTY / 用户界面
+  expect: VTY 下配置了超时自动退出，或存在登录失败锁定策略
+  pattern: (?im)^\s*(?:idle-timeout\s+\d+|exec-timeout\s+\d+|password-control\s+login-attempt\s+\d+\s+exceed\s+locktime\s+\d+)
+remediation:
+- idle-timeout 5
+- idle-timeout 20
+- user-interface vty 0 4
+- line vty 0 4
+evidence_hint: B 表行3 要求『登录失败5次锁定账号登录15分钟』。`idle-timeout`/`exec-timeout` 证明超时退出；锁定次数需 password-control 配置或堡垒机侧策略，两条都要看。教材
+  A 表行3/行26 的 Cisco 写法被 OCR 成 `exec-timcout 20`（原文如此），真机上为 `exec-timeout 20`
+weight_detail:
+  level2: 0.7
+  level3: 0.7

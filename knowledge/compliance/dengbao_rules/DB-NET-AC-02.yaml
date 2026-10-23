@@ -1,0 +1,22 @@
+id: DB-NET-AC-02
+vendor: any
+device_type: network_device
+category: 安全计算环境-网络设备
+control_point: 访问控制
+requirement: b)应重命名或删除默认账户，修改默认账户的默认口令
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行7/行30；B 表行7；C 表行65（二/三级均=1）
+check:
+  type: manual_confirm
+  target: 默认账户处理
+  expect: 不存在 admin/huawei、cisco/cisco 等默认账户与默认口令
+  pattern: ''
+remediation:
+- local-user admin password irreversible-cipher Huawei@123
+- display current-configuration
+evidence_hint: A 表行7/行30 给的是『用默认账户默认口令尝试登录』这一测试动作，不是配置检查：默认账户被改名后，配置里看到的新名字无法反证『原来那个已删』。需要：①默认口令登录失败截图 ②账户清单。资料明确点名要查
+  cisco/cisco、admin/huawei、admin@huawei.com
+weight_detail:
+  level2: 1
+  level3: 1

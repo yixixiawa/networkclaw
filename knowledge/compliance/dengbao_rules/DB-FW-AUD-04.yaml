@@ -1,0 +1,20 @@
+id: DB-FW-AUD-04
+vendor: any
+device_type: firewall
+category: 安全计算环境-安全设备
+control_point: 安全审计
+requirement: d)应对审计进程进行保护，防止未经授权的中断
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行62；B 表行16；C 表行74（三级=1）
+check:
+  type: manual_confirm
+  target: 审计进程保护
+  expect: 非审计员账户无法中断审计进程
+  pattern: ''
+remediation:
+- display current-configuration
+evidence_hint: A 表行62 测评方法是『测试通过非审计员的其他账户来中断审计进程』。需要：①非审计账户尝试关闭日志被拒的截图 ②角色权限表
+weight_detail:
+  level2: null
+  level3: 1

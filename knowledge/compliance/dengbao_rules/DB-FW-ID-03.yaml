@@ -1,0 +1,21 @@
+id: DB-FW-ID-03
+vendor: any
+device_type: firewall
+category: 安全计算环境-安全设备
+control_point: 身份鉴别
+requirement: c)当进行远程管理时，应采取必要措施防止鉴别信息在网络传输过程中被窃听
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行50（WEB 管理须经 SSL 加密）；B 表行4（标『关键』）；C 表行62
+check:
+  type: manual_confirm
+  target: WEB 管理加密
+  expect: WEB 管理通过 HTTPS/SSL；未开放明文 HTTP/Telnet
+  pattern: ''
+remediation:
+- display current-configuration
+evidence_hint: A 表行50 预期结果：『通过WEB界面进行远程管理时，通过SSL协议进行加密处理』。需要：①管理 URL 为 https 的截图（含证书信息）②开放服务页中 telnet/http 已关闭的截图（A
+  表行65 提到『开放服务』页签）
+weight_detail:
+  level2: 1
+  level3: 1

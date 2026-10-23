@@ -1,0 +1,21 @@
+id: DB-BND-IPS-02
+vendor: any
+device_type: ips
+category: 安全区域边界-入侵防范
+control_point: 入侵防范
+requirement: b)应在关键网络节点处检测、防止或限制从内部发起的网络攻击行为
+weight_level: 3
+severity: high
+source: 《等保2.0初级教材 测评操作.xlsx》sheet「安全区域边界」第12行「b)」；权重见《…权重-参考材料.xlsx》行50（二级无此项，三级=1）
+check:
+  type: manual_confirm
+  target: 东西向入侵检测能力
+  expect: 内网侧部署检测手段，能发现内部发起的攻击
+  pattern: ''
+remediation:
+- display current-configuration
+- show running-config
+evidence_hint: 需要：①内网横向流量的镜像/探针部署说明 ②内部发起攻击的检测日志。资料（第12行预期结果）与第11行文本几乎相同，判定时应以『是否存在内部侧检测点位』区分，不能仅凭设备型号判 pass
+weight_detail:
+  level2: null
+  level3: 1

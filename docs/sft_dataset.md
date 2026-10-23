@@ -34,7 +34,7 @@
 |---|---|
 | `instruction` | 任务书原文（实验要求，含提交物说明） |
 | `input` | 设备清单：`设备：LSW1(S5700, Telnet 端口 2000)；…` |
-| `output` | 模型实际下发的命令序列；`# 192.168.10.130:2000` 注释行标示目标设备 |
+| `output` | 模型实际下发的命令序列；`# <host>:<port>` 注释行标示目标设备（host 取自运行日志，即 `LAB_HOST` 指定的实验主机） |
 | `meta` | 溯源信息：`id`（日期/实验号）、`pct`（命中率%）、`net`（净提升条数）、`preset`（是否设备自带答案） |
 
 ### 负样本 `data/finetune/sft_YYYYMMDD_low.jsonl`

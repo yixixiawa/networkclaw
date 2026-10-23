@@ -1,0 +1,22 @@
+id: DB-FW-ID-01
+vendor: any
+device_type: firewall
+category: 安全计算环境-安全设备
+control_point: 身份鉴别
+requirement: a)应对登录的用户进行身份标识和鉴别，身份标识具有唯一性，身份鉴别信息具有复杂度要求并定期更换
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行48（以天融信防火墙 WEB/Console 为例，预期结果明写『口令长度8位以上…每季度至少更改一次』）；整改建议见 B 表 sheet「安全计算环境-安全设备」行2；权重见
+  C 表行60
+check:
+  type: manual_confirm
+  target: 管理员账户与口令策略
+  expect: 账户唯一、无空口令；口令≥8位且两类字符、每季度更换
+  pattern: ''
+remediation:
+- display current-configuration
+evidence_hint: A 表行48 的测评路径是 WEB 界面（用户认证>>用户管理）与 Console 登录，资料未给出任何 CLI 命令，故不能写成 config_* 检查。需要：①用户列表截图（证明唯一、无空口令）②口令策略配置页截图
+  ③最近一次口令更换记录（每季度）
+weight_detail:
+  level2: 1
+  level3: 1

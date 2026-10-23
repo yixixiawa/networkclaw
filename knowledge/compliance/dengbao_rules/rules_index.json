@@ -1,0 +1,420 @@
+{
+  "generated_by": "tools/build_dengbao_rules.py",
+  "source_files": [
+    "等保2.0初级教材 测评操作.xlsx",
+    "等保2.0差距评估与整改建议.xlsx",
+    "等保2.0一~三级测评项得分及权重-参考材料.xlsx",
+    "knowledge/command_templates.csv"
+  ],
+  "severity_rule": "由 weight_level 对应权重推导：1→high，0.7→medium，0.4→low",
+  "total": 56,
+  "by_severity": {
+    "high": 37,
+    "medium": 17,
+    "low": 2
+  },
+  "by_type": {
+    "config_regex": 15,
+    "manual_confirm": 41
+  },
+  "by_category": {
+    "安全区域边界-访问控制": 5,
+    "安全区域边界-入侵防范": 5,
+    "安全计算环境-网络设备": 23,
+    "安全计算环境-安全设备": 23
+  },
+  "rules": [
+    {
+      "id": "DB-BND-AC-01",
+      "category": "安全区域边界-访问控制",
+      "severity": "high",
+      "check_type": "config_regex",
+      "file": "DB-BND-AC-01.yaml"
+    },
+    {
+      "id": "DB-BND-AC-02",
+      "category": "安全区域边界-访问控制",
+      "severity": "medium",
+      "check_type": "config_regex",
+      "file": "DB-BND-AC-02.yaml"
+    },
+    {
+      "id": "DB-BND-AC-03",
+      "category": "安全区域边界-访问控制",
+      "severity": "medium",
+      "check_type": "config_regex",
+      "file": "DB-BND-AC-03.yaml"
+    },
+    {
+      "id": "DB-BND-AC-04",
+      "category": "安全区域边界-访问控制",
+      "severity": "medium",
+      "check_type": "manual_confirm",
+      "file": "DB-BND-AC-04.yaml"
+    },
+    {
+      "id": "DB-BND-AC-05",
+      "category": "安全区域边界-访问控制",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-BND-AC-05.yaml"
+    },
+    {
+      "id": "DB-BND-IPS-01",
+      "category": "安全区域边界-入侵防范",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-BND-IPS-01.yaml"
+    },
+    {
+      "id": "DB-BND-IPS-02",
+      "category": "安全区域边界-入侵防范",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-BND-IPS-02.yaml"
+    },
+    {
+      "id": "DB-BND-IPS-03",
+      "category": "安全区域边界-入侵防范",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-BND-IPS-03.yaml"
+    },
+    {
+      "id": "DB-BND-IPS-04",
+      "category": "安全区域边界-入侵防范",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-BND-IPS-04.yaml"
+    },
+    {
+      "id": "DB-BND-IPS-05",
+      "category": "安全区域边界-入侵防范",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-BND-IPS-05.yaml"
+    },
+    {
+      "id": "DB-FW-AC-01",
+      "category": "安全计算环境-安全设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-FW-AC-01.yaml"
+    },
+    {
+      "id": "DB-FW-AC-02",
+      "category": "安全计算环境-安全设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-FW-AC-02.yaml"
+    },
+    {
+      "id": "DB-FW-AC-03",
+      "category": "安全计算环境-安全设备",
+      "severity": "medium",
+      "check_type": "manual_confirm",
+      "file": "DB-FW-AC-03.yaml"
+    },
+    {
+      "id": "DB-FW-AC-04",
+      "category": "安全计算环境-安全设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-FW-AC-04.yaml"
+    },
+    {
+      "id": "DB-FW-AC-05",
+      "category": "安全计算环境-安全设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-FW-AC-05.yaml"
+    },
+    {
+      "id": "DB-FW-AC-06",
+      "category": "安全计算环境-安全设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-FW-AC-06.yaml"
+    },
+    {
+      "id": "DB-FW-AC-07",
+      "category": "安全计算环境-安全设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-FW-AC-07.yaml"
+    },
+    {
+      "id": "DB-FW-AUD-01",
+      "category": "安全计算环境-安全设备",
+      "severity": "high",
+      "check_type": "config_regex",
+      "file": "DB-FW-AUD-01.yaml"
+    },
+    {
+      "id": "DB-FW-AUD-02",
+      "category": "安全计算环境-安全设备",
+      "severity": "medium",
+      "check_type": "manual_confirm",
+      "file": "DB-FW-AUD-02.yaml"
+    },
+    {
+      "id": "DB-FW-AUD-03",
+      "category": "安全计算环境-安全设备",
+      "severity": "medium",
+      "check_type": "manual_confirm",
+      "file": "DB-FW-AUD-03.yaml"
+    },
+    {
+      "id": "DB-FW-AUD-04",
+      "category": "安全计算环境-安全设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-FW-AUD-04.yaml"
+    },
+    {
+      "id": "DB-FW-ID-01",
+      "category": "安全计算环境-安全设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-FW-ID-01.yaml"
+    },
+    {
+      "id": "DB-FW-ID-02",
+      "category": "安全计算环境-安全设备",
+      "severity": "medium",
+      "check_type": "manual_confirm",
+      "file": "DB-FW-ID-02.yaml"
+    },
+    {
+      "id": "DB-FW-ID-03",
+      "category": "安全计算环境-安全设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-FW-ID-03.yaml"
+    },
+    {
+      "id": "DB-FW-ID-04",
+      "category": "安全计算环境-安全设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-FW-ID-04.yaml"
+    },
+    {
+      "id": "DB-FW-IPS-01",
+      "category": "安全计算环境-安全设备",
+      "severity": "medium",
+      "check_type": "manual_confirm",
+      "file": "DB-FW-IPS-01.yaml"
+    },
+    {
+      "id": "DB-FW-IPS-02",
+      "category": "安全计算环境-安全设备",
+      "severity": "medium",
+      "check_type": "manual_confirm",
+      "file": "DB-FW-IPS-02.yaml"
+    },
+    {
+      "id": "DB-FW-IPS-03",
+      "category": "安全计算环境-安全设备",
+      "severity": "medium",
+      "check_type": "config_regex",
+      "file": "DB-FW-IPS-03.yaml"
+    },
+    {
+      "id": "DB-FW-IPS-04",
+      "category": "安全计算环境-安全设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-FW-IPS-04.yaml"
+    },
+    {
+      "id": "DB-FW-IPS-05",
+      "category": "安全计算环境-安全设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-FW-IPS-05.yaml"
+    },
+    {
+      "id": "DB-FW-IPS-06",
+      "category": "安全计算环境-安全设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-FW-IPS-06.yaml"
+    },
+    {
+      "id": "DB-FW-MAL-01",
+      "category": "安全计算环境-安全设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-FW-MAL-01.yaml"
+    },
+    {
+      "id": "DB-FW-TRUST-01",
+      "category": "安全计算环境-安全设备",
+      "severity": "low",
+      "check_type": "manual_confirm",
+      "file": "DB-FW-TRUST-01.yaml"
+    },
+    {
+      "id": "DB-NET-AC-01",
+      "category": "安全计算环境-网络设备",
+      "severity": "high",
+      "check_type": "config_regex",
+      "file": "DB-NET-AC-01.yaml"
+    },
+    {
+      "id": "DB-NET-AC-02",
+      "category": "安全计算环境-网络设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-NET-AC-02.yaml"
+    },
+    {
+      "id": "DB-NET-AC-03",
+      "category": "安全计算环境-网络设备",
+      "severity": "medium",
+      "check_type": "manual_confirm",
+      "file": "DB-NET-AC-03.yaml"
+    },
+    {
+      "id": "DB-NET-AC-04",
+      "category": "安全计算环境-网络设备",
+      "severity": "high",
+      "check_type": "config_regex",
+      "file": "DB-NET-AC-04.yaml"
+    },
+    {
+      "id": "DB-NET-AC-05",
+      "category": "安全计算环境-网络设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-NET-AC-05.yaml"
+    },
+    {
+      "id": "DB-NET-AC-06",
+      "category": "安全计算环境-网络设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-NET-AC-06.yaml"
+    },
+    {
+      "id": "DB-NET-AC-07",
+      "category": "安全计算环境-网络设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-NET-AC-07.yaml"
+    },
+    {
+      "id": "DB-NET-AUD-01",
+      "category": "安全计算环境-网络设备",
+      "severity": "high",
+      "check_type": "config_regex",
+      "file": "DB-NET-AUD-01.yaml"
+    },
+    {
+      "id": "DB-NET-AUD-02",
+      "category": "安全计算环境-网络设备",
+      "severity": "medium",
+      "check_type": "config_regex",
+      "file": "DB-NET-AUD-02.yaml"
+    },
+    {
+      "id": "DB-NET-AUD-03",
+      "category": "安全计算环境-网络设备",
+      "severity": "medium",
+      "check_type": "config_regex",
+      "file": "DB-NET-AUD-03.yaml"
+    },
+    {
+      "id": "DB-NET-AUD-04",
+      "category": "安全计算环境-网络设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-NET-AUD-04.yaml"
+    },
+    {
+      "id": "DB-NET-ID-01",
+      "category": "安全计算环境-网络设备",
+      "severity": "high",
+      "check_type": "config_regex",
+      "file": "DB-NET-ID-01.yaml"
+    },
+    {
+      "id": "DB-NET-ID-02",
+      "category": "安全计算环境-网络设备",
+      "severity": "medium",
+      "check_type": "config_regex",
+      "file": "DB-NET-ID-02.yaml"
+    },
+    {
+      "id": "DB-NET-ID-03",
+      "category": "安全计算环境-网络设备",
+      "severity": "high",
+      "check_type": "config_regex",
+      "file": "DB-NET-ID-03.yaml"
+    },
+    {
+      "id": "DB-NET-ID-04",
+      "category": "安全计算环境-网络设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-NET-ID-04.yaml"
+    },
+    {
+      "id": "DB-NET-IPS-01",
+      "category": "安全计算环境-网络设备",
+      "severity": "medium",
+      "check_type": "manual_confirm",
+      "file": "DB-NET-IPS-01.yaml"
+    },
+    {
+      "id": "DB-NET-IPS-02",
+      "category": "安全计算环境-网络设备",
+      "severity": "medium",
+      "check_type": "config_regex",
+      "file": "DB-NET-IPS-02.yaml"
+    },
+    {
+      "id": "DB-NET-IPS-03",
+      "category": "安全计算环境-网络设备",
+      "severity": "medium",
+      "check_type": "config_regex",
+      "file": "DB-NET-IPS-03.yaml"
+    },
+    {
+      "id": "DB-NET-IPS-04",
+      "category": "安全计算环境-网络设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-NET-IPS-04.yaml"
+    },
+    {
+      "id": "DB-NET-IPS-05",
+      "category": "安全计算环境-网络设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-NET-IPS-05.yaml"
+    },
+    {
+      "id": "DB-NET-IPS-06",
+      "category": "安全计算环境-网络设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-NET-IPS-06.yaml"
+    },
+    {
+      "id": "DB-NET-MAL-01",
+      "category": "安全计算环境-网络设备",
+      "severity": "high",
+      "check_type": "manual_confirm",
+      "file": "DB-NET-MAL-01.yaml"
+    },
+    {
+      "id": "DB-NET-TRUST-01",
+      "category": "安全计算环境-网络设备",
+      "severity": "low",
+      "check_type": "manual_confirm",
+      "file": "DB-NET-TRUST-01.yaml"
+    }
+  ]
+}

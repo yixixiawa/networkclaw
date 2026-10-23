@@ -1,0 +1,22 @@
+id: DB-BND-AC-04
+vendor: any
+device_type: firewall
+category: 安全区域边界-访问控制
+control_point: 访问控制
+requirement: d)应能根据会话状态信息为进出数据流提供明确的允许/拒绝访问的能力
+weight_level: 3
+severity: medium
+source: 《等保2.0初级教材 测评操作.xlsx》sheet「安全区域边界」第9行「d)」；权重见《…权重-参考材料.xlsx》行46（二级=1，三级=0.7）
+check:
+  type: manual_confirm
+  target: 防火墙状态检测能力
+  expect: 设备支持并启用了状态检测（会话表），且策略基于会话状态放行/拒绝
+  pattern: ''
+remediation:
+- display current-configuration
+- show running-config
+evidence_hint: 配置文本无法证明『是否真的按会话状态判决』。需要：①设备型号与固件的状态检测/会话表功能说明（厂商文档）②会话表输出（如 display firewall session table / show
+  conn）截图 ③策略命中的会话记录。无会话表输出的设备（纯 ACL 路由器/交换机）本项应判 not_applicable
+weight_detail:
+  level2: 1
+  level3: 0.7

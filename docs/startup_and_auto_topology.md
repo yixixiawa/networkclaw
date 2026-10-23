@@ -263,47 +263,71 @@ GUI 开关位置：**设置 → 运行环境 → 「启动时自动查看当前�
 
 ---
 
-## 9. 设备手册：由本地模型在运行期自建（不进仓库）
+## 9. 设备手册：由本地模型在运行期自建（不进仓库，且按对话隔离）
 
 **设计原则**：设备手册不是代码仓库里的固定资产，而是模型「遇到哪台设备、就为它建一份档」
 的本机资产。所有内容都来自本地模型经工具链采集/沉淀，仓库里只保留生成它的能力。
 
+**一个对话一套技能（2026-10-14 起）**：手册与命令历史按会话隔离，布局由用户指定——
+`session/<每个独立会话>/skill/<每个设备技能>/`。A 对话里给 SW1 踩的坑不会出现在 B 对话，
+这是刻意设计（早期全局共用 `skills/` 时，模型会把别处对话的结论当成本对话的经验）。
+
 | 产物 | 位置 | 谁写 |
 |---|---|---|
-| 设备手册 | `skills/<设备名>/SKILL.md` | **本地模型**（通过 `create_device_manual` / `update_device_manual_section`） |
-| 命令历史 | `data/device_history/<设备名>.jsonl` | **工具层自动**（每次 `exec_telnet_command` / `exec_command` 后追加，确定性） |
+| 设备手册 | `session/<会话标识>/skill/<设备名>/SKILL.md` | **本地模型**（通过 `create_device_manual` / `update_device_manual_section`） |
+| 命令历史 | `session/<会话标识>/skill/<设备名>/history.jsonl` | **工具层自动**（每次 `exec_telnet_command` / `exec_command` 后追加，确定性） |
+| 当前会话指针 | `session/.current` | 主程序开对话时（`session_skills.use_session()`） |
 | 设备访问登记 | `data/device_access.json` | 工具层自动（连接成功即登记，含名字绑定） |
+
+「当前会话」由主程序写入 `session/.current` 并同步 `core.run_log` 的会话标识；
+MCP 服务端是独立子进程，每次工具调用前读该指针（按 mtime 缓存），
+因此 **GUI 里切换会话无需重连**，工具立刻跟随新对话。
+优先级：进程内钉住的 sid > 指针文件 > 环境变量 `NETWORKCLAW_SESSION` > `default`。
 
 **模型侧工具（`manual_server.py`，`Network-Device-Manual`）**：
 `list_device_manuals` / `read_device_manual` / `create_device_manual` /
-`update_device_manual_section` / `recent_device_history`
+`update_device_manual_section` / `recent_device_history` / `list_session_skills`
 
 **系统提示词里的作业规范（`core/agent.py`）**：先读手册 → 后动手 → 再沉淀：
-① 先 `list_device_manuals` 看有没有该设备手册，没有就 `create_device_manual` 建档
+① 先 `list_device_manuals` 看**本对话**有没有该设备手册，没有就 `create_device_manual` 建档
 （设备名按型号命名：交换机型 `SW<n>`、AR 系列 `R<n>`，并传 transport/host/port 绑定地址）；
 ② 动手前 `read_device_manual` 读「常用配置」「注意事项」；
 ③ 验证有效后用 `update_device_manual_section` 把命令序列与坑写回手册；
 ④ 命令历史由工具自动写，模型不得手工造。
 
-**手册会自动进知识库**：`core/rag.py` 的 `load_chunks()` 除 `knowledge/` 外，
-还会把所有 `skills/*/SKILL.md` 切块索引（按指纹自动触发重建），
-因此 RAG 模式检索时模型也能「熟悉」自己积累的设备知识。
+提示词里另有一条**隔离规则**：不要假设某台设备「以前配过」——以本会话
+`read_device_manual` 的实际内容为准；用户明确问「上次那个会话」时，才用
+`list_session_skills` 查分布，并以 `read_device_manual(device, session="<sid>")`
+显式跨会话只读。
 
-**不进 git**：`skills/`、`data/device_history/`、`data/device_access.json` 已加入 `.gitignore`；
+**手册为什么不进知识库索引**：按会话隔离后，塞进全局单份索引会出现两个问题——
+切换会话后旧会话的手册仍会被检索出来（正好破坏隔离）；每次切换都重建索引又是
+「先删后建」，期间检索会拿到空库。因此手册改为**当前会话摘要直注系统提示词**
+（`device_manual.context_for_model()`：设备/型号/角色/最近踩的一条坑，按设备数与
+字符数封顶），全文按需走 `read_device_manual`。运行日志摘要同理只取当前会话。
+
+**不进 git**：`session/`、`data/device_access.json` 已加入 `.gitignore`；
 发布脚本 `tools/git_release.ps1` 的白名单里也不含这些路径。
+旧版全局目录 `skills/` 与 `data/device_history/` 已停止读取；本项目已完成迁移并清理
+（历史内容迁到 `session/legacy-global/`，删除前另有 zip 备份）。`--migrate-legacy`
+保留给仍持有旧副本的场景，源目录不存在时自动跳过。
 
 > **2026-09-28 起手册从零开始**：先前由 agent 预写的 6 份设备手册已清空（备份在
 > `logs/manual_backup_20260928/`），此后手册完全由模型在对话中自建。
-> 已实测验证：对话里给出设备信息 → 模型调用 `create_device_manual` 生成
-> `skills/<设备名>/SKILL.md` → 另一轮对话模型 `read_device_manual` 读回并准确识别该设备。
+> 已实测验证：对话里给出设备信息 → 模型调用 `create_device_manual` 生成手册 →
+> 模型 `read_device_manual` 读回并准确识别该设备。
 >
-> **上下文长度**：agent 模式（系统提示词 + 18 个工具 schema 约 4.6K tokens + 多轮工具回显）
+> **上下文长度**：agent 模式（系统提示词 + 23 个工具 schema 约 4.6K tokens + 多轮工具回显）
 > 需要 16K 上下文，llama-server 启动参数已从 `-c 4096` 提到 `-c 16384`
 > （KV cache 仍为 q4_0 量化，显存增量有限；显存紧张可用 `NETWORKCLAW_CTX=8192` 调低）。
 
 **自测要点**：
 - 首次对某台新设备说「给这台设备配 XXX」→ 观察日志里模型是否先调 `list_device_manuals`、
-  再 `create_device_manual`（`skills/` 下应出现新目录）；
+  再 `create_device_manual`（`session/<当前会话>/skill/` 下应出现新目录）；
+  可用 `python -m core.device_manual --current` 确认当前会话与技能目录；
 - 命令执行成功后，模型是否用 `update_device_manual_section` 沉淀；
-- `data/device_history/<设备名>.jsonl` 应随每条命令自动增长（含被拦截的命令，`executed=false`）；
-- 重启程序后问「SW1 之前配过什么」→ 模型应先 `read_device_manual` 再回答。
+- `session/<会话>/skill/<设备名>/history.jsonl` 应随每条命令自动增长
+  （含被拦截的命令，`executed=false`）；
+- **新开一个对话**再问「SW1 之前配过什么」→ 应得到「本会话没有该设备手册」
+  （隔离生效），而不是另一个对话的内容；
+- `/sessions`（CLI）或 `python -m core.device_manual --sessions` 应列出各对话的技能分布。

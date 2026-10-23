@@ -1,0 +1,22 @@
+id: DB-FW-IPS-03
+vendor: any
+device_type: firewall
+category: 安全计算环境-安全设备
+control_point: 入侵防范
+requirement: c)应通过设定终端接入方式或网络地址范围对通过网络进行管理的管理终端进行限制
+weight_level: 3
+severity: medium
+source: A 表 sheet「安全计算环境」行65（系统管理>>配置>>开放服务，webui/ssh/telnet 规则的控制地址）；B 表行19；C 表行77
+check:
+  type: config_regex
+  target: 管理服务绑定源地址
+  expect: 管理服务（webui/ssh）绑定了受限源地址，而非 any
+  pattern: (?im)^\s*(?:ssh\s+server\s+acl\s+\d+|telnet\s+server\s+acl\s+\d+|http\s+server\s+acl\s+\d+|ip\s+http\s+access-class\s+\d+|access-class\s+\d+\s+in)
+remediation:
+- display current-configuration
+evidence_hint: 两级判定：①配置层——若厂商 CLI 暴露 ssh server acl / http server acl / access-class 之类绑定，必须看到源地址限定，配成 any 直接判不符合；②A
+  表行65 的 WEB 路径（系统管理>>配置>>开放服务）中，webui/ssh/telnet 规则的『控制地址』列必须指向具体主机/地址组资源而非 any，需该页截图；③资源管理>>地址 页证明控制地址对应的实际 IP
+  段。堡垒机限址可替代设备侧 ACL
+weight_detail:
+  level2: 1
+  level3: 0.7

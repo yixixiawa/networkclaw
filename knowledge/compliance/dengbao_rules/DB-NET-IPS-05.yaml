@@ -1,0 +1,20 @@
+id: DB-NET-IPS-05
+vendor: any
+device_type: network_device
+category: 安全计算环境-网络设备
+control_point: 入侵防范
+requirement: e)应能发现可能存在的已知漏洞，并在经过充分测试评估后，及时修补漏洞
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行21/行44；B 表行21；C 表行79（二/三级均=1）
+check:
+  type: manual_confirm
+  target: 漏洞发现与修补
+  expect: 有漏洞扫描记录与补丁升级记录
+  pattern: ''
+remediation:
+- display current-configuration
+evidence_hint: A 表行21 测评方法即『应进行漏洞扫描，核查是否不存在高风险漏洞』。需要：①最近一次漏洞扫描报告（含设备 IP）②固件版本与厂商公告的比对说明 ③修补/缓解措施记录。配置文本无法体现
+weight_detail:
+  level2: 1
+  level3: 1

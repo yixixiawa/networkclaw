@@ -1,0 +1,21 @@
+id: DB-BND-IPS-04
+vendor: any
+device_type: apt
+category: 安全区域边界-入侵防范
+control_point: 入侵防范
+requirement: d)应采取技术措施对网络行为进行分析，实现对网络攻击特别是新型网络攻击行为的分析
+weight_level: 3
+severity: high
+source: 《等保2.0初级教材 测评操作.xlsx》sheet「安全区域边界」第14行「d)」；权重见《…权重-参考材料.xlsx》行51（三级=1，行51 与 c) 共用一格权重）
+check:
+  type: manual_confirm
+  target: 网络行为分析/回溯系统
+  expect: 部署回溯或抗 APT 系统，能分析未知攻击
+  pattern: ''
+remediation:
+- display current-configuration
+- show running-config
+evidence_hint: 需要：①网络回溯系统 / 抗 APT 系统的部署证明 ②对未知（非特征库）攻击的分析报告样例 ③系统规则库更新时间。设备配置文本无法体现『分析能力』
+weight_detail:
+  level2: null
+  level3: 1

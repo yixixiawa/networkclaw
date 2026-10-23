@@ -1,0 +1,20 @@
+id: DB-FW-IPS-04
+vendor: any
+device_type: firewall
+category: 安全计算环境-安全设备
+control_point: 入侵防范
+requirement: d)应提供数据有效性检验功能，保证通过人机接口输入或通过通信接口输入的内容符合系统设定要求
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行66（原文即『此项不适合』）；B 表行20；C 表行78
+check:
+  type: manual_confirm
+  target: 不适用判定
+  expect: 该项一般在应用层面上核查
+  pattern: ''
+remediation:
+- display current-configuration
+evidence_hint: A 表行66 测评方法与预期结果均写『此项不适合，该项要求一般在应用层面上核查』；B 表行20 整改建议同为『此项不适用』。结论应为 not_applicable，并注明该项由业务应用系统侧的等保测评承接
+weight_detail:
+  level2: 1
+  level3: 1

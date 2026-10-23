@@ -1,0 +1,20 @@
+id: DB-FW-AUD-03
+vendor: any
+device_type: firewall
+category: 安全计算环境-安全设备
+control_point: 安全审计
+requirement: c)应对审计记录进行保护，定期备份，避免受到未预期的删除、修改或覆盖等
+weight_level: 3
+severity: medium
+source: A 表 sheet「安全计算环境」行61（管理策略>>任务调度策略，须存在『备份数据库任务』计划任务）；B 表行15；C 表行73
+check:
+  type: manual_confirm
+  target: 日志备份任务
+  expect: 存在定时数据库备份任务，且能查到半年前日志
+  pattern: ''
+remediation:
+- display current-configuration
+evidence_hint: A 表行61 给出可判定判据：任务调度策略里『存在类型为备份数据库任务的计划任务』。需要：①任务列表截图（含类型与执行周期）②半年前日志可查的截图
+weight_detail:
+  level2: 1
+  level3: 0.7

@@ -40,9 +40,10 @@ sys.path.insert(0, str(BASE_DIR))
 print = functools.partial(builtins.print, flush=True)  # noqa: A001
 
 from core import run_log  # noqa: E402
+from core import session_skills  # noqa: E402
 from core.device_conn import TelnetSession, probe_tcp  # noqa: E402
 
-HOST = os.environ.get("LAB_HOST", "192.168.10.130")
+HOST = os.environ.get("LAB_HOST", "192.168.1.179")
 DOC_DIR = BASE_DIR / "knowledge" / "experiments"
 REPORT_DIR = BASE_DIR / "data" / "lab_reports"
 
@@ -64,6 +65,17 @@ NOISE_PREFIX = ("interface ", "aaa", "#", "quit", "vlan 1")
 # 实测 400 会切掉 create_device_manual 的参数，llama-server 直接回 500，
 # 整个实验归零。512 是实测能容纳一次 telnet 工具调用的稳妥值。
 MAX_TOKENS = int(os.environ.get("LAB_MAX_TOKENS", "512"))
+
+# 会话标识只允许中英文/数字/下划线/连字符/点（safe_name 的安全边界，不为实验名放宽）。
+# 实验名里常有「、」「，」「/」「（）」等符号，直接拼进 sid 会被拒——这里统一清洗：
+# 非法字符折叠成单个连字符，首尾连字符去掉，超长截断。
+_SID_ILLEGAL = re.compile(r"[^\w\-\u4e00-\u9fff.]+")
+
+
+def make_sid(num: str, name: str) -> str:
+    raw = f"{num}-{name.split('：')[-1]}"
+    sid = _SID_ILLEGAL.sub("-", raw).strip("-")
+    return sid[:80]
 
 
 # ---------------------------------------------------------------- 实验文档解析
@@ -337,6 +349,7 @@ async def model_configure(doc: dict, devices: list[dict], host: str = HOST,
     # 只挂知识库与 Telnet 两个服务端。
     # 之前还挂了 device-manual（create_device_manual / update_...），结果模型
     # 把轮次全花在"给设备建手册"上，一条配置都没下发——工具越多 9B 模型越容易跑偏。
+    # data-report 同理不挂给模型：导出由 runner 在收尾时确定性地做，不占模型轮次。
     servers = {
         "knowledge": str(BASE_DIR / "mcp_tools" / "template_server.py"),
         "device-telnet": str(BASE_DIR / "mcp_tools" / "telnet_server.py"),
@@ -496,7 +509,10 @@ async def run_lab(num: str, host: str = HOST, rounds: int = 40,
                   do_up: bool = True, wait: int = 900) -> dict:
     doc = parse_doc(num)
     print(f"### 实验 {num}：{doc['name']}")
-    run_log.set_session(f"{num}-{doc['name'].split('：')[-1]}")
+    # 一个对话一套技能：每个实验是一个独立对话，技能与运行日志都切到同一 sid。
+    # 这样实验 A 给 SW1 踩的坑不会渗进实验 B（跑批量实验时尤其重要）。
+    lab_sid = make_sid(num, doc["name"])
+    session_skills.use_session(lab_sid)
     run_log.event("lab_start", num=num, name=doc["name"], host=host,
                   devices=[d["name"] for d in doc["devices"]])
 
@@ -551,6 +567,12 @@ async def run_lab(num: str, host: str = HOST, rounds: int = 40,
         print(f"  {name:6} {len(cfg):5} 字符 {'(空/失败)' if not cfg else ''}")
 
     print(f"[模型配置] 交给本地 Qwen，最多 {rounds} 轮 …")
+    # 把实验文档里的「设备名 ↔ host:port」显式绑定：否则 _record() 的
+    # resolve_name 只能兜底成「192.168.1.179_2000」这种名字，历史文件就不按
+    # 设备名归档了（用户要的是「每个对话记录测试的设备」）。
+    from core import device_registry
+    for d in ready:
+        device_registry.bind_name("telnet", d["name"], host=host, port=d["port"])
     try:
         model_out = await model_configure(doc, ready, host=host, rounds=rounds)
     except Exception as e:  # noqa: BLE001
@@ -570,6 +592,14 @@ async def run_lab(num: str, host: str = HOST, rounds: int = 40,
     fp = write_report(doc, probe_rows, model_out, verify_rows, up_log)
     run_log.event("lab_done", num=num, name=doc["name"], report=str(fp))
     print(f"[报告] {fp}")
+    # 数据报告导出：把本次实验的整个工作流（设备技能 + 命令历史 + 逐轮工具调用 +
+    # 验收结论）汇总成一份自包含文件。失败不影响实验结论，只提示。
+    try:
+        from core import data_report
+        res = data_report.export(lab_sid, fmt="md")
+        print(f"[数据报告] {res['md_path']}")
+    except Exception as e:  # noqa: BLE001
+        print(f"[数据报告] 导出失败（不影响实验）：{type(e).__name__}: {e}")
     return {"num": num, "name": doc["name"], "ok": True, "report": str(fp),
             "probe": probe_rows, "verify": verify_rows, "model": model_out}
 

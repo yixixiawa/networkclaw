@@ -1,0 +1,21 @@
+id: DB-NET-AUD-04
+vendor: any
+device_type: network_device
+category: 安全计算环境-网络设备
+control_point: 安全审计
+requirement: d)应对审计进程进行保护，防止未经授权的中断
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行16/行39；B 表行16（附『只有审计管理员可以关闭审计进程』）；C 表行74（三级=1）
+check:
+  type: manual_confirm
+  target: 审计进程保护
+  expect: 非审计管理员账户无法关闭审计进程
+  pattern: ''
+remediation:
+- local-user admin privilege level 15
+- display current-configuration
+evidence_hint: A 表行16 的测评方法是『测试通过非审计员的其他账户来中断审计进程』——这是操作测试不是配置读取。需要：①用非审计账户尝试 `undo info-center enable` 被拒的截图 ②账户权限表
+weight_detail:
+  level2: null
+  level3: 1

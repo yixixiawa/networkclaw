@@ -4,11 +4,19 @@
 - 加载知识文档并切分写入向量库。索引来源共四类：
   ① knowledge/huawei_devices_introduce.txt（设备知识）
   ② knowledge/experiments/*.md（eNSP 实验：题目 + 拓扑 + 参考答案 + 验收要点）
-  ③ skills/*/SKILL.md（运行期自建的设备手册）
-  ④ data/lab_reports/*.md（实验运行报告 + issues.md 踩坑清单 —— 经验反哺）
+  ③ data/lab_reports/*.md（实验运行报告 + issues.md 踩坑清单 —— 经验反哺）
+  ④ data/run_logs/<当前会话>/*.jsonl（逐轮运行日志摘要 —— 仅当前对话）
 - 提供检索（retrieve）与流式问答（ask）：实时打印模型思考过程与回答 token，
   并统计输出 token 数
 - 生成走 llama-server，检索向量化走 Ollama
+
+**设备手册为什么不在索引里**（2026-10 起，一个对话一套技能）：
+    手册已按会话隔离到 `session/<sid>/skill/<设备>/SKILL.md`，而向量库索引是
+    全局单份。把手册塞进索引会出现两个问题：切换会话后旧会话的手册仍会被检索
+    出来（正好破坏隔离）；每次切换都重建索引又是「先删后建」，期间检索会拿到
+    空库。因此手册改为**当前会话直注系统提示词**（core.device_manual.
+    context_for_model），按需读取走 MCP 工具 read_device_manual。
+    运行日志摘要同理只取当前会话——「别的对话里发生过什么」不该渗进来。
 
 集合隔离：
 - 本模块只操作 KNOWLEDGE_COLLECTION（知识库）这一个集合，且通过
@@ -22,6 +30,7 @@
     python -m core.rag --rebuild    # 强制重建知识库索引
 """
 import argparse
+import datetime
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
@@ -40,7 +49,6 @@ from core.ollama_interface import (
 )
 
 KNOWLEDGE_FILE = BASE_DIR / "knowledge" / "huawei_devices_introduce.txt"
-SKILLS_DIR = BASE_DIR / "skills"          # 运行期自建的设备手册（skills/<设备名>/SKILL.md）
 EXPERIMENTS_DIR = BASE_DIR / "knowledge" / "experiments"   # eNSP 实验集（tools/ensp_lab_index.py 生成）
 LAB_REPORTS_DIR = BASE_DIR / "data" / "lab_reports"        # 批量实验报告 + issues.md（踩坑清单）
 RUN_LOGS_DIR = BASE_DIR / "data" / "run_logs"              # 逐轮工具调用与设备回显（JSONL）
@@ -144,21 +152,6 @@ def _experiment_texts() -> list[str]:
     return out
 
 
-def _manual_texts() -> list[str]:
-    """运行期自建的设备手册：一并切进知识库，让模型「熟悉」自己积累的设备知识"""
-    out: list[str] = []
-    if not SKILLS_DIR.is_dir():
-        return out
-    for p in sorted(SKILLS_DIR.glob("*/SKILL.md")):
-        try:
-            body = p.read_text(encoding="utf-8", errors="replace").strip()
-        except OSError:
-            continue
-        if body:
-            out.append(f"【设备手册 {p.parent.name}】\n{body}")
-    return out
-
-
 def _lab_report_texts() -> list[str]:
     """批量实验的运行报告 + 踩坑清单（经验反哺）。
 
@@ -188,7 +181,7 @@ def _lab_report_texts() -> list[str]:
 
 
 def _run_log_digests(limit_sessions: int = 40) -> list[str]:
-    """把逐轮运行日志压成「一次实验一摘要」，作为第五数据源。
+    """把**当前会话**的逐轮运行日志压成摘要，作为第五数据源。
 
     为什么不是直接把 JSONL 塞进向量库：
         run_logs 里每行都带完整的工具回显（一次 display 可能上千字），直接切块
@@ -197,36 +190,36 @@ def _run_log_digests(limit_sessions: int = 40) -> list[str]:
         **结构化的结论**：做过哪些实验、命中率多少、哪些设备探测失败、下发过
         哪些配置类命令、有无报错回显。
 
-    行数上限：
-        单会话取前 N 个 tool_step 与末尾若干条，避免超长会话把摘要撑爆。
+    为什么只取当前会话（2026-10 起）：
+        设备技能已按对话隔离（session/<sid>/skill/<设备>/）。运行日志摘要性质
+        相同——它是「这段对话里发生过的事」。若把其他对话的摘要也检索回来，
+        模型会把别处的结论当成本对话的经验，与隔离目标直接冲突。需要跨对话
+        复盘时，数据仍在 data/run_logs/ 里，可人工查看或用 tools/build_sft.py。
 
     读取方式：
-        复用 core.run_log 的 read_session/list_sessions，不自己拼路径——
-        会话名做过安全化处理（`_safe`），直接按文件名猜会漏掉含中文/顿号的实验名。
+        复用 core.run_log 的 read_session，不自己拼路径——会话名做过安全化
+        处理（`_safe`），直接按文件名猜会漏掉含中文/顿号的实验名。
     """
     try:
         from core import run_log
+        from core import session_skills
     except Exception:
         return []
 
-    days = sorted((p.name for p in RUN_LOGS_DIR.iterdir() if p.is_dir()), reverse=True)
-    if not days:
-        return []
-
+    sid = session_skills.current()
     out: list[str] = []
-    for day in days[:3]:                       # 只取最近 3 天
+    today = datetime.date.today()
+    for delta in range(3):                   # 只取最近 3 天
+        day = (today - datetime.timedelta(days=delta)).isoformat()
         try:
-            sessions = run_log.list_sessions(day)
+            rows = run_log.read_session(day, sid)
         except Exception:
             continue
-        for tag in sessions[:limit_sessions]:
-            try:
-                rows = run_log.read_session(day, tag)
-            except Exception:
-                continue
-            digest = _digest_session(day, tag, rows)
-            if digest:
-                out.append(digest)
+        digest = _digest_session(day, sid, rows)
+        if digest:
+            out.append(digest)
+            if len(out) >= limit_sessions:
+                break
     return out
 
 
@@ -273,7 +266,10 @@ def _digest_session(day: str, tag: str, rows: list[dict], max_steps: int = 12) -
 
 
 def load_chunks() -> list[str]:
-    """读取知识文档 + eNSP 实验集 + 设备手册 + 实验运行报告 + 运行日志摘要，切分为文本块"""
+    """读取知识文档 + eNSP 实验集 + 实验运行报告 + 当前会话运行日志摘要，切分为文本块。
+
+    设备手册不在这里——它按会话隔离，改为直注系统提示词（见模块 docstring）。
+    """
     with open(KNOWLEDGE_FILE, "r", encoding="utf-8") as f:
         raw_text = f.read()
 
@@ -285,8 +281,6 @@ def load_chunks() -> list[str]:
     chunks = splitter.split_text(_decorate(raw_text, TIER_INSTANCE))
     for text in _experiment_texts():
         chunks += splitter.split_text(_decorate(text, TIER_RULE))
-    for text in _manual_texts():
-        chunks += splitter.split_text(_decorate(text, TIER_RULE))
     for text in _lab_report_texts():
         chunks += splitter.split_text(_decorate(text, TIER_HISTORY))
     for text in _run_log_digests():
@@ -297,8 +291,8 @@ def load_chunks() -> list[str]:
 def knowledge_sources() -> str:
     """索引来源的可读描述（写入 data/index_state.json，便于追溯）。"""
     return (f"{KNOWLEDGE_FILE.name}[instance] + knowledge/experiments/*.md[rule] + "
-            f"skills/*/SKILL.md[rule] + data/lab_reports/*.md[history] + "
-            f"data/run_logs/**/*.jsonl[history]")
+            f"data/lab_reports/*.md[history] + data/run_logs/<当前会话>/*.jsonl[history]；"
+            f"设备手册按会话隔离，走 session/<sid>/skill/ 直注提示词，不进索引")
 
 
 def build_index(force: bool = False) -> int:

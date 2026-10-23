@@ -1,0 +1,24 @@
+id: DB-NET-AUD-01
+vendor: any
+device_type: network_device
+category: 安全计算环境-网络设备
+control_point: 安全审计
+requirement: a)应启用安全审计功能，审计覆盖到每个用户，对重要的用户行为和重要安全事件进行审计
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行13/行36；B 表行13（附『是否有开审计』核查点）；C 表行71（二/三级均=1）
+check:
+  type: config_regex
+  target: 日志/审计开关
+  expect: 已启用日志并向日志服务器输出（info-center / logging）
+  pattern: (?im)^\s*(?:info-center\s+enable|logging\s+on|info-center\s+loghost\s+\S+|logging\s+\d{1,3}(?:\.\d{1,3}){3}|snmp-agent\s+trap\s+enable)
+remediation:
+- info-center enable
+- info-center loghost 192.10.12.1 facility local 1
+- logging on
+- logging trap debugging
+- snmp-agent
+evidence_hint: B 表行13 的核查点写『是否有开审计』，并另有一条要求『审计记录连续保存180天』。本条只判开关；180 天留存需日志服务器侧取证（见 DB-NET-AUD-03）
+weight_detail:
+  level2: 1
+  level3: 1

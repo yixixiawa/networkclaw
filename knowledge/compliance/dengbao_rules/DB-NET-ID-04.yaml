@@ -1,0 +1,22 @@
+id: DB-NET-ID-04
+vendor: any
+device_type: network_device
+category: 安全计算环境-网络设备
+control_point: 身份鉴别
+requirement: d)应采用口令、密码技术、生物技术等两种或两种以上组合的鉴别技术对用户进行身份鉴别，且其中一种鉴别技术至少应使用密码技术来实现
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行5/行28；B 表行5（标『关键』）；C 表行63（三级=1，二级无此项）
+check:
+  type: manual_confirm
+  target: 双因子鉴别
+  expect: 口令之外存在一种使用密码技术的鉴别方式
+  pattern: ''
+remediation:
+- aaa
+- radius-server template rd1
+evidence_hint: A 表行5 预期结果：『除口令之外，采用了另外一种鉴别机制，此机制采用了密码技术，如调用了密码机或采取SM1-SM4等算法』。需要：①令牌/证书/USBKey 的部署证明 ②密码算法说明。配置里出现
+  `radius-server` 不等于有双因子，不能据此判 pass
+weight_detail:
+  level2: null
+  level3: 1

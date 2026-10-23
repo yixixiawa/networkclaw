@@ -137,8 +137,12 @@ def resolve_name(transport: str, host: str = "", port: int = 0,
                  serial_port: str = "") -> str:
     """把「地址」解析成设备名（命令历史归档用，确定性、不依赖模型）。
 
-    优先级：种子清单（host:port 匹配）> 访问登记里绑定的名字 > 地址兜底
+    优先级：访问登记里**绑定的名字** > 种子清单（host:port 匹配）> 地址兜底
     串口通道没有清单概念，直接用 COM 口号。
+
+    绑定优先于种子清单：绑定是「某个实验/某次建档」显式指定到 host:port 的，
+    语义最具体；而种子清单是人工维护的静态默认，换拓扑（端口映射变了）之后
+    反而会错配（实测 192.168.1.179:2000 在清单里是 R1，实际跑的是 LSW1）。
     """
     if transport == "serial":
         sp = (serial_port or "").strip().upper()
@@ -146,14 +150,14 @@ def resolve_name(transport: str, host: str = "", port: int = 0,
         entry = accesses.get(_device_key("serial", serial_port=sp)) or {}
         return (entry.get("name") or sp or "unknown-serial").strip()
 
-    inventories = _inventory_devices()
-    for d in inventories:
-        if d["host"] == host and int(d["port"]) == int(port):
-            return d["name"]
     accesses = _read_json(ACCESS_PATH, {"devices": {}}).get("devices", {})
     entry = accesses.get(_device_key("telnet", host, port)) or {}
     if entry.get("name"):
         return str(entry["name"]).strip()
+    inventories = _inventory_devices()
+    for d in inventories:
+        if d["host"] == host and int(d["port"]) == int(port):
+            return d["name"]
     return f"{host}_{port}" if port else (host or "unknown-device")
 
 

@@ -1,0 +1,24 @@
+id: DB-NET-ID-03
+vendor: any
+device_type: network_device
+category: 安全计算环境-网络设备
+control_point: 身份鉴别
+requirement: c)当进行远程管理时，应采取必要措施防止鉴别信息在网络传输过程中被窃听
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行4/行27；B 表行4（权重列标『关键』）；C 表行62（二/三级均=1）
+check:
+  type: config_regex
+  target: VTY inbound 协议
+  expect: VTY 只允许 SSH（protocol inbound ssh / transport input ssh）
+  pattern: (?im)^\s*(?:protocol\s+inbound\s+ssh|transport\s+input\s+ssh|stelnet\s+server\s+enable|ssh\s+server\s+enable|ip\s+ssh\s+version\s+2?)
+remediation:
+- stelnet server enable
+- protocol inbound ssh
+- transport input ssh
+- ssh server enable
+- ip ssh version 2
+evidence_hint: 需同时确认没有 `protocol inbound all`/`transport input telnet` 残留，否则 SSH 已开但 Telnet 仍可用，应判不符合
+weight_detail:
+  level2: 1
+  level3: 1

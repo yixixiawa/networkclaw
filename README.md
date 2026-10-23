@@ -20,6 +20,9 @@ Agent-Rag-MCP-startup/
 │   │                            #   集合名注册表 / 集合句柄工厂 / 索引指纹状态
 │   ├── rag.py                   # RAG 流程：知识文档切分入库、检索、流式问答
 │   ├── agent.py                 # Agent 流程：模型自主调用 MCP 工具的多轮循环（含安全红线提示词）
+│   ├── session_skills.py        # 会话级设备技能：一个对话一套 skill（session/<sid>/skill/<设备>/）
+│   ├── device_manual.py         # 设备手册骨架/小节读写/命令历史（路径按会话解析）
+│   ├── data_report.py           # 工作流数据报告：汇总会话/设备/逐轮调用/命令/验收 → Markdown + JSON
 │   ├── template_search.py       # 命令模板语义检索（阶段二）：意图匹配 + 厂商/设备类型过滤
 │   ├── command_guard.py         # 命令安全网关：allow / confirm / block 三级裁决 + 审计日志
 │   ├── device_conn.py           # 设备连接层：串口（pyserial）与 Telnet（自实现）会话、提示符识别
@@ -39,11 +42,43 @@ Agent-Rag-MCP-startup/
 │   └── theme.py                 # 深色 / 浅色 QSS 主题
 │
 ├── mcp_tools/                   # MCP 工具层
-│   ├── template_server.py       # MCP 服务端：query_command_template + search_knowledge
-│   ├── device_server.py         # MCP 服务端：串口设备操作（list_serial_ports/classify_command/exec_command/recent_audit）
-│   ├── telnet_server.py         # MCP 服务端：Telnet 设备操作（check_telnet/exec_telnet_command）
-│   ├── vision_server.py         # MCP 服务端：图像识别（vision_ready/list_local_images/analyze_topology_image）
-│   ├── manual_server.py         # MCP 服务端：设备手册自建自维护（建档/读取/追加小节/命令历史）
+│   ├── template_server.py       # 注册中心（Network-Knowledge）：装配 2 个检索工具
+│   ├── device_server.py         # 注册中心（Network-Device-Serial）：装配 4 个串口工具
+│   ├── telnet_server.py         # 注册中心（Network-Device-Telnet）：装配 2 个 Telnet 工具
+│   ├── vision_server.py         # 注册中心（Network-Vision）：装配 5 个识图工具
+│   ├── manual_server.py         # 注册中心（Network-Device-Manual）：装配 6 个手册工具
+│   ├── report_server.py         # 注册中心（Network-Data-Report）：装配 3 个报告工具
+│   ├── topology_server.py       # 注册中心（Network-Topology-Flood）：装配 4 个拓扑工具
+│   ├── tools/                   # 单工具模块：一个文件 = 一个 MCP 工具
+│   │   ├── _bootstrap.py        #   公共：sys.path 引导 + 回显截断 + 相对路径
+│   │   ├── _archive.py          #   公共：命令历史归档（telnet/serial 两通道）
+│   │   ├── _manual_common.py    #   公共：会话位置说明 + 手册正文截断
+│   │   ├── check_telnet.py      #   → check_telnet
+│   │   ├── exec_telnet_command.py   #   → exec_telnet_command
+│   │   ├── list_serial_ports.py     #   → list_serial_ports
+│   │   ├── classify_command.py      #   → classify_command
+│   │   ├── exec_command.py          #   → exec_command
+│   │   ├── recent_audit.py          #   → recent_audit
+│   │   ├── query_command_template.py    #   → query_command_template
+│   │   ├── search_knowledge.py          #   → search_knowledge
+│   │   ├── list_device_manuals.py       #   → list_device_manuals
+│   │   ├── read_device_manual.py        #   → read_device_manual
+│   │   ├── create_device_manual.py      #   → create_device_manual
+│   │   ├── update_device_manual_section.py  #   → update_device_manual_section
+│   │   ├── recent_device_history.py     #   → recent_device_history
+│   │   ├── list_session_skills.py       #   → list_session_skills
+│   │   ├── export_workflow_report.py    #   → export_workflow_report
+│   │   ├── workflow_report_overview.py  #   → workflow_report_overview
+│   │   ├── list_report_sessions.py      #   → list_report_sessions
+│   │   ├── discover_topology.py         #   → discover_topology
+│   │   ├── load_discovered_topology.py  #   → load_discovered_topology
+│   │   ├── topology_summary.py          #   → topology_summary
+│   │   ├── topology_mermaid.py          #   → topology_mermaid
+│   │   ├── vision_ready.py              #   → vision_ready
+│   │   ├── list_local_images.py         #   → list_local_images
+│   │   ├── analyze_topology_image.py    #   → analyze_topology_image
+│   │   ├── capture_topology.py          #   → capture_topology
+│   │   └── get_topology_snapshot.py     #   → get_topology_snapshot
 │   ├── internet.py              # MCP 服务端：封装 open-websearch 联网搜索工具
 │   ├── client.py                # MCP 客户端层：stdio 拉起服务端、聚合工具、路由调用、重名检测
 │   └── search_client.py         # MCP 客户端测试脚本（联网搜索服务单独试跑用）
@@ -59,6 +94,9 @@ Agent-Rag-MCP-startup/
 ├── knowledge/                   # 知识库源文档（详见 docs/knowledge_base.md）
 │   ├── huawei_devices_introduce.txt   # 华为设备知识文本（RAG 数据源）
 │   ├── command_templates.csv    # 三厂商命令模板表（阶段一，手工维护，唯一数据源）
+│   ├── compliance/              # 等保2.0 配置检查规则集（详见 docs/dengbao_rules.md）
+│   │   ├── dengbao_rules/       #   56 条规则：一条一个 YAML + rules_index.json + 人读总表
+│   │   └── dengbao_source_lines.json  # 测评表原文逐行存档（供测试核对命令出处）
 │   ├── experiments/             # 58 个 eNSP 实验文档（题目/设备表/链路/标注/参考答案/验收要点）
 │   │                            #   由 tools/ensp_lab_index.py 生成；是向量库的主要来源
 │   ├── topology/                # 拓扑结构化数据集（57 实验 / 261 设备 / 426 链路 + index.json）
@@ -71,6 +109,8 @@ Agent-Rag-MCP-startup/
 │   ├── topo_extract.py          # .topo → knowledge/topology/*.json（结构化拓扑数据集）
 │   ├── extract_answers.py       # 实验包参考答案 → data/lab_answers/
 │   ├── kb_consistency.py        # 知识库一致性校验：experiments md ↔ topology json 互校
+│   ├── build_dengbao_rules.py   # 等保2.0 测评项 → 配置检查规则 YAML（含命令出处三道自检）
+│   ├── render_dengbao_overview.py  # 规则集人读总表生成
 │   └── build_sft.py             # 运行日志 → SFT 微调数据集（含假阳性剔除）
 │
 ├── training/                    # LoRA/QLoRA 微调（毕设核心，详见 training/README.md）
@@ -79,27 +119,33 @@ Agent-Rag-MCP-startup/
 │   ├── config_qwen35_9b_lora.yaml     # 复现参数快照
 │   └── requirements.txt         # 训练依赖（与本体隔离，需 GPU）
 │
-├── tests/                       # pytest 测试（157 项，离线可跑）
-│   ├── conftest.py              # 公共夹具（临时知识库/技能目录等）
+├── tests/                       # pytest 测试（离线可跑）
+│   ├── conftest.py              # 公共夹具：项目根路径 + 会话技能/运行日志目录隔离
 │   ├── test_command_guard.py    # 命令分级 / 实验模式 / 多命令取最高级
 │   ├── test_providers_and_net.py      # 提供方注册表 / 旧名兼容 / 回环代理豁免
 │   ├── test_telnet_session.py   # 线程版"假设备"Telnet 端到端（无需真机）
 │   ├── test_topo_extract.py     # .topo 解析与数据集完整性
 │   ├── test_kb_consistency.py   # 两份拓扑数据交叉一致 + 历史 bug 回归
-│   ├── test_rag.py              # 五个索引来源 / 分级前缀 / 日志摘要 / 检索状态机
+│   ├── test_rag.py              # 索引来源 / 分级前缀 / 日志摘要 / 检索状态机
 │   ├── test_agent_loop.py       # 工具调用循环（async）：参数错误、轮次上限、回调
-│   ├── test_mcp_servers.py      # 5 个服务端工具清单 + 跨服务端重名检测 + 降级话术
+│   ├── test_mcp_servers.py      # 服务端工具清单 + 跨服务端重名检测 + 降级话术
 │   ├── test_template_search.py  # 模板检索：元数据过滤收敛 / 无命中短路
 │   ├── test_device_manual.py    # 设备手册建档 / 型号画像预填 / 小节读写
 │   ├── test_audit_rotation.py   # 审计日志轮转与跨文件 tail
 │   ├── test_run_log.py          # 运行日志：文件名安全 / 截断 / 会话枚举
-│   └── test_topology_flood.py   # 拓扑泛洪：LLDP/ARP/MAC 解析、层级推导、渲染、只读性
+│   ├── test_topology_flood.py   # 拓扑泛洪：LLDP/ARP/MAC 解析、层级推导、渲染、只读性
+│   ├── test_session_skills.py   # 一个对话一套技能：隔离语义 / 指针文件 / 迁移 / 下游接线
+│   └── test_data_report.py      # 工作流报告：采集完整 / 隔离语义 / 渲染质量 / 导出与 MCP 工具
+│
+├── session/                     # 会话级设备技能（运行期产物，已 gitignore）
+│   ├── .current                 # 当前会话指针（一行 sid，主程序开对话时写入）
+│   └── <会话标识>/skill/<设备名>/SKILL.md + history.jsonl
 │
 ├── .github/workflows/ci.yml     # CI：py_compile + kb_consistency + pytest + 命令分级自检
 │
 ├── docs/                        # 项目文档
 │   ├── architecture.md          # 架构与数据流（mermaid）
-│   ├── knowledge_base.md        # 知识库：五个来源 / 分级 / 检索状态 / 一致性校验 / 重建
+│   ├── knowledge_base.md        # 知识库：来源 / 分级 / 检索状态 / 一致性校验 / 重建
 │   ├── mcp_tools.md             # MCP 工具清单（名/参/用途 + 安全约定）
 │   ├── sft_dataset.md           # SFT 数据集说明（来源 / 字段 / 复现）
 │   ├── troubleshooting.md       # 踩坑手册（环境/代理/eNSP/vmrun/打包）
@@ -151,7 +197,7 @@ main.py
   │     └── core/vision.py           # 能看图则直接送图；不能看图则先本地识图再注入文字（桥接）
   ├── core/parallel.py               # 多模态并行：识图 ∥ 多模型回答 → 融合
   ├── core/topology_flood.py         # 拓扑泛洪发现：LLDP/MAC/ARP 解析 → 层级 + 上下级 + Mermaid 图
-  ├── mcp_tools/client.py            # stdio 拉起 6 个服务端（知识 / 串口 / Telnet / 手册 / 拓扑 / 视觉）
+  ├── mcp_tools/client.py            # stdio 拉起 7 个服务端（知识 / 串口 / Telnet / 手册 / 报告 / 拓扑 / 视觉）
   │
   └── 设备操作链路（安全可控）
         mcp_tools/device_server.py ─┐
@@ -430,23 +476,33 @@ GUI 设置页「启动时自动巡检拓扑」、对话中 `/autovision off`。�
 
 ## MCP 工具
 
-默认接入 6 个服务端（stdio 传输），共 22 个工具：
+默认接入 7 个服务端（stdio 传输），共 26 个工具：
+
+> **一个工具一个文件**：工具实现在 `mcp_tools/tools/<工具名>.py`（文件名 = 函数名 = 工具名），
+> `mcp_tools/*_server.py` 只做注册中心（建 `FastMCP` 实例 + `mcp.tool(fn)` 装配）。
+> 好处：改一个工具只动一个文件；新增工具 = 新文件 + 注册中心加一行；
+> 工具函数不带装饰器，可脱离 MCP 运行时被直接调用（测试/脚本）。
+> `tools/_bootstrap.py`、`_archive.py`、`_manual_common.py` 是下划线开头的公共支撑，不是工具。
 
 | 服务端 | 工具 | 参数 | 功能 |
 |--------|------|------|------|
 | `template_server.py`<br>（`Network-Knowledge`） | `query_command_template` | `intent`（必填）、`vendor`、`device_type`、`top` | 命令模板语义检索（语义匹配 + 厂商/设备类型元数据过滤） |
-| | `search_knowledge` | `query`、`top` | 通用知识库检索（设备介绍、配置说明、**运行期自建的设备手册**；索引按指纹自动维护） |
+| | `search_knowledge` | `query`、`top` | 通用知识库检索（设备介绍、配置说明、实验文档；索引按指纹自动维护） |
 | `device_server.py`<br>（`Network-Device-Serial`） | `list_serial_ports` | — | 列出本机可用串口 |
 | | `classify_command` | `command` | 只做风险分级不执行（建议模型下发配置前先预检） |
 | | `exec_command` | `command`、`port`、`baudrate`、`confirm`、`timeout` | 通过串口执行一条命令（过安全网关；**执行后自动归档命令历史**） |
 | | `recent_audit` | `n` | 查看最近的命令审计记录 |
 | `telnet_server.py`<br>（`Network-Device-Telnet`） | `check_telnet` | `host`、`port` | 探测 Telnet 端口连通性（只读，不下发命令） |
 | | `exec_telnet_command` | `command`、`host`、`username`、`password`、`port`、`enable_password`、`confirm`、`timeout` | Telnet 登录并执行一条命令（过安全网关；**执行后自动归档命令历史**） |
-| `manual_server.py`<br>（`Network-Device-Manual`） | `list_device_manuals` | — | 查看哪些设备已建档、哪些还没有 |
-| | `read_device_manual` | `device` | 读设备手册（常用配置 / 注意事项） |
+| `manual_server.py`<br>（`Network-Device-Manual`） | `list_device_manuals` | — | 查看**当前对话**里哪些设备已建档、哪些还没有 |
+| | `read_device_manual` | `device`、`session` | 读设备手册（常用配置 / 注意事项）；`session` 可显式跨对话只读 |
 | | `create_device_manual` | `device`、`vendor`、`model`、`address`、`role`、`login`、`note`、`transport`、`host`、`port`、`serial_port` | 首次接触设备时建档（骨架自动生成；可顺带把设备名绑定到地址） |
-| | `update_device_manual_section` | `device`、`section`、`text`、`mode`、`title` | 把有效命令序列 / 踩过的坑写回手册 |
-| | `recent_device_history` | `device`、`n` | 查看设备最近的命令历史（自动记录） |
+| | `update_device_manual_section` | `device`、`section`、`text`、`mode`、`title` | 把有效命令序列 / 踩过的坑写回**当前对话**的手册 |
+| | `recent_device_history` | `device`、`n`、`session` | 查看设备最近的命令历史（自动记录）；`session` 可跨对话只读 |
+| | `list_session_skills` | — | 查看**所有对话**各自的设备技能分布（回答「上次那个会话」用） |
+| `report_server.py`<br>（`Network-Data-Report`） | `export_workflow_report` | `session`、`format`、`days` | **导出整轮工作流报告**：汇总设备技能、逐条命令历史、逐步工具调用与回显、验收结论（md/json/both）；留空 session = 当前对话 |
+| | `workflow_report_overview` | `session` | 只看统计摘要（不落盘）：设备数、手册数、命令/模型/工具调用次数 |
+| | `list_report_sessions` | — | 列出可导出报告的会话（当前对话 + 其他对话） |
 | `topology_server.py`<br>（`Network-Topology-Flood`） | `discover_topology` | `workers`、`timeout`、`roots`、`save`、`devices` | **泛洪发现拓扑**：逐台登录下发只读命令，解析 LLDP/MAC/ARP 推导连线与上下级，出 Mermaid 图 |
 | | `load_discovered_topology` | — | 读取上次发现结果（不重新探测，秒回） |
 | | `topology_summary` | — | 只要紧凑摘要（层级 + 链路 + 上下级），适合直接放进上下文 |
@@ -457,10 +513,39 @@ GUI 设置页「启动时自动巡检拓扑」、对话中 `/autovision off`。�
 | | `capture_topology` | `keyword`、`force` | 实时看拓扑：自动截取 eNSP/虚拟机窗口并识读（画面未变时复用结论） |
 | | `get_topology_snapshot` | — | 读取最近一次自动巡检的拓扑结论（瞬时返回，不推理） |
 
-> **设备手册是运行期资产，不在仓库里**：手册由本地模型在首次接触设备时自建
-> （`skills/<设备名>/SKILL.md`），配置验证有效后由模型自己沉淀回手册；
-> 命令历史由工具层确定性追加（`data/device_history/<设备名>.jsonl`）。
-> `skills/`、`data/device_history/`、`data/device_access.json` 均已进 `.gitignore`。
+> **设备手册是运行期资产，不在仓库里，且按对话隔离**：手册由本地模型在首次接触
+> 设备时自建（`session/<会话标识>/skill/<设备名>/SKILL.md`），配置验证有效后由模型
+> 自己沉淀回手册；命令历史由工具层确定性追加到同目录的 `history.jsonl`。
+> 一个对话一套技能——对话之间互不共享，详见上文「一个对话一套技能」。
+> `session/`、`data/device_access.json` 均已进 `.gitignore`。
+
+## 工作流数据报告（跑完就导出）
+
+**要解决的问题**：一轮实验/一次对话产生的信息散落在三处——会话技能目录（手册 + 命令历史）、
+运行日志（逐轮 LLM 调用与工具调用）、实验报告（验收比对）。人工拼接既慢又容易漏，
+复盘和造微调语料时尤其麻烦。
+
+`report_server.py` 提供三个工具把这轮工作流汇总成**一份自包含报告**，本地模型跑完后
+自己调用即可（提示词里已写明「跑完先 overview 再 export」）：
+
+| 动作 | 产出 |
+|---|---|
+| `workflow_report_overview()` | 统计摘要（不落盘）：设备 / 手册 / 命令 / 模型调用 / 工具调用次数 |
+| `export_workflow_report()` | 完整报告：总览 + 每台设备手册与命令序列 + 逐步工具调用（含设备回显，超长裁剪）+ 过程事件 + 实验报告全文 |
+| `list_report_sessions()` | 可导出报告的会话清单（当前对话 + 其他对话） |
+
+**默认只导当前对话**（与「一个对话一套技能」一致的隔离语义）；其他对话只报数量、不搬内容，
+需要复盘别的对话时显式传 `session=`（只读，不会污染当前会话）。
+
+```bash
+python -m core.data_report                    # 导出当前会话（md）
+python -m core.data_report --format both      # 同时出 Markdown + JSON
+python -m core.data_report --session 01-xxx   # 导出指定会话
+python -m core.data_report --list             # 列出所有会话
+```
+
+落盘：`data/data_reports/<时间戳>-<会话>.md` 与 `.json`（JSON 只存结构化数据与实验报告路径）。
+批量实验（`tools/lab_run_agent.py`）在每个实验收尾时**确定性自动导出**一份，导出失败不影响实验。
 
 ## 拓扑泛洪发现（自动求出上下级关系与拓扑图）
 
@@ -558,8 +643,9 @@ python -m mcp_tools.search_client    # 单独测试联网搜索服务
 
 模型最大的失败模式不是不会，而是**不知道自己的依据不可靠**。为此知识库链路做了两件事：
 
-**一、分级前缀。** 五个索引来源（设备介绍 / 实验文档 / 设备手册 / 运行报告 / 逐轮运行日志）
-在入索引前各加一个前缀，把"现行规则"和"上次踩的坑"分开：
+**一、分级前缀。** 四个索引来源（设备介绍 / 实验文档 / 运行报告 / 逐轮运行日志，
+清单以 `core/rag.py:load_chunks()` 为准）在入索引前各加一个前缀，
+把"现行规则"和"上次踩的坑"分开：
 
 | 分级 | 前缀 |
 |---|---|
@@ -581,13 +667,17 @@ python -m mcp_tools.search_client    # 单独测试联网搜索服务
 降级时不仅终端打 `[降级]`，更关键的是**把告警写进 prompt 正文**：
 「本轮没有可用的知识片段……不要声称查过知识库」。Agent 模式下 `search_knowledge`
 工具也返回「⚠ 知识库检索不可用……**这不是「知识库中没有相关内容」，而是检索链路故障**」，
-并附带修复命令。**逐轮运行日志**（第五个来源）只取最近 3 天的会话摘要——
+并附带修复命令。**逐轮运行日志**（第四个来源）只取最近 3 天的会话摘要——
 去重后的配置类命令 + 报错回显，刻意剔除 `display`/`ping` 这类只读命令，
 避免它们挤占检索名额。
 
+**不是索引来源的两样东西**：`knowledge/topology/*.json`（有 `TOPOLOGY_DIR` 常量但
+**未纳入索引**，改用 `tools/kb_consistency.py` 与实验文档互校防漂移）、
+`knowledge/device_profiles.py`（型号基线画像，用于**设备建档预填**，不进向量库）。
+
 ## 设备手册的冷启动（型号画像）
 
-`skills/<设备名>/SKILL.md` 是模型运行期自建的，但新设备第一次建档时是空白的。
+`session/<会话>/skill/<设备名>/SKILL.md` 是模型运行期自建的，但新设备第一次建档时是空白的。
 `knowledge/device_profiles.py` 提供 10 个型号的通用基线（AR2220 / AR2200 / AR1200 /
 S5700 / S3700 / S6700 / S7700 / S12700 / NE40E / USG），`device_manual.skeleton()`
 在建档时把它预填进「注意事项」。例如 S5700 会自动写入：
@@ -600,6 +690,64 @@ S5700 / S3700 / S6700 / S7700 / S12700 / NE40E / USG），`device_manual.skeleto
 画像匹配用**最长键优先**（`S5700-28C-HI` 会命中 `S5700` 而不是 `S37`），
 未匹配到型号时**不写占位文字**而是退回通用提示。注意：画像是通用事实，
 **具体以真机回显为准**——预填文本里也这样标注。
+
+## 一个对话一套技能（设备记忆按会话隔离）
+
+**需求**：一个对话一个 skill，不把所有对话的设备记忆统一在一起。
+存放格式由用户指定：`session/<每个独立会话>/skill/<每个设备技能>/`。
+
+```
+session/
+├── .current                          # 当前会话指针（一行 sid）
+├── cli-20261014-152000-ab12/         # 一次 CLI 对话（每次启动现开一个）
+│   └── skill/
+│       ├── SW1/SKILL.md              # 该对话里 SW1 的手册
+│       ├── SW1/history.jsonl         # 该对话里 SW1 的命令流水
+│       └── R1/SKILL.md
+├── <GUI 会话 uuid>/skill/...         # 桌面端每个会话一套
+└── legacy-global/                    # 旧版全局 skills/ 的一次性迁移落点
+```
+
+### 为什么这么改
+
+最早的版本把所有对话的手册统一放在 `skills/<设备名>/SKILL.md`。结果是对话 A 里
+给 SW1 踩的坑、写下的命令序列，会在对话 B 检索知识库时被原样捞出来——模型把
+**另一段对话里的结论**当成本对话的经验，改错了还查不出原因。
+
+### 三个关键设计
+
+1. **「当前会话」跨进程一致**。主程序（CLI / GUI / 批量实验）开出一个对话时调
+   `session_skills.use_session(sid)`：把 sid 写进 `session/.current`，并同步
+   `core.run_log` 的会话标识（运行日志与技能同会话、同命运）。MCP 服务端是
+   **独立子进程**，每次工具调用前读这个指针文件（按 mtime 缓存），所以 GUI 里
+   切换会话后无需重连，工具立刻跟随新会话。解析优先级：
+   本进程钉过的 sid > `session/.current` > 环境变量 `NETWORKCLAW_SESSION` > `default`。
+2. **手册不进向量库，改为直注提示词**。手册已按会话隔离，而索引是全局单份——
+   塞进去会出现两个问题：切换会话后旧会话的手册仍会被检索出来（正好破坏隔离）；
+   每次切换都重建索引又是「先删后建」，期间检索会拿到空库。因此当前会话的技能
+   摘要（设备/型号/角色/最新踩的坑）由 `core/agent.py` 直注系统提示词，
+   全文按需走 `read_device_manual`。运行日志摘要同理只取当前会话。
+3. **隔离是读、写、检索三层一起做的**，不是只换个目录。测试
+   `tests/test_session_skills.py` 逐项断言：A 对话的技能 B 看不到、切回来还在、
+   B 里给同名设备建档不污染 A、RAG 不索引手册、日志摘要不跨会话。
+
+### 用法
+
+```bash
+python -m core.device_manual --current          # 当前会话与技能目录
+python -m core.device_manual --sessions         # 所有对话各自的设备技能
+python -m core.device_manual --migrate-legacy   # 旧版 skills/ 搬进一个会话（一次性）
+# 对话里：
+/sessions                                        # CLI 内置命令，查看各对话技能分布
+```
+
+模型侧新增工具 `list_session_skills`（所有对话的技能分布总览）；
+`read_device_manual(device, session="<sid>")` 与 `recent_device_history(..., session=...)`
+支持**显式跨会话只读**——用户明确问「上次那个会话里」时才用，日常只看当前对话。
+
+> 旧版全局目录 `skills/` 与 `data/device_history/` 已停止读取；本项目已完成迁移并清理旧目录
+> （历史内容在 `session/legacy-global/`：6 份手册 + 6 台设备共 346 条命令历史，删除前另有 zip 备份）。
+> `--migrate-legacy` 保留给仍持有旧副本的场景，源目录不存在时自动跳过。
 
 ## 命令审计日志的轮转
 
@@ -635,8 +783,10 @@ python -m core.parallel "问题" --image topo.png --providers local,deepseek   #
 python -m core.rag                  # 仅 RAG 问答（需 llama-server 已在运行）
 python -m core.rag --rebuild        # 强制重建知识库索引
 python tools/kb_consistency.py      # 校验实验文档与拓扑数据集是否一致（退出码 1 = 漂移）
-python -m pytest                    # 157 项离线测试（含知识库一致性回归）
+python -m pytest                    # 全量离线测试（含知识库一致性回归）
 python -m pytest tests/test_rag.py  # 只跑知识库链路（来源/分级/检索状态）
+python -m pytest tests/test_session_skills.py   # 只跑「一个对话一套技能」隔离语义
+python -m core.device_manual --sessions         # 所有对话各自的设备技能分布
 python -m core.template_search "禁止telnet登录" --device-type router   # 模板语义检索
 python -m core.template_search --rebuild                              # 强制重建模板索引
 python -m core.topology_flood       # 泛洪发现拓扑：自动推导上下级关系并出 Mermaid 图
@@ -683,6 +833,23 @@ python tools/manual_extractor.py manual.txt --vendor Huawei           # 阶段�
 | 一 | `knowledge/command_templates.csv`：华为/H3C/Cisco 共 174 条模板（`device_type` 列取 switch/router/both）。交换机部分：基础配置（系统管理、VLAN、接口IP、静态路由、SSH、NTP）；路由器部分：OSPF 单区域、BGP/ISIS 联动与静态/默认路由引入、AAA/RADIUS、ACL | ✅ 完成 |
 | 二 | `core/template_search.py`：nomic-embed-text 向量化入 Chroma（集合 `command_templates`），意图语义匹配 + 厂商/设备类型元数据过滤 | ✅ 完成 |
 | 三 | `docs/phase3_extraction_plan.md` + `tools/manual_extractor.py`：手册自动提取方案与脚手架（含 device_type 启发式推断） | 📋 方案就绪，待积累到几百条后启动 |
+
+### 等保2.0 合规规则集
+
+`knowledge/compliance/dengbao_rules/` 把等级保护测评项落成可执行的配置检查规则（56 条，详见
+[docs/dengbao_rules.md](docs/dengbao_rules.md)）：
+
+- **一条规则一个 YAML**，`check.type` 只有五种（`config_contains` / `config_absent` /
+  `config_regex` / `config_value_compare` / `manual_confirm`）
+- `severity` 由权重表推导（1→high、0.7→medium、0.4→low），不允许手填
+- **每条 remediation 命令必须能在 `command_templates.csv` 或测评表原文找到出处** ——
+  生成器内置出处核对，编造命令直接拒绝产出
+- 配置文本判不了的条目写 `manual_confirm` 并注明缺什么证据，不用「建议加强」这类空话
+
+```bash
+D:/python/python.exe tools/build_dengbao_rules.py      # 重新生成（需 openpyxl）
+python -m pytest tests/test_dengbao_rules.py           # 契约/行为测试（原文读 JSON，不读 xlsx）
+```
 
 ### 维护约定
 

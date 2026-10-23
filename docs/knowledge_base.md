@@ -7,21 +7,47 @@
 
 | 集合 | 用途 | 写入方 | 当前块数 |
 |---|---|---|---|
-| `huawei_devices` | 知识库：设备知识 + 实验文档 + 设备手册 + 运行报告 + 逐轮运行日志 | `core/rag.py` | 2307（2026-10-08） |
-| `command_templates` | 命令模板（`knowledge/command_templates.csv`） | `core/template_search.py` | 174 |
+| `huawei_devices` | 知识库：设备知识 + 实验文档 + 运行报告 + 逐轮运行日志摘要 | `core/rag.py` | 见 `data/index_state.json`（每次重建刷新，勿在文档里写死） |
+| `command_templates` | 命令模板（`knowledge/command_templates.csv`） | `core/template_search.py` | 同上 |
 
 物理上同库（`data/Rag_data`，ChromaDB 持久化），逻辑分集。
 **集合名不得在业务模块里硬编码**，一律 `get_collection(名字)` 现取现用。
 
-## 2. 知识库的五个来源与可信度分级（`core/rag.py`）
+## 2. 知识库的四个来源与可信度分级（`core/rag.py`）
+
+**来源清单以 `core/rag.py:load_chunks()` 的实现为准**——改来源就改那里，
+文档与实现必须对得上：
 
 | # | 来源 | 内容 | 生成方式 | 分级 |
 |---|---|---|---|---|
 | ① | `knowledge/huawei_devices_introduce.txt` | 华为设备产品线与基础命令说明 | 人工维护 | `instance` |
 | ② | `knowledge/experiments/NN-*.md` | **每个实验**：题目要求 / 设备清单（含 console 端口）/ 链路连接 / 画布标注 / 参考答案 / 验收要点 | `tools/ensp_lab_index.py` | `rule` |
-| ③ | `skills/<设备名>/SKILL.md` | 运行期自建的设备手册 | 模型运行时自建 | `rule` |
-| ④ | `data/lab_reports/*.md` | 实验运行报告 + `issues.md` 踩坑清单 | `tools/lab_run_agent.py` | `history` |
-| ⑤ | `data/run_logs/**/*.jsonl` | **逐轮工具调用与设备回显**的会话摘要 | `core/run_log.py`（模型运行时写） | `history` |
+| ③ | `data/lab_reports/*.md` | 实验运行报告 + `issues.md` 踩坑清单 | `tools/lab_run_agent.py` | `history` |
+| ④ | `data/run_logs/<当前会话>/*.jsonl` | **逐轮工具调用与设备回显**的会话摘要（仅当前对话） | `core/run_log.py`（模型运行时写） | `history` |
+
+**两个常被误当成来源的东西（都不是）：**
+
+- `knowledge/topology/*.json` —— `core/rag.py` 里定义了 `TOPOLOGY_DIR` 常量，
+  但 `load_chunks()` **不读它**；这套结构化数据集**未纳入索引**（理由见 §6）。
+- `knowledge/device_profiles.py` —— 型号基线画像，用于**设备建档预填**
+  （写入手册「注意事项」），**不是 RAG 来源**。
+
+### 2.0 设备手册为什么不在索引里（一个对话一套技能）
+
+设备手册已按会话隔离到 `session/<会话标识>/skill/<设备名>/SKILL.md`（见
+`README.md`「一个对话一套技能」与 `core/session_skills.py`）。它**不进向量库**，
+原因是两个都会真实发生的问题：
+
+1. **切换会话后串味**：索引是全局单份，A 对话写的手册会被 B 对话检索出来——
+   正好破坏隔离，模型会把别处对话的结论当成本对话的经验；
+2. **重建窗口期检索落空**：若改为「切换会话就重建索引」，而重建是
+   「先删后建」（见 §3），期间任何检索都会拿到空库，回答直接降级。
+
+因此手册改为**当前会话直注系统提示词**（`core.device_manual.context_for_model()`
+生成紧凑摘要：设备/型号/角色/最近踩的一条坑，按设备数与字符数封顶），
+全文按需走 MCP 工具 `read_device_manual`。运行日志摘要同理**只取当前会话**
+（`_run_log_digests()` 读 `run_log.read_session(day, session_skills.current())`）——
+「别的对话里发生过什么」不该渗进本对话的检索结果。
 
 ### 2.1 分级前缀：让模型知道该信几分
 
@@ -30,18 +56,18 @@
 
 | 分级 | 前缀 | 含义 |
 |---|---|---|
-| `TIER_RULE` | `【现行规则｜可据此直接作答】` | 实验文档与设备手册——权威，可直接依据 |
+| `TIER_RULE` | `【现行规则｜可据此直接作答】` | 实验文档——权威，可直接依据 |
 | `TIER_HISTORY` | `【历史记录｜仅供参考，与规则冲突时以规则为准】` | 运行报告、逐轮日志——可能过时 |
 | `TIER_INSTANCE` | `【实例数据｜事实描述，不含操作建议】` | 设备介绍等事实性文本 |
 
-④⑤ 是「经验反哺」：模型每跑同类实验都会重踩同样的坑（视图丢失、undo 被拦、
+③④ 是「经验反哺」：模型每跑同类实验都会重踩同样的坑（视图丢失、undo 被拦、
 命令报错要换写法…）。运行报告注入时统一加 `history` 前缀，
 `issues.md` 例外——它是维护中的现行问题清单。
 
-### 2.2 ⑤ 逐轮运行日志：摘要而非原文
+### 2.1 ④ 逐轮运行日志：摘要而非原文
 
 `data/run_logs/<日期>/<会话名>.jsonl` 是**每轮 LLM 调用与工具步骤**的原始记录，
-体量大且充满重复。`_run_log_digests()` 只取**最近 3 天**的会话，
+体量大且充满重复。`_run_log_digests()` 只取**最近 3 天 × 当前会话**，
 每场压成一节摘要：
 
 - 抬头：日期 / 会话名 / 用的模型 / LLM 调用数 / 工具步数
@@ -50,8 +76,9 @@
 - 最多 5 行报错回显（匹配 `Error` / `Unrecognized` / `Wrong parameter` / `失败` / `不可达`）
 - 纯只读会话写「本次会话只做只读查看，没有下发配置类命令。」
 
-当前贡献 19 场摘要。会话枚举复用 `core.run_log.py` 的 `list_sessions()` / `read_session()`
-（而不是自己猜文件名），避免和它的安全文件名规则漂移。
+会话标识直接取 `session_skills.current()`（一个对话一个 sid），
+不枚举全部会话——别处对话的日志不该进来（见 §2.0）。
+数据仍在 `data/run_logs/` 里，需要跨对话复盘时可人工查看或用 `tools/build_sft.py`。
 
 ## 3. 索引机制（为什么可以放心改文档）
 
@@ -95,7 +122,8 @@
 
 | 数据 | 原因 |
 |---|---|
-| `knowledge/topology/*.json` | 内容已被 ② 的实验文档以表格形式完整重建（设备/端口/链路/标注）。重复入库会产生大量近重复块，检索时互相挤占名额。改为用**一致性校验**防漂移（见下）。 |
+| `knowledge/topology/*.json` | `core/rag.py` 里虽有 `TOPOLOGY_DIR` 常量，但**未纳入索引**。内容已被 ② 的实验文档以表格形式完整重建（设备/端口/链路/标注）。重复入库会产生大量近重复块，检索时互相挤占名额。改为用**一致性校验**防漂移（见下）。 |
+| `knowledge/device_profiles.py` | 型号基线画像，服务于**设备建档预填**（`device_manual.skeleton()` 写入手册「注意事项」），不是向量库来源。 |
 | `data/lab_answers/*.cfg` | 路由器参考答案的**文本**已在 ② 的「五、参考答案」小节里（`ensp_lab_index` 从 `.model` 提取）。再单独入库既重复，又会进一步提高"照抄答案"的风险——验收的 `net`（净提升）指标本就为此承压。 |
 | `data/lab_answers/*.flash.efz` | eNSP 私有二进制（魔数 `eNSP`），不可向量化；交换机参考答案需从「清场后重配」的运行日志侧补齐。 |
 

@@ -1,0 +1,20 @@
+id: DB-NET-IPS-01
+vendor: any
+device_type: network_device
+category: 安全计算环境-网络设备
+control_point: 入侵防范
+requirement: a)应遵循最小安装的原则，仅安装需要的组件和应用程序
+weight_level: 3
+severity: medium
+source: A 表 sheet「安全计算环境」行17/行40（原文即『此项不适合』）；B 表行17；C 表行75（二/三级均=0.7）
+check:
+  type: manual_confirm
+  target: 不适用判定
+  expect: 网络设备无『安装组件』概念
+  pattern: ''
+remediation:
+- display current-configuration
+evidence_hint: A 表行17 原文『此项不适合，该项要求一般在服务器上实现』；B 表行17 整改建议同为『此项不适用』。结论应为 not_applicable
+weight_detail:
+  level2: 0.7
+  level3: 0.7

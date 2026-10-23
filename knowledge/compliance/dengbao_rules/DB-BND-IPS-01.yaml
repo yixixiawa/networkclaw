@@ -1,0 +1,21 @@
+id: DB-BND-IPS-01
+vendor: any
+device_type: ips
+category: 安全区域边界-入侵防范
+control_point: 入侵防范
+requirement: a)应在关键网络节点处检测、防止或限制从外部发起的网络攻击行为
+weight_level: 3
+severity: high
+source: 《等保2.0初级教材 测评操作.xlsx》sheet「安全区域边界」第11行「a)」；权重见《…权重-参考材料.xlsx》行49（二级=1，三级=1）
+check:
+  type: manual_confirm
+  target: 边界入侵检测/防御设备
+  expect: 存在 IPS/IDS 且规则库为近期版本，覆盖外部入口
+  pattern: ''
+remediation:
+- display current-configuration
+- show running-config
+evidence_hint: 需要：①设备清单与部署位置拓扑（证明在『关键网络节点』）②规则库版本与更新时间（资料要求与测评时间较为接近）③检测到的外部攻击日志样例。配置文本只能看到设备自身，证明不了『覆盖关键节点』
+weight_detail:
+  level2: 1
+  level3: 1

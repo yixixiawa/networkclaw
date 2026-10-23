@@ -1,7 +1,7 @@
 {
   "_说明": "设备端口映射清单（device-config-recorder skill 维护）。设备名与串口一一对应；密码不写入此文件。",
-  "host": "192.168.10.130",
-  "updated": "2026-09-30",
+  "host": "192.168.1.179",
+  "updated": "2026-10-14",
   "devices": [
     {"name": "R1",  "port": 2000, "vendor": "Huawei", "model": "AR2220",  "type": "router", "login": "telnet 无凭据", "manual": "skills/R1/SKILL.md",  "history": "data/device_history/R1.jsonl"},
     {"name": "R2",  "port": 2001, "vendor": "Huawei", "model": "AR2220",  "type": "router", "login": "telnet 无凭据", "manual": "skills/R2/SKILL.md",  "history": "data/device_history/R2.jsonl"},

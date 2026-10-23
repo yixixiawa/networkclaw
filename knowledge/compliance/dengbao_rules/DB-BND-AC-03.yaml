@@ -1,0 +1,22 @@
+id: DB-BND-AC-03
+vendor: any
+device_type: firewall
+category: 安全区域边界-访问控制
+control_point: 访问控制
+requirement: c)应对源地址、目的地址、源端口、目的端口和协议等进行检查，以允许/拒绝数据包进出
+weight_level: 3
+severity: medium
+source: 《等保2.0初级教材 测评操作.xlsx》sheet「安全区域边界」第8行「c)」；权重见《…权重-参考材料.xlsx》行45（二级=0.7，三级=0.7）
+check:
+  type: config_regex
+  target: 扩展 ACL 条目
+  expect: 存在同时限定协议、源、目的与端口（五元组）的 ACL 条目
+  pattern: (?im)access-list\s+\d+\s+(?:permit|deny)\s+(?:tcp|udp|icmp)\s+\S+\s+\S+\s+(?:host\s+\S+|\S+\s+\S+).*?(?:eq|gt|lt|range)\s+\d+|rule\s+\d+\s+(?:permit|deny)\s+(?:tcp|udp|icmp)\s+source\s+\S+\s+\S+\s+destination\s+\S+\s+\S+.*?(?:destination-port\s+eq|eq)\s+\d+
+remediation:
+- access-list 101 deny tcp 172.16.4.0.0.0.0.255 172.16.3.0.0.0.0.255 eq 21
+- rule 5 deny tcp destination 10.1.1.100 0 destination-port eq telnet
+evidence_hint: show running-config / display current-configuration 中的 ACL 段；只限源地址的 basic ACL（acl 2000 类）不计入本条，必须是
+  access-list + 协议 + 源 + 目的 + 端口 的扩展形式。注意教材原文的掩码粘连写法（0.0.0.255 紧贴 IP）在真机上应写为 `172.16.4.0 0.0.0.255`
+weight_detail:
+  level2: 0.7
+  level3: 0.7

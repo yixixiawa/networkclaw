@@ -1,0 +1,24 @@
+id: DB-BND-AC-01
+vendor: any
+device_type: firewall
+category: 安全区域边界-访问控制
+control_point: 访问控制
+requirement: a)应在网络边界或区域之间根据访问控制策略设置访问控制规则，默认情况下除允许通信外受控接口拒绝所有通信
+weight_level: 3
+severity: high
+source: 《等保2.0初级教材 测评操作.xlsx》sheet「安全区域边界」第6行「a)」；权重见《等保2.0一~三级测评项得分及权重-参考材料.xlsx》行43（二级=1，三级=1）
+check:
+  type: config_regex
+  target: running-config
+  expect: 受控接口上存在已应用的访问控制列表，且列表末尾为显式拒绝（白名单语义）
+  pattern: (?is)access-list\s+\d+.*?deny\s+ip\s+any\s+any|ip\s+access-group\s+\d+\s+(?:in|out)|packet-filter\s+\d+\s+(?:inbound|outbound)|traffic-filter\s+(?:inbound|outbound)\s+acl\s+\d+
+remediation:
+- access-list 100 deny ip any any
+- ip access-group 100 in
+- acl 3000
+- traffic-filter outbound acl 3000
+evidence_hint: display current-configuration / show running-config 中受控接口段落；需能看到 access-group / packet-filter / traffic-filter
+  已绑定到接口方向，且 ACL 最后一条为 deny
+weight_detail:
+  level2: 1
+  level3: 1

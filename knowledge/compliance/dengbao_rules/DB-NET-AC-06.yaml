@@ -1,0 +1,20 @@
+id: DB-NET-AC-06
+vendor: any
+device_type: network_device
+category: 安全计算环境-网络设备
+control_point: 访问控制
+requirement: f)访问控制的粒度应达到主体为用户级或进程级，客体为文件、数据库表级
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行11/行34（原文即『此项不适合』）；B 表行11；C 表行69（三级=1）
+check:
+  type: manual_confirm
+  target: 不适用判定
+  expect: 网络设备不涉及文件/数据库表级客体控制
+  pattern: ''
+remediation:
+- display current-configuration
+evidence_hint: 同 DB-NET-AC-05：A 表行11 与 B 表行11 均写明不适用。结论应为 not_applicable
+weight_detail:
+  level2: null
+  level3: 1

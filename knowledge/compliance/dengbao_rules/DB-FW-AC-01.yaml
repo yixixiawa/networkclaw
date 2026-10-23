@@ -1,0 +1,20 @@
+id: DB-FW-AC-01
+vendor: any
+device_type: firewall
+category: 安全计算环境-安全设备
+control_point: 访问控制
+requirement: a)应对登录的用户分配账户和权限
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行52（用户认证>>用户管理，账户权限须与职位对应）；B 表行6；C 表行64
+check:
+  type: manual_confirm
+  target: 账户与权限分配
+  expect: 各账户权限与其职责对应，账户管理员/配置管理员不具审计员权限
+  pattern: ''
+remediation:
+- display current-configuration
+evidence_hint: A 表行52 明确判据：『账户管理员和配置管理员不应具有审计员权限』。需要：①用户列表及各自权限截图 ②职责对照表。配置文本无法区分角色语义
+weight_detail:
+  level2: 1
+  level3: 1

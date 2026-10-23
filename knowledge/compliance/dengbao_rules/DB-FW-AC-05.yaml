@@ -1,0 +1,20 @@
+id: DB-FW-AC-05
+vendor: any
+device_type: firewall
+category: 安全计算环境-安全设备
+control_point: 访问控制
+requirement: e)应由授权主体配置访问控制策略，访问控制策略规定主体对客体的访问规则
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行56（原文即『此项不适合』）；B 表行10；C 表行68（三级=1）
+check:
+  type: manual_confirm
+  target: 不适用判定
+  expect: 条款针对主机和数据库
+  pattern: ''
+remediation:
+- display current-configuration
+evidence_hint: A 表行56 与 B 表行10 均写『此项不适合，条款主要针对主机和数据库的测评』。结论应为 not_applicable
+weight_detail:
+  level2: null
+  level3: 1

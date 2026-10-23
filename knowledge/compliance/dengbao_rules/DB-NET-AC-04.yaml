@@ -1,0 +1,21 @@
+id: DB-NET-AC-04
+vendor: any
+device_type: network_device
+category: 安全计算环境-网络设备
+control_point: 访问控制
+requirement: d)应授予管理用户所需的最小权限，实现管理用户的权限分离
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行9/行32；B 表行9（权重标『一般』）；C 表行67（二/三级均=1）
+check:
+  type: config_regex
+  target: 角色/权限分离
+  expect: 存在三类角色划分（系统/安全/审计管理员）或分级权限账户
+  pattern: (?im)^\s*(?:local-user\s+\S+\s+(?:privilege|service-type)|username\s+\S+\s+privilege\s+\d+|authorization-attribute\s+user-role\s+\S+)
+remediation:
+- local-user admin privilege level 15
+- authorization-attribute user-role network-admin
+evidence_hint: B 表行9 要求权限分三类（系统/安全/审计）。自动检查只能证明『有分级』；『是否真的分离、是否最小』需要账户-角色对照表 + 访谈
+weight_detail:
+  level2: 1
+  level3: 1

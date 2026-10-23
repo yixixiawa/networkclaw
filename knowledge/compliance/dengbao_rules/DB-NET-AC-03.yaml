@@ -1,0 +1,21 @@
+id: DB-NET-AC-03
+vendor: any
+device_type: network_device
+category: 安全计算环境-网络设备
+control_point: 访问控制
+requirement: c)应及时删除或停用多余的、过期的账户，避免共享账户的存在
+weight_level: 3
+severity: medium
+source: A 表 sheet「安全计算环境」行8/行31；B 表行8；C 表行66（二/三级均=0.7）
+check:
+  type: manual_confirm
+  target: 账户清单时效性
+  expect: 无多余/过期账户，管理员与账户一一对应
+  pattern: ''
+remediation:
+- display current-configuration
+- show running-config
+evidence_hint: 『多余/过期/共享』是业务属性，配置文本只列出账户不列出使用人。需要：①账户与责任人对应表 ②离职人员清理记录
+weight_detail:
+  level2: 0.7
+  level3: 0.7

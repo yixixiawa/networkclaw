@@ -1,19 +1,24 @@
 """设备手册冷启动测试：型号基线画像 + 骨架预填 + 小节读写。
 
-背景：`skills/<设备名>/SKILL.md` 是运行期产物，第 N 台新设备第一次出现时手册为空。
-本测试确保「新设备建档即带有该型号的通用要点」，而不是三段空占位符。
+背景：`session/<会话>/skill/<设备名>/SKILL.md` 是运行期产物（按对话隔离），
+第 N 台新设备第一次出现时手册为空。本测试确保「新设备建档即带有该型号的
+通用要点」，而不是三段空占位符。
+
+技能根目录由 tests/conftest.py 的 autouse 夹具隔离到临时目录，这里再显式
+钉一个测试会话，保证读写都落在 `session/<测试会话>/skill/` 下。
 """
 import pytest
 
 from core import device_manual as dm
+from core import session_skills as ss
 from knowledge import device_profiles as dp
 
 
 @pytest.fixture()
-def manual_root(tmp_path, monkeypatch):
-    """把手册根目录指向临时目录，避免动到真实的 skills/。"""
-    monkeypatch.setattr(dm, "SKILLS_DIR", tmp_path / "skills")
-    return tmp_path / "skills"
+def manual_root():
+    """把当前会话钉到测试会话（根目录已被 conftest 隔离），返回技能目录。"""
+    ss.use_session("test-session")
+    return ss.session_dir() / "skill"
 
 
 # ---------------------------------------------------------------- 型号画像

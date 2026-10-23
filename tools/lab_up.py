@@ -14,6 +14,7 @@
 """
 from __future__ import annotations
 
+import os
 import sys
 import time
 from pathlib import Path
@@ -31,7 +32,7 @@ from tools.ensp_ui import click_icon  # noqa: E402
 from tools.lab_probe_devices import is_router, load_devices, probe_all  # noqa: E402
 from tools.nested_virt import router_can_boot  # noqa: E402
 
-HOST = "192.168.10.130"
+HOST = os.environ.get("LAB_HOST", "192.168.1.179")
 # eNSP 在路由器**开始启动**时就开放了 Telnet 端口，但 AR2220 的 VRP 还要加载好几分钟。
 # 端口一到齐就去登录，只会拿到 '##\x00'（2026-10-01 实验 03 实测 AR1/AR2/AR3 全挂）。
 ROUTER_SETTLE = 120

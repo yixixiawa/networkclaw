@@ -1,0 +1,21 @@
+id: DB-BND-AC-02
+vendor: any
+device_type: firewall
+category: 安全区域边界-访问控制
+control_point: 访问控制
+requirement: b)应删除多余或无效的访问控制规则，优化访问控制列表，并保证访问控制规则数量最小化
+weight_level: 3
+severity: medium
+source: 《等保2.0初级教材 测评操作.xlsx》sheet「安全区域边界」第7行「b)」；权重见《…权重-参考材料.xlsx》行44（二级=0.7，三级=0.7）
+check:
+  type: config_regex
+  target: ACL 定义块
+  expect: 存在 ACL 定义，且其中不含任何 any→any 全通放行条目
+  pattern: (?is)(?=^(?:access-list\s+\d+|acl\s+(?:number\s+)?\d+|acl\s+(?:basic|advanced)\s+\d+))(?![\s\S]*?permit\s+(?:ip|tcp|udp|protocol)\s+any\s+any)
+remediation:
+- display acl 3000
+- show access-lists
+evidence_hint: 需人工比对 ACL 命中计数（display acl / show access-lists 的 matches 列）判断是否存在长期 0 命中的冗余规则；本条只自动判『有无全通策略』，『规则最小化/优先级』部分需人工确认
+weight_detail:
+  level2: 0.7
+  level3: 0.7

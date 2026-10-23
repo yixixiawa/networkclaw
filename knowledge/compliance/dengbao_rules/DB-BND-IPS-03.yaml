@@ -1,0 +1,22 @@
+id: DB-BND-IPS-03
+vendor: any
+device_type: ips
+category: 安全区域边界-入侵防范
+control_point: 入侵防范
+requirement: c)应在关键网络节点处检测、防止或限制从内部发起的网络攻击行为
+weight_level: 3
+severity: high
+source: 《等保2.0初级教材 测评操作.xlsx》sheet「安全区域边界」第13行「c)」（原文与第12行重复）；权重见《…权重-参考材料.xlsx》行51（二级无此项，三级=1）
+check:
+  type: manual_confirm
+  target: 内部攻击检测与规则覆盖
+  expect: 检测规则/策略覆盖关键节点地址范围
+  pattern: ''
+remediation:
+- display current-configuration
+- show running-config
+evidence_hint: 资料第13行「c)」的安全要求正文与第12行「b)」逐字相同、仅编号字母不同（b/c），属原表笔误；此处按原表保留两条并各自独立编号，避免与资料行号失去对应，同时便于报告按原表行号引用。判定要素同
+  DB-BND-IPS-02，额外需要『规则覆盖的关键节点 IP 列表』
+weight_detail:
+  level2: null
+  level3: 1

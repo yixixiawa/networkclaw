@@ -1,0 +1,20 @@
+id: DB-FW-AC-04
+vendor: any
+device_type: firewall
+category: 安全计算环境-安全设备
+control_point: 访问控制
+requirement: d)应授予管理用户所需的最小权限，实现管理用户的权限分离
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行55（账户分系统管理员/安全管理员/审计管理员三类）；B 表行9（标『一般』）；C 表行67
+check:
+  type: manual_confirm
+  target: 角色划分与权限分离
+  expect: 存在系统/安全/审计三类角色，且禁止兼任配置与审计
+  pattern: ''
+remediation:
+- display current-configuration
+evidence_hint: A 表行55 给出判据：『禁止对管理用户同时赋予配置管理员和审计管理员权限』。需要：①角色清单截图 ②任一用户的权限明细，证明无『配置+审计』兼任
+weight_detail:
+  level2: 1
+  level3: 1

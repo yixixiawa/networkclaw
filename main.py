@@ -47,6 +47,7 @@ from core.parallel import run_multimodal_parallel
 from core.providers import (describe_table, get_active, get_provider, list_providers,
                             load_env_file, load_providers, set_active)
 from core.rag import ask, build_index
+from core import device_manual, session_skills
 from core.vision import vision_status
 from core.local_service import LocalService
 from mcp_tools.client import DEFAULT_SERVERS, SEARCH_SERVER, McpHub
@@ -69,6 +70,7 @@ HELP_TEXT = """
   /topology [关键字]  现在看一眼当前拓扑：截取 eNSP/虚拟机窗口并识读（结果自动入库）
   /autovision on|off  开关启动时的自动拓扑巡检（本次会话内生效）
   /audit [n]          查看最近的设备命令审计记录
+  /sessions           查看所有对话各自的设备技能（一个对话一套技能，相互隔离）
   /agent              切换到 agent 模式（模型自主调用 MCP 工具）
   /rag                切换到 rag 模式（固定知识库检索问答）
   /thinking           开关模型思考过程显示
@@ -313,6 +315,23 @@ async def chat_loop(hub: McpHub, mode: str, show_thinking: bool, stream: bool,
             elif cmd == "audit":
                 n = rest.strip() or "10"
                 print("[审计] " + (await hub.call_tool("recent_audit", {"n": int(n) if n.isdigit() else 10})))
+            elif cmd == "sessions":
+                # 设备技能按对话隔离：这里看所有对话各有什么，以及当前对话的技能
+                print(f"[当前会话] {session_skills.describe()}")
+                rows = device_manual.sessions_overview()
+                if not rows:
+                    print("  （还没有任何对话产生过设备技能）")
+                for s in rows:
+                    mark = "← 当前" if s["current"] else ""
+                    devs = "、".join(s["detail"]) or "（无设备技能）"
+                    print(f"  [{s['sid']}] 更新于 {s['updated']} {mark}")
+                    print(f"      {devs}")
+                manuals = device_manual.list_manuals()
+                if manuals:
+                    print("本对话已建档设备："
+                          + ", ".join(f"{m['name']}（{m['history_lines']} 条历史）" for m in manuals))
+                else:
+                    print("本对话暂未建档任何设备（首次接触设备时会自动建档）")
             elif cmd in ("agent", "rag"):
                 mode = cmd
                 parallel = False
@@ -402,6 +421,16 @@ async def main():
 
     parallel_providers = ([s.strip() for s in args.parallel_providers.split(",") if s.strip()]
                           if args.parallel_providers else [])
+
+    # ---------------------------------------------------------- 会话（一个对话一套技能）
+    # 设备技能按会话隔离：session/<sid>/skill/<设备名>/。每次启动就是一个新对话，
+    # 因此这里现开一个 sid 并写进 session/.current——MCP 服务端是独立子进程，
+    # 它们每次工具调用前读同一份指针，读写立刻落到本会话的技能目录上。
+    # 运行日志也切到同一 sid（tools/lab_run_agent.py 跑实验时同样处理）。
+    chat_sid = session_skills.new_sid("cli")
+    session_skills.use_session(chat_sid)
+    print(f"[会话] 本次对话标识 {chat_sid}；设备技能存放于 "
+          f"session/{chat_sid}/skill/<设备名>/（与其他对话相互隔离，可用 /sessions 查看）")
 
     # ---------------------------------------------------------- 本地服务准备
     want_vision = args.mmproj is not None

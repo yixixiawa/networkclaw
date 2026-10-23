@@ -30,7 +30,11 @@ data/topology_snapshot.md
 data/topology_discovered.json
 # tools 下的临时诊断脚本（与根目录 /_*.py 同性质）
 tools/_*.py
-# 设备手册：由本地模型在运行期自建自维护（skills/<设备名>/SKILL.md），不入库
+# 设备手册：由本地模型在运行期自建自维护。**按会话隔离**（2026-10 起）：
+# session/<会话标识>/skill/<设备名>/SKILL.md + history.jsonl，一个对话一套技能
+session/
+# 旧版全局手册目录（已被 session/ 取代，仅存历史内容，用
+# python -m core.device_manual --migrate-legacy 搬进会话）
 skills/
 # 打包/调试期临时文件（仅项目根）
 /_*.txt

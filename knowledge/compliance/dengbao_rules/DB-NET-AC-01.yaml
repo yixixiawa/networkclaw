@@ -1,0 +1,22 @@
+id: DB-NET-AC-01
+vendor: any
+device_type: network_device
+category: 安全计算环境-网络设备
+control_point: 访问控制
+requirement: a)应对登录的用户分配账户和权限
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行6/行29；B 表行6；C 表行64（二/三级均=1）
+check:
+  type: config_regex
+  target: 多账户与权限分级
+  expect: 存在 ≥2 个账户且各自带权限级别/角色
+  pattern: (?im)^\s*(?:local-user\s+\S+\s+privilege\s+level\s+\d+|username\s+\S+\s+privilege\s+\d+|authorization-attribute\s+user-role\s+\S+)
+remediation:
+- local-user admin privilege level 15
+- username admin privilege 15 secret Admin@123
+- authorization-attribute user-role network-admin
+evidence_hint: B 表行6 要求『设置多个帐号权限，并进行权限划分』。需人工确认：账户数量与岗位是否一一对应（多账户但全 15 级不算符合）
+weight_detail:
+  level2: 1
+  level3: 1

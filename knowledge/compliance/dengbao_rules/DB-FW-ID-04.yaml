@@ -1,0 +1,20 @@
+id: DB-FW-ID-04
+vendor: any
+device_type: firewall
+category: 安全计算环境-安全设备
+control_point: 身份鉴别
+requirement: d)应采用口令、密码技术、生物技术等两种或两种以上组合的鉴别技术对用户进行身份鉴别，且其中一种鉴别技术至少应使用密码技术来实现
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行51（用户认证>>用户管理，认证方式须为『本地口令+证书认证』或『外部口令+证书认证』）；B 表行5（标『关键』）；C 表行63（三级=1）
+check:
+  type: manual_confirm
+  target: 双因子认证方式
+  expect: 用户认证方式为『本地口令+证书认证』或『外部口令+证书认证』
+  pattern: ''
+remediation:
+- display current-configuration
+evidence_hint: A 表行51 给出可判定的字面值：认证方式必须等于『本地口令+证书认证』或『外部口令+证书认证』。需要：①用户属性页『认证方式』字段截图 ②证书颁发与部署说明
+weight_detail:
+  level2: null
+  level3: 1

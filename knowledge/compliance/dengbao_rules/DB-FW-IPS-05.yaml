@@ -1,0 +1,20 @@
+id: DB-FW-IPS-05
+vendor: any
+device_type: firewall
+category: 安全计算环境-安全设备
+control_point: 入侵防范
+requirement: e)应能发现可能存在的已知漏洞，并在经过充分测试评估后，及时修补漏洞
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行67；B 表行21；C 表行79（二/三级均=1）
+check:
+  type: manual_confirm
+  target: 漏洞发现与修补
+  expect: 有漏洞扫描与固件升级记录
+  pattern: ''
+remediation:
+- display current-configuration
+evidence_hint: 需要：①防火墙的漏洞扫描报告 ②当前固件版本与厂商最新版的比对 ③高风险漏洞的修补/缓解记录
+weight_detail:
+  level2: 1
+  level3: 1

@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -18,7 +19,7 @@ sys.path.insert(0, str(BASE_DIR))
 
 from core.device_conn import TelnetSession, probe_tcp  # noqa: E402
 
-HOST = "192.168.10.130"
+HOST = os.environ.get("LAB_HOST", "192.168.1.179")
 DOC_DIR = BASE_DIR / "knowledge" / "experiments"
 
 

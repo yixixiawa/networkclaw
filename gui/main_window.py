@@ -49,6 +49,7 @@ from PyQt6.QtWidgets import (
 
 from core.llama_start import find_mmproj, find_model
 from core.paths import BASE_DIR
+from core.session_skills import use_session as use_skill_session
 from core.vision import IMAGE_EXTS
 from gui.dialogs import HELP_TEXT, AuditDialog, SettingsDialog, ToolsDialog, persist_api_key
 from gui.store import SessionStore
@@ -204,6 +205,12 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self._restore_geometry()
         self._wire_stdout()
+
+        # 先开出第一个对话：设备技能按会话隔离（session/<sid>/skill/<设备>/），
+        # worker 里的索引构建与 MCP 工具调用都要读 session/.current，
+        # 必须在 worker 启动前把作用域钉住。
+        self.current_session = self.store.create()
+        self._apply_skill_session(self.current_session.sid)
 
         self.worker = AgentWorker(self._worker_options(), self)
         self._connect_worker()
@@ -831,13 +838,28 @@ class MainWindow(QMainWindow):
     def _new_session(self, first: bool = False):
         if not first and self.current_session is not None and self.current_session.records:
             self.store.save()
-        self.current_session = self.store.create()
+        if not (first and self.current_session is not None):
+            # 首次启动时 __init__ 已预先建好会话（worker 启动前要钉住技能作用域），
+            # 这里不重复创建，避免列表里留下一个空会话
+            self.current_session = self.store.create()
+            # 一个对话一套技能：把设备技能与会话日志都切到这个 sid。
+            # MCP 服务端是子进程，读 session/.current 指针，无需重连即可跟随。
+            self._apply_skill_session(self.current_session.sid)
         self.chat.clear()
         self._active_bubble = None
         self.worker.submit("command", name="reset_history")
         self._refresh_session_list()
         if not first:
             self._switch_session(self.current_session.sid)
+
+    @staticmethod
+    def _apply_skill_session(sid: str) -> None:
+        """切换当前对话的设备技能作用域（失败不能影响界面，仅记日志）。"""
+        try:
+            d = use_skill_session(sid)
+            print(f"[会话] 设备技能作用域 → session/{sid}/skill/（{d}）")
+        except Exception as e:
+            print(f"[警告] 切换设备技能作用域失败：{type(e).__name__}: {e}")
 
     def _on_session_clicked(self, item):
         sid = item.data(Qt.ItemDataRole.UserRole)
@@ -848,6 +870,8 @@ class MainWindow(QMainWindow):
         if session is None:
             return
         self.current_session = session
+        # 设备技能跟随对话切换（与 _new_session 同一入口）
+        self._apply_skill_session(sid)
         self.chat.clear()
         self._active_bubble = None
         for rec in session.records:

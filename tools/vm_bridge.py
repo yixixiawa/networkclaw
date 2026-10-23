@@ -30,7 +30,7 @@ from urllib.parse import unquote, urlparse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_ROOT = BASE_DIR / "data" / "vm_bridge"
-HOST_IP = os.environ.get("VM_BRIDGE_HOST", "192.168.10.1")
+HOST_IP = os.environ.get("VM_BRIDGE_HOST", "192.168.1.249")
 PORT = int(os.environ.get("VM_BRIDGE_PORT", "8899"))
 
 ROOT: Path = DEFAULT_ROOT

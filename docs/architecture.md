@@ -32,12 +32,13 @@ flowchart TB
         DS[device_server 串口]
         TPL[template_server 知识+模板]
         MAN[manual_server 设备手册]
+        RPT[report_server 工作流报告]
         VS[vision_server]
     end
 
     subgraph 外部
         DEV[eNSP 设备<br/>AR2220 / S5700 ...]
-        VM[VMware 实验机<br/>192.168.10.130]
+        VM[VMware 实验机<br/>192.168.1.179]
         OLL[Ollama :11434<br/>nomic-embed-text]
         LLS[llama-server :8080<br/>Qwen3.5 GGUF + mmproj]
         DS2[DeepSeek API<br/>deepseek-flash / deepseek-pro]
@@ -49,7 +50,7 @@ flowchart TB
     LC --> LLS & DS2
     AG --> LC & HUB & RAG & VIS
     RAG --> OI --> OLL
-    HUB --> TS & DS & TPL & MAN & VS
+    HUB --> TS & DS & TPL & MAN & RPT & VS
     TS & DS --> DG --> DC --> DEV
     VS --> VM
 ```
@@ -108,13 +109,14 @@ flowchart LR
 
 ```
 main.py           唯一入口
-core/             21 个核心模块（见第 1 节）
-mcp_tools/        5 个 MCP 服务端 + McpHub 客户端（18 个工具，清单见 docs/mcp_tools.md）
+core/             23 个核心模块（见第 1 节）
+mcp_tools/        7 个 MCP 服务端 + McpHub 客户端（26 个工具，清单见 docs/mcp_tools.md）
 tools/            62 个运维/实验脚本（vm_*、lab_*、build_sft、topo_extract…）
 training/         LoRA/QLoRA 微调（train_sft.py，见 training/README.md）
 gui/              PyQt6 桌面端
 knowledge/        命令模板 CSV、实验文档、拓扑数据集 topology/
-data/             运行数据（finetune/、lab_answers/、topology_images/、device_history/…）
+data/             运行数据（finetune/、lab_answers/、topology_images/…）
+session/          会话级设备技能：session/<会话>/skill/<设备名>/SKILL.md + history.jsonl
 docs/             本文档 + packaging + sft_dataset + troubleshooting
 tests/            pytest（离线可跑）
 ```

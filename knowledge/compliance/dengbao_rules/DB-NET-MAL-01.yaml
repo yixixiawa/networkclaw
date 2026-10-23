@@ -1,0 +1,20 @@
+id: DB-NET-MAL-01
+vendor: any
+device_type: network_device
+category: 安全计算环境-网络设备
+control_point: 恶意代码防范
+requirement: 应采用免受恶意代码攻击的技术措施或主动免疫可信验证机制及时识别入侵和病毒行为，并将其有效阻断
+weight_level: 3
+severity: high
+source: A 表 sheet「安全计算环境」行23/行46（原文即『此项不适合』）；B 表行23；C 表行81（二/三级均=1）
+check:
+  type: manual_confirm
+  target: 不适用判定
+  expect: 该项一般在服务器上实现
+  pattern: ''
+remediation:
+- display current-configuration
+evidence_hint: A 表行23 原文『此项不适合，该项要求一般在服务器上实现』。注意 C 表行81 三级要求文本与二级不同（三级为『主动免疫可信验证机制』），但 A 表测评方法对设备统一判不适用，故结论仍为 not_applicable，需在报告中说明三级文本差异
+weight_detail:
+  level2: 1
+  level3: 1

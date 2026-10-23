@@ -1,0 +1,20 @@
+id: DB-FW-TRUST-01
+vendor: any
+device_type: firewall
+category: 安全计算环境-安全设备
+control_point: 可信验证
+requirement: 可基于可信根对计算设备的系统引导程序、系统程序、重要配置参数和应用程序等进行可信验证，并在应用程序的关键执行环节进行动态可信验证，在检测到其可信性受到破坏后进行报警，并将验证结果形成审计记录送至安全管理中心
+weight_level: 3
+severity: low
+source: A 表 sheet「安全计算环境」行70（测评方法『参见2.3和3.6可信验证』）；B 表行24；C 表行82（二/三级均=0.4）
+check:
+  type: manual_confirm
+  target: 可信根硬件
+  expect: 防火墙具备可信根并启用可信验证
+  pattern: ''
+remediation:
+- display current-configuration
+evidence_hint: A 表无具体测评方法（资料缺口）。需要：①可信根芯片说明 ②安全管理中心收到的验证结果日志。无可信根 → 不符合（『可』字增强项）
+weight_detail:
+  level2: 0.4
+  level3: 0.4

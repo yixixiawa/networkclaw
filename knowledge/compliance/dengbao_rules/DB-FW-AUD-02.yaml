@@ -1,0 +1,20 @@
+id: DB-FW-AUD-02
+vendor: any
+device_type: firewall
+category: 安全计算环境-安全设备
+control_point: 安全审计
+requirement: b)审计记录应包括事件的日期和时间、用户、事件类型、事件是否成功及其他与审计相关的信息
+weight_level: 3
+severity: medium
+source: A 表 sheet「安全计算环境」行60（日志服务器 功能>>日志查询>>审计域）；B 表行14；C 表行72（二级=1，三级=0.7）
+check:
+  type: manual_confirm
+  target: 审计记录字段
+  expect: 日志含日期时间、用户、事件类型、成功与否
+  pattern: ''
+remediation:
+- display current-configuration
+evidence_hint: A 表行60 的取证位置在**日志服务器**（功能>>日志查询>>审计域），不在防火墙本身。需要：①按防火墙 IP 过滤后的一条日志截图，指出四个字段 ②日志源列表含该防火墙 IP
+weight_detail:
+  level2: 1
+  level3: 0.7

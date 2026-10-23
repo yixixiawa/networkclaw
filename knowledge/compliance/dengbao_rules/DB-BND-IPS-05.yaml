@@ -1,0 +1,21 @@
+id: DB-BND-IPS-05
+vendor: any
+device_type: ips
+category: 安全区域边界-入侵防范
+control_point: 入侵防范
+requirement: e)当检测到攻击行为时，记录攻击源IP、攻击类型、攻击目标、攻击时间，在发生严重入侵事件时应提供报警
+weight_level: 3
+severity: high
+source: 《等保2.0初级教材 测评操作.xlsx》sheet「安全区域边界」第15行「e)」；权重见《…权重-参考材料.xlsx》行52（三级=1）
+check:
+  type: manual_confirm
+  target: 攻击日志字段与报警配置
+  expect: 日志含源IP/类型/目标/时间四要素，且报警已开启
+  pattern: ''
+remediation:
+- info-center enable
+- logging on
+evidence_hint: 需要：①攻击日志截图（需能同时看到源 IP、攻击类型、目标、时间四列）②报警方式配置与一次实际报警记录（短信/邮件）。「日志四要素齐全」与「报警已开启」必须分别取证
+weight_detail:
+  level2: null
+  level3: 1
