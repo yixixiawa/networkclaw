@@ -42,6 +42,7 @@ DEFAULT_SERVERS: dict[str, str] = {
     "device-serial": str(PROJECT_ROOT / "mcp_tools" / "device_server.py"),
     "device-telnet": str(PROJECT_ROOT / "mcp_tools" / "telnet_server.py"),
     "device-manual": str(PROJECT_ROOT / "mcp_tools" / "manual_server.py"),
+    "data-report": str(PROJECT_ROOT / "mcp_tools" / "report_server.py"),
     "topology": str(PROJECT_ROOT / "mcp_tools" / "topology_server.py"),
     "vision": str(PROJECT_ROOT / "mcp_tools" / "vision_server.py"),
 }
@@ -88,6 +89,11 @@ def _child_env() -> dict[str, str]:
     # 服务端进程靠它把 undo 类命令从「硬拦」降级为「需确认」
     if os.environ.get("NETWORKCLAW_LAB_MODE"):
         env["NETWORKCLAW_LAB_MODE"] = os.environ["NETWORKCLAW_LAB_MODE"]
+    # 当前会话标识：设备技能按会话隔离，服务端（独立子进程）靠它定位
+    # session/<sid>/skill/<设备>/。主程序正常会写 session/.current 指针文件，
+    # 这里再透传一份 env 作为兜底（没有指针文件时用它）。
+    if os.environ.get("NETWORKCLAW_SESSION"):
+        env["NETWORKCLAW_SESSION"] = os.environ["NETWORKCLAW_SESSION"]
     return env
 
 
