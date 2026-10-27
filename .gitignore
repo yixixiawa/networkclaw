@@ -21,8 +21,11 @@ data/run_logs/
 # knowledge/topology/ 与 data/lab_answers/（这两处入库，可用 tools/topo_extract.py
 # 与 tools/extract_answers.py 从实验包重新生成）
 data/ensp_labs/
-# 由实验包解析生成的实验文档（含题面与设备表），本地保留
-knowledge/experiments/
+# 由实验包解析生成的实验文档（含题面与设备表）。
+# **必须入库**（2026-10-27 修正）：它是 core/rag.py:load_chunks() 的 rule 类来源、
+# tools/kb_consistency.py 的被校验对象、tests/test_rag.py 断言「非空」的必备数据。
+# 之前误忽略导致干净 clone 后 CI 报「实验文档数据源为空」。仅 477KB / 59 个 md，
+# 原始二进制实验包（data/ensp_labs/）仍不进库。
 # 实验运行报告 / 与 VM 的文件桥（inbox/outbox）/ 巡检快照：运行时生成物
 data/lab_reports/
 data/vm_bridge/
@@ -32,6 +35,10 @@ data/topology_snapshot.md
 data/topology_discovered.json
 # tools 下的临时诊断脚本（与根目录 /_*.py 同性质）
 tools/_*.py
+# 例外：这不是诊断脚本，是 tools/build_dengbao_rules.py 与 tests/test_dengbao_rules.py
+# 都 import 的**正式依赖**（源命令出处校验）。被上面那条规则误伤过，导致
+# 干净 clone 后 test_dengbao_rules 直接 collection error。
+!tools/_verify_remediation_source.py
 # 设备手册：由本地模型在运行期自建自维护。**按会话隔离**（2026-10 起）：
 # session/<会话标识>/skill/<设备名>/SKILL.md + history.jsonl，一个对话一套技能
 session/
@@ -50,3 +57,4 @@ skills/
 # 密钥相关：不得提交（参考 config/llm.example.json 与 .env.example 自行创建）
 .env
 config/llm.json
+.venv

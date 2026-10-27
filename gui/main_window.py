@@ -16,7 +16,6 @@
 """
 from __future__ import annotations
 
-import io
 import json
 import os
 import sys
@@ -50,6 +49,8 @@ from PyQt6.QtWidgets import (
 from core.llama_start import find_mmproj, find_model
 from core.paths import BASE_DIR
 from core.session_skills import use_session as use_skill_session
+# StreamProxy 已迁到 core（与 Qt 无关，放这里会让测试被迫依赖 PyQt6，CI 不装）
+from core.stream_proxy import StreamProxy
 from core.vision import IMAGE_EXTS
 from gui.dialogs import HELP_TEXT, AuditDialog, SettingsDialog, ToolsDialog, persist_api_key
 from gui.store import SessionStore
@@ -130,72 +131,9 @@ class CommandEdit(QLineEdit):
 
 # ---------------------------------------------------------------- 标准流转发
 
-class StreamProxy(io.TextIOBase):
-    """把 print 输出同时写进原流与界面日志（便于观察检索/工具调用细节）。
-
-    为什么不用 sys.stdout = StringIO：MCP 子进程与部分库会访问 `.buffer`/`fileno()`，
-    这里保留对原始流与其 buffer 的转发，避免破坏它们。
-    """
-
-    # 注意：io.TextIOBase 的 encoding / errors 是只读 getset 描述符（Python 3.13+
-    # 尤其严格），在 __init__ 里 self.encoding = ... 会抛
-    # AttributeError: attribute 'encoding' of '_io._TextIOBase' objects is not writable。
-    # 因此只能声明为类属性（类字典优先于基类描述符，实例读取即返回这里）。
-    encoding = "utf-8"
-    errors = "replace"
-
-    def __init__(self, original, emit):
-        self._orig = original
-        self._emit = emit
-        self._buf = getattr(original, "buffer", None)
-
-    @property
-    def buffer(self):
-        return self._buf if self._buf is not None else self
-
-    def fileno(self):
-        """转发到底层流。
-
-        为什么必须有：fastmcp 的 StdioTransport 默认把 sys.stderr 作为子进程的
-        errlog 传给 anyio.open_process，anyio 会对它调 .fileno()。
-        TextIOBase 的默认实现抛 io.UnsupportedOperation("fileno")，会被 fastmcp
-        包成 "Client failed to connect: fileno"，表现为所有 MCP 服务端连接失败。
-        """
-        orig = self._orig
-        if orig is None:
-            raise io.UnsupportedOperation("fileno")
-        fn = getattr(orig, "fileno", None)
-        if fn is None:
-            raise io.UnsupportedOperation("fileno")
-        return fn()
-
-    def write(self, text):  # type: ignore[override]
-        if not text:
-            return 0
-        try:
-            if self._orig is not None:
-                self._orig.write(text)
-                self._orig.flush()
-        except Exception:
-            pass
-        try:
-            self._emit(text)
-        except Exception:
-            pass
-        return len(text)
-
-    def writable(self) -> bool:
-        return True
-
-    def flush(self):  # type: ignore[override]
-        try:
-            if self._orig is not None:
-                self._orig.flush()
-        except Exception:
-            pass
-
-    def isatty(self) -> bool:
-        return False
+# StreamProxy 的实现已迁到 core/stream_proxy.py（本模块顶部 import）。
+# 迁移原因见那边的模块文档：类本身只依赖 io，留在这里会让任何想测它的代码
+# 被迫 import PyQt6，而 CI 不安装 PyQt6 → pytest collection 直接中断。
 
 
 # ---------------------------------------------------------------- 主窗口

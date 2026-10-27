@@ -205,12 +205,21 @@ def main() -> None:
     args = ap.parse_args()
 
     r = check_all(args.lab)
+
+    # 数据缺失（退出码 2）必须在 --json 模式下也生效：ci.yml 用 `if [ $rc -eq 2 ]`
+    # 把它降级成 warning，其余非 0 才算失败。旧实现里 --json 分支直接落到最后一行，
+    # 而 error 结果里没有 mismatched 键 → exit 0，CI 上这一步永远是假绿灯。
+    if r.get("error"):
+        if args.json:
+            print(json.dumps(r, ensure_ascii=False, indent=1))
+            print(r["error"], file=sys.stderr)
+        else:
+            print(r["error"])
+        sys.exit(2)
+
     if args.json:
         print(json.dumps(r, ensure_ascii=False, indent=1))
     else:
-        if r.get("error"):
-            print(r["error"])
-            sys.exit(2)
         print(f"校验 {r['total']} 个实验（跳过 {len(r['skipped'])} 个缺数据）")
         for lab in r["labs"]:
             if lab["problems"]:

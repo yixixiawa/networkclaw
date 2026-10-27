@@ -11,11 +11,17 @@
    ``RuntimeError: Client failed to connect: fileno``。必须把 fileno 转发给原流。
 
 这两个坑都不会被普通 import 测试发现，所以在这里钉死。
+
+测试目标为什么是 core.stream_proxy 而不是 gui.main_window（2026-10-27）：
+    StreamProxy 原本定义在 gui/main_window.py，而那个模块顶层 import PyQt6。
+    CI（.github/workflows/ci.yml）为了控制安装体积不装 PyQt6，于是 pytest 在
+    collection 阶段就 ``ModuleNotFoundError: No module named 'PyQt6'`` 中断。
+    类本身与 Qt 无关，已迁到 core/stream_proxy.py；GUI 仍从那里 import。
 """
 import io
 import sys
 
-from gui.main_window import StreamProxy
+from core.stream_proxy import StreamProxy
 
 
 class _FakeStream(io.TextIOBase):

@@ -60,10 +60,28 @@ class BatchedOllamaEmbeddingFunction(OllamaEmbeddingFunction):
         return out
 
 
-ollama_ef = BatchedOllamaEmbeddingFunction(
-    url=OLLAMA_URL,
-    model_name=EMBED_MODEL,
-)
+_embedding_fn = None
+
+
+def get_embedding_function():
+    """惰性构造 Ollama embedding 函数（进程内单例）。
+
+    为什么不在模块级实例化（2026-10-27）：
+        chromadb 的 OllamaEmbeddingFunction 在 ``__init__`` 里就 ``from ollama import
+        Client``，缺 ollama 包会抛 ``ValueError: The ollama python package is not
+        installed``。模块级实例化意味着**任何** import 本模块的代码——包括
+        ``core.rag``、``core.template_search``，以及只想跑离线单测的 CI——都会被这个
+        纯运行时依赖拖死（CI 的依赖清单里没有 ollama，pytest 直接 collection error）。
+        ollama 是「检索时才需要」的外部服务客户端，首次真正检索时再构造即可。
+    """
+    global _embedding_fn
+    if _embedding_fn is None:
+        _embedding_fn = BatchedOllamaEmbeddingFunction(
+            url=OLLAMA_URL,
+            model_name=EMBED_MODEL,
+        )
+    return _embedding_fn
+
 
 _client = None
 
@@ -81,7 +99,7 @@ def get_collection(name: str):
     """按名获取集合句柄（不存在则创建）。每次调用返回新句柄，不缓存。"""
     return get_client().get_or_create_collection(
         name=name,
-        embedding_function=ollama_ef,
+        embedding_function=get_embedding_function(),
     )
 
 
@@ -106,7 +124,7 @@ def check_embedder():
     因此在任何重建动作之前调用本函数，失败时抛出带处理建议的异常。
     """
     try:
-        ollama_ef(["ping"])
+        get_embedding_function()(["ping"])
     except Exception as e:
         raise RuntimeError(
             "Ollama Embedding 服务不可用（http://127.0.0.1:11434）。\n"
