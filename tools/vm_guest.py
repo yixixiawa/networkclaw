@@ -27,6 +27,17 @@ VMRUN = os.environ.get("VM_VMRUN", r"D:\VMware\vmrun.exe")
 VM_ROOT = os.environ.get("VM_ROOT", r"D:\virtualmachine")
 
 
+class VmError(RuntimeError):
+    """虚拟机操作失败。
+
+    **必须定义在 discover_vmx() 之前**：它原来写在文件中部，而 discover_vmx()
+    在模块导入期就会被调用（`VMX = discover_vmx()`），一旦路径不存在就抛
+    `NameError: name 'VmError' is not defined`，把「虚拟机根目录不存在」这个
+    真正有用的原因彻底盖掉（2026-10-23 实测踩到）。
+    """
+    pass
+
+
 def _running_vmx() -> set[str]:
     """vmrun list 输出的正在运行 VMX（vmrun 输出是本地 ANSI，按 gbk 解码）。"""
     try:
@@ -46,14 +57,21 @@ def discover_vmx() -> str:
     env = os.environ.get("VM_VMX")
     if env and Path(env).exists():
         return env
+    # 目录漂移兜底：VM 被整个搬走（2026-10-23：VM_ROOT 里那台已挪到
+    # "D:\virtual device\windows10\"）时，直接在 vmrun 的**运行中列表**里取，
+    # 比在错误目录里报「根目录不存在」有用得多。
+    running = _running_vmx()
     root = Path(VM_ROOT)
     if not root.exists():
-        raise VmError(f"虚拟机根目录不存在: {root}")
+        if running:
+            return sorted(running)[0]
+        raise VmError(f"虚拟机根目录不存在: {root}（且当前没有正在运行的 VM）")
     candidates = [p for p in root.rglob("*.vmx")
                   if ".bak" not in p.name.lower() and "vmx~" not in p.name.lower()]
     if not candidates:
+        if running:
+            return sorted(running)[0]
         raise VmError(f"{root} 下没有找到 .vmx")
-    running = _running_vmx()
     for p in candidates:
         if str(p) in running:
             return str(p)
@@ -74,10 +92,6 @@ GU, GP = USER_CRED
 
 # 来宾侧的临时输出文件（每次命令后清理）
 _REMOTE_TMP = r"C:\vm_guest_out.txt"
-
-
-class VmError(RuntimeError):
-    pass
 
 
 # 2026-10-01 实测（来宾 192.168.10.130）：vmrun 的来宾操作进程是 **High IL**

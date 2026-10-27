@@ -1,9 +1,9 @@
 {
   "huawei_devices": {
-    "fingerprint": "19d9f8ea992987b2f27abfd95e1ba7d4",
-    "count": 2128,
+    "fingerprint": "88177223900b43def6a7311ce2fcbacf",
+    "count": 2136,
     "source": "huawei_devices_introduce.txt[instance] + knowledge/experiments/*.md[rule] + data/lab_reports/*.md[history] + data/run_logs/<当前会话>/*.jsonl[history]；设备手册按会话隔离，走 session/<sid>/skill/ 直注提示词，不进索引",
-    "built_at": "2026-10-14 15:44:52"
+    "built_at": "2026-10-23 10:43:39"
   },
   "command_templates": {
     "fingerprint": "6b073583d92aa1a4ad233cf7735330fd",

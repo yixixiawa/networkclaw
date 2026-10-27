@@ -397,3 +397,55 @@ def test_cisco_command_set_uses_show():
     assert cmds["lldp_verbose"] == "show cdp neighbors detail" or "cdp" in cmds
     huawei = tf._commands_for_vendor("Huawei")
     assert huawei["identity"].startswith("display ")
+
+
+# ---------------------------------------------------------------- 报错行不是邻居（2026-10-23 实测踩坑）
+
+def test_is_error_line_catches_common_vrp_errors():
+    assert tf.is_error_line("Error: Global LLDP is not enabled.")
+    assert tf.is_error_line("Error: Unrecognized command found at '^' position.")
+    assert tf.is_error_line("Error: Wrong parameter found at '^' position.")
+    assert tf.is_error_line("%Unrecognized command found at '^' position.")
+    assert not tf.is_error_line("GE0/0/1             SW2                GE0/0/1        102")
+
+
+def test_looks_like_interface_rejects_error_fragments():
+    assert tf.looks_like_interface("GE0/0/1")
+    assert tf.looks_like_interface("Eth-Trunk1")
+    assert tf.looks_like_interface("GigabitEthernet0/0/1")
+    # 错误文本碎片不允许再冒充接口
+    assert not tf.looks_like_interface("Error:")
+    assert not tf.looks_like_interface("Global")
+    assert not tf.looks_like_interface("LLDP")
+    assert not tf.looks_like_interface("Huawei")
+
+
+def test_parse_lldp_brief_ignores_error_text():
+    """LLDP 未开时整页回显都是报错，绝不能解析出假邻居。"""
+    raw = "Error: Global LLDP is not enabled."
+    assert tf.parse_lldp_brief(raw) == []
+    assert tf.parse_lldp_verbose(raw) == []
+
+
+def test_parse_lldp_brief_mixed_error_and_table():
+    """报错行夹在正常表格里也应被剔除，不产出 Global/LLDP 这类假邻居。"""
+    raw = (
+        "Error: Global LLDP is not enabled.\n"
+        "Local Intf          Neighbor Dev        Neighbor Intf      Exptime\n"
+        "GE0/0/1             SW2                 GE0/0/1            102\n"
+    )
+    rows = tf.parse_lldp_brief(raw)
+    assert rows == [{"local": "GE0/0/1", "device": "SW2", "remote": "GE0/0/1"}]
+
+
+def test_discovery_with_all_lldp_disabled_has_no_phantom_links():
+    """所有设备 LLDP 都关：结果里不允许出现设备名之外的可疑端点（Error/Global 等）。"""
+    topo = build(
+        ("R1", "Error: Global LLDP is not enabled."),
+        ("R2", "Error: Unrecognized command found at '^' position."),
+    )
+    assert topo.links == []
+    endpoints = {e for link in topo.links for e in (link.a_device, link.b_device)}
+    assert endpoints <= {"R1", "R2"}, f"出现了幻影端点：{endpoints}"
+    # 仍要给出可执行提示（别把「LLDP 没开」静默吞掉）
+    assert any("lldp" in n.lower() for n in topo.notes)

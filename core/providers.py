@@ -445,6 +445,32 @@ def vision_capable(refresh: bool = False) -> Provider | None:
 
 # ---------------------------------------------------------------- 探测
 
+def _model_listed(model: str, names: list[str]) -> bool:
+    """模型名是否出现在 /models 列表里（容忍 llama-server 的文件名式 id）。
+
+    llama-server 的 /v1/models 返回 id 是 **gguf 文件名/路径**
+    （如 "Qwen3.5-9B-Q4_K_M.gguf"），与配置里的模型名 "Qwen3.5-9B" 不完全相等。
+    此前只做精确匹配，导致本地明明可用却提示
+    「模型列表中未出现 Qwen3.5-9B」，徒增排查困扰。这里放宽为：
+    精确匹配 / 互相包含 / 去扩展名后互相包含（均忽略大小写）。
+    """
+    m = model.lower().strip()
+    for name in names:
+        n = str(name).lower().strip()
+        if not n:
+            continue
+        if m == n or m in n or n in m:
+            return True
+        # 去掉 gguf 扩展名与路径后再比一次（Qwen3.5-9B-Q4_K_M ↔ Qwen3.5-9B）
+        stem = n.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
+        for ext in (".gguf",):
+            if stem.endswith(ext):
+                stem = stem[: -len(ext)]
+        if m and (m in stem or stem in m):
+            return True
+    return False
+
+
 def probe(provider: Provider, timeout: float = 8.0) -> dict:
     """探测提供方是否可用：本地探端口，云端用 /models 校验密钥。"""
     result = {"name": provider.name, "ok": False, "status": None, "detail": "", "latency": None}
@@ -470,7 +496,7 @@ def probe(provider: Provider, timeout: float = 8.0) -> dict:
             names = [m.get("id") for m in (resp.json().get("data") or []) if m.get("id")]
         except Exception:
             pass
-        if not names or provider.model in names:
+        if not names or _model_listed(provider.model, names):
             result["detail"] = "服务可用"
         else:
             result["detail"] = (f"服务可用，但模型列表中未出现 {provider.model}"

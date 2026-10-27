@@ -6,6 +6,8 @@ __pycache__
 logs
 # 模型与打包中间产物：大文件
 models
+# llama.cpp 运行时（llama-server.exe 及其 dll/ggml 后端，约 100MB，按需下载不入库）
+bin
 build
 artifacts/
 

@@ -138,6 +138,40 @@ def clean_name(text: str) -> str:
     return _NAME_CLEAN.sub("", str(text or "")).strip()
 
 
+# 命令报错/提示行：任何把它当表格数据解析的尝试都会产出假邻居/假链路
+_ERROR_LINE_RE = re.compile(
+    r"^(Error|Info|Warning|Note|Prompt)\b[:：]?|"
+    r"^%|"
+    r"Unrecognized command|Wrong parameter|ambiguous command|"
+    r"incomplete command|too many parameters|is not enabled|"
+    r"^请|^错误|^提示",
+    re.I,
+)
+
+
+def is_error_line(line: str) -> bool:
+    """判断一行回显是不是命令报错/提示（LLDP 未开、命令拼错等）。"""
+    return bool(_ERROR_LINE_RE.search(str(line or "")))
+
+
+# 华为/思科常见接口名前缀（用于把「长得像接口」的列与错误文本碎片区分开）
+_IFACE_PREFIX_RE = re.compile(
+    r"^(?:GE|XGE|10GE|25GE|40GE|100GE|200GE|400GE|Eth-?Trunk|Ethernet|Gi|Fa|Te|"
+    r"Twe|Hu|HundredGigE|Se|Serial|POS|Vlanif|Vlan|LoopBack|Loopback|Tunnel|"
+    r"MEth|NVE|Vbdif|Cellular|mgmt|Management)\d*",
+    re.I,
+)
+
+
+def looks_like_interface(token: str) -> bool:
+    """token 是否像接口名（GE0/0/1、Eth-Trunk1、GigabitEthernet0/0/1…）
+
+    必须前缀命中且含数字——否则 "Huawei" 这类词也会以 `Hu` 开头混进来。
+    """
+    t = str(token or "").strip()
+    return bool(t) and bool(_IFACE_PREFIX_RE.match(t)) and bool(re.search(r"\d", t))
+
+
 def parse_sysname(text: str) -> str:
     """从 `display current-configuration | include sysname` 回显取设备名。"""
     for line in str(text or "").splitlines():
@@ -225,6 +259,12 @@ def parse_lldp_brief(text: str) -> list[dict]:
         s = line.strip()
         if not s or s.startswith("-"):
             continue
+        # 报错行必须整体跳过：LLDP 未开时设备回显 `Error: Global LLDP is not enabled.`，
+        # 按 2+ 空格切不开、退化为单空格切分后会被当成
+        # local="Error:" dev="Global" remote="LLDP" 的假邻居（2026-10-23 实测踩坑，
+        # 生成了整页 "ERROR: ↔ Global:LLDP" 垃圾边）。
+        if is_error_line(s):
+            continue
         if re.match(r"^(Local\s+Intf|LocalInterface|Local\s+Interface)", s, re.I):
             continue
         parts = re.split(r"\s{2,}", s)
@@ -234,6 +274,9 @@ def parse_lldp_brief(text: str) -> list[dict]:
             continue
         local, dev, remote = parts[0], parts[1], parts[2]
         if not re.match(r"^[A-Za-z]", local):
+            continue
+        # 本地列必须是「长得像接口」的 token，进一步挡住错误文本碎片
+        if not looks_like_interface(local):
             continue
         # 排除表头残留
         if clean_name(dev).lower() in ("neighbordev", "neighbor"):
@@ -274,6 +317,8 @@ def parse_lldp_verbose(text: str) -> list[dict]:
     for raw_line in str(text).splitlines():
         line = raw_line.rstrip()
         s = line.strip()
+        if is_error_line(s):
+            continue
 
         # 华为：`GE0/0/1 has 1 neighbor(s)`
         m = re.match(r"^([A-Za-z][\w/\-\.]*)\s+has\s+\d+\s+neighbor", s, re.I)
