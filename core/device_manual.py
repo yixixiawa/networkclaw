@@ -26,11 +26,15 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import tempfile
+import threading
 from datetime import datetime
 from pathlib import Path
 
 from core import session_skills as ss
+from core.file_lock import file_lock
 from core.paths import BASE_DIR
 
 # 旧版全局目录（仅迁移用，运行期不再读取）
@@ -42,6 +46,7 @@ HISTORY_MAX_BYTES = 4 * 1024 * 1024
 RESULT_MAX_CHARS = 4000           # 单条历史里回显截断长度
 
 SECTIONS = ("设备信息", "常用配置", "注意事项")
+_FILE_LOCK = threading.Lock()
 
 
 class ManualError(ValueError):
@@ -140,7 +145,21 @@ def save_manual(name: str, content: str, session: str = "") -> int:
         raise ManualError(f"手册过大（{len(data)} 字节 > {MANUAL_MAX_BYTES}），请精简后重写")
     p = manual_path(name, session)
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(content, encoding="utf-8")
+    with file_lock(p), _FILE_LOCK:
+        tmp_name = ""
+        try:
+            with tempfile.NamedTemporaryFile(
+                    mode="w", encoding="utf-8", dir=p.parent,
+                    prefix=f".{p.name}.", suffix=".tmp", delete=False) as tmp:
+                tmp.write(content)
+                tmp_name = tmp.name
+            os.replace(tmp_name, p)
+        finally:
+            if tmp_name:
+                try:
+                    os.unlink(tmp_name)
+                except FileNotFoundError:
+                    pass
     return len(data)
 
 
@@ -215,9 +234,6 @@ def append_history(name: str, command: str, result: str = "", *, transport: str 
         p = history_path(name, session)
     except ManualError:
         return ""
-    p.parent.mkdir(parents=True, exist_ok=True)
-    if p.exists() and p.stat().st_size > HISTORY_MAX_BYTES:
-        return ""       # 超限就不再写，避免失控增长
     record = {
         "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "device": name,
@@ -232,14 +248,20 @@ def append_history(name: str, command: str, result: str = "", *, transport: str 
     if extra:
         record["extra"] = extra[:500]
     try:
-        with open(p, "a", encoding="utf-8") as f:
-            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        p.parent.mkdir(parents=True, exist_ok=True)
+        with file_lock(p), _FILE_LOCK:
+            if p.exists() and p.stat().st_size > HISTORY_MAX_BYTES:
+                return ""       # 超限就不再写，避免失控增长
+            with open(p, "a", encoding="utf-8") as f:
+                f.write(json.dumps(record, ensure_ascii=False) + "\n")
     except OSError:
         return ""
     return str(p)
 
 
 def tail_history(name: str, n: int = 10, session: str = "") -> list[dict]:
+    if n <= 0:
+        return []
     p = history_path(name, session)
     if not p.is_file():
         return []
@@ -253,7 +275,7 @@ def tail_history(name: str, n: int = 10, session: str = "") -> list[dict]:
                 rows.append(json.loads(line))
             except json.JSONDecodeError:
                 continue
-    return rows[-max(1, n):]
+    return rows[-n:]
 
 
 # ---------------------------------------------------------------- 清单

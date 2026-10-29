@@ -66,25 +66,25 @@ DARK = Palette(
 
 LIGHT = Palette(
     name="light",
-    bg="#f5f6f8",
-    sidebar="#eceef2",
+    bg="#ffffff",        # 主内容区纯白（白色主题为主）
+    sidebar="#f2f3f6",   # 侧边栏浅灰，仅用于区分层级
     panel="#ffffff",
-    elevated="#f0f2f6",
-    border="#dcdfe6",
-    border_strong="#c3c8d4",
+    elevated="#f4f5f8",
+    border="#e3e6ec",
+    border_strong="#c9ced9",
     text="#1c1f26",
     text_dim="#5b6376",
     text_faint="#8d94a4",
     accent="#2563eb",
     accent_hover="#3b7bf0",
     accent_text="#ffffff",
-    user_bubble="#dbe6ff",
+    user_bubble="#e3ecff",
     ai_bubble="#ffffff",
-    think_bubble="#eef1f6",
+    think_bubble="#f1f3f8",
     ok="#0f9d58",
     warn="#b7791f",
     err="#d93a45",
-    code_bg="#f2f4f8",
+    code_bg="#f6f7f9",
 )
 
 PALETTES = {"dark": DARK, "light": LIGHT}

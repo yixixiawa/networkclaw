@@ -5,13 +5,13 @@
 
 安全策略（与 Telnet 共用 core/command_guard.py）：
     allow   display / show / ping / tracert → 直接执行
-    confirm sysname / vlan / interface 等   → 必须 confirm=true
+    confirm sysname / vlan / interface 等   → 必须经过 GUI confirmation_token
     block   undo / shutdown / delete / reset / reboot → 硬拦
 
 典型用法：
     exec_command("display version", port="COM3")
     exec_command("sysname SW-Core-01", port="COM3")                 # 第一次被拦下要确认
-    exec_command("sysname SW-Core-01", port="COM3", confirm=True)   # 用户同意后再执行
+    exec_command("sysname SW-Core-01", port="COM3", confirmation_token="...")
 
 归属服务端：Network-Device-Serial（mcp_tools/device_server.py）
 """
@@ -41,14 +41,16 @@ def _run(sess, command: str, timeout: int) -> str:
 
 def exec_command(command: str, port: str, baudrate: int = DEFAULT_BAUDRATE,
                  confirm: bool = False, timeout: int = 20,
-                 disable_paging: bool = True) -> str:
+                 disable_paging: bool = True, session: str = "",
+                 confirmation_token: str = "") -> str:
     """通过串口（Console）在目标设备上执行一条命令。
 
     Args:
         command: 要执行的命令；多条命令请分次调用，不要用分号串联
         port: 串口号，例如 COM3（先用 list_serial_ports 查询）
         baudrate: 波特率，默认 9600
-        confirm: 仅当该命令被判定为「需确认」且用户已明确同意时才传 true
+        confirm: 兼容字段；单独传 true 不能代表用户确认
+        confirmation_token: GUI 用户确认后发放的一次性授权 token
         timeout: 等待回显的超时秒数，默认 20（ping 等耗时命令可加大）
         disable_paging: 是否自动关闭长回显分页，默认 true
     """
@@ -62,11 +64,14 @@ def exec_command(command: str, port: str, baudrate: int = DEFAULT_BAUDRATE,
         return "port 不能为空，请先用 list_serial_ports 查询可用串口"
 
     port = port.strip().upper()
-    allowed, message, decision = check(command, confirmed=confirm)
+    allowed, message, decision = check(
+        command, confirmed=confirm, confirmation_token=confirmation_token,
+        transport="serial", target=port, session=session)
     if not allowed:
         audit(command, decision, transport="serial", target=port,
               confirmed=confirm, executed=False)
-        record_serial(port, command, decision["level"], confirm, False, result=message)
+        record_serial(port, command, decision["level"], confirm, False,
+                      result=message, session=session)
         return message
 
     sess = None
@@ -77,12 +82,12 @@ def exec_command(command: str, port: str, baudrate: int = DEFAULT_BAUDRATE,
         audit(command, decision, transport="serial", target=port,
               confirmed=confirm, executed=True)
         filed = record_serial(port, command, decision["level"], confirm, True,
-                              result=output)
+                              result=output, session=session)
     except Exception as e:  # noqa: BLE001  工具不抛异常
         audit(command, decision, transport="serial", target=port,
               confirmed=confirm, executed=False, extra=f"{type(e).__name__}: {e}")
         record_serial(port, command, decision["level"], confirm, False,
-                      result=f"{type(e).__name__}: {e}")
+                      result=f"{type(e).__name__}: {e}", session=session)
         return f"串口执行失败：{type(e).__name__}: {e}"
     finally:
         if sess is not None:

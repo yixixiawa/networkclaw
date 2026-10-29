@@ -28,6 +28,7 @@ import os
 import re
 from pathlib import Path
 
+from core import confirmation
 from core.paths import BASE_DIR
 
 AUDIT_LOG = BASE_DIR / "logs" / "command_audit.log"
@@ -268,18 +269,28 @@ def _format_report(command: str, level: str, details: list[dict]) -> str:
                 "请勿尝试绕过；如确需执行，请由人工在设备上完成。")
     elif level == CONFIRM:
         tail = ("\n该命令会改变设备配置。请先把命令内容与影响说明给用户，"
-                "得到明确同意后带 confirm=true 重新调用本工具。")
+            "得到明确同意后使用 GUI 发放的一次性 confirmation_token 重新调用本工具；"
+            "单独设置 confirm=true 不能授权执行。")
     else:
         tail = "\n只读命令，可直接执行。"
     return head + "\n" + "\n".join(body) + tail
 
 
-def check(command: str, confirmed: bool = False) -> tuple[bool, str, dict]:
+def confirmation_marker(request: dict) -> str:
+    """Return a machine-readable suffix consumed by the Agent confirmation flow."""
+    return "\n__NETWORKCLAW_CONFIRM__" + json.dumps(request, ensure_ascii=False,
+                                                  separators=(",", ":"))
+
+
+def check(command: str, confirmed: bool = False, *, confirmation_token: str = "",
+          transport: str = "", target: str = "", session: str = "") -> tuple[bool, str, dict]:
     """执行前的统一裁决入口。
 
     Args:
         command: 待执行命令
-        confirmed: 调用方（模型）是否已获得用户明确同意
+        confirmed: 兼容旧调用方的标志；不能单独授权配置命令
+        confirmation_token: 用户确认后生成的一次性 token
+        transport/target/session: token 绑定的执行上下文
 
     Returns:
         (是否放行, 回给模型/用户的说明文本, 分级详情)
@@ -288,10 +299,14 @@ def check(command: str, confirmed: bool = False) -> tuple[bool, str, dict]:
 
     if decision["level"] == BLOCK:
         return False, decision["text"], decision
-    if decision["level"] == CONFIRM and not confirmed:
-        return False, decision["text"], decision
-    if decision["level"] == CONFIRM and confirmed:
-        return True, f"（用户已确认）{decision['text']}", decision
+    if decision["level"] == CONFIRM:
+        if confirmation_token and confirmation.consume_token(
+                confirmation_token, command, transport, target, session):
+            decision["confirmation_used"] = True
+            return True, f"（用户已确认）{decision['text']}", decision
+        request = confirmation.create_request(command, transport, target, session)
+        decision["confirmation_request"] = request
+        return False, decision["text"] + confirmation_marker(request), decision
     return True, decision["text"], decision
 
 

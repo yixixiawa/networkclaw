@@ -24,7 +24,7 @@ from mcp_tools.tools._bootstrap import relpath
 
 def _archive(name_kwargs: dict, command: str, result: str, transport: str,
              target: str, level: str, confirmed: bool, executed: bool,
-             extra: str = "") -> str:
+             extra: str = "", session: str = "") -> str:
     """统一归档入口：解析设备名 → 追加历史 → 返回可读相对路径（失败返回空串）。"""
     try:
         from core import device_manual, device_registry
@@ -33,7 +33,8 @@ def _archive(name_kwargs: dict, command: str, result: str, transport: str,
         name = device_registry.resolve_name(transport, **name_kwargs)
         path = device_manual.append_history(
             name, command, result, transport=transport, target=target,
-            level=level, confirmed=confirmed, executed=executed, extra=extra)
+            level=level, confirmed=confirmed, executed=executed, extra=extra,
+            session=session)
     except Exception:  # noqa: BLE001  归档失败不影响命令结论
         return ""
     return relpath(path)
@@ -41,14 +42,15 @@ def _archive(name_kwargs: dict, command: str, result: str, transport: str,
 
 def record_telnet(host: str, port: int, command: str, level: str,
                   confirmed: bool, executed: bool, result: str = "",
-                  extra: str = "") -> str:
+                  extra: str = "", session: str = "") -> str:
     """归档一条 Telnet 命令（返回 `session/<sid>/skill/<设备>/history.jsonl` 相对路径）。"""
     return _archive({"host": host, "port": port}, command, result, "telnet",
-                    f"{host}:{port}", level, confirmed, executed, extra)
+                    f"{host}:{port}", level, confirmed, executed, extra, session)
 
 
 def record_serial(port: str, command: str, level: str, confirmed: bool,
-                  executed: bool, result: str = "", extra: str = "") -> str:
+                  executed: bool, result: str = "", extra: str = "",
+                  session: str = "") -> str:
     """归档一条串口命令（COM 口为身份）。"""
     return _archive({"serial_port": port}, command, result, "serial",
-                    port, level, confirmed, executed, extra)
+                    port, level, confirmed, executed, extra, session)

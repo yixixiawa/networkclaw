@@ -26,7 +26,7 @@
 
 设备命令安全（详见 core/command_guard.py）：
     allow   display / show / ping / tracert 等只读命令 → 直接执行
-    confirm sysname / vlan / interface 等配置命令     → 需用户同意后带 confirm=true
+    confirm sysname / vlan / interface 等配置命令     → 需用户同意后使用 confirmation_token
     block   undo / shutdown / delete / reset / reboot → 直接拦截
 """
 from __future__ import annotations
@@ -40,6 +40,7 @@ import os
 from pathlib import Path
 
 from core.agent import run_agent
+from core.conversation_service import ConversationService
 from core.llama_start import (BASE_DIR, find_mmproj, is_server_running, mmproj_hint,
                               start_llama_server, stop_llama_server)
 from core.llm_client import ProviderError
@@ -50,6 +51,7 @@ from core.rag import ask, build_index
 from core import device_manual, session_skills
 from core.vision import vision_status
 from core.local_service import LocalService
+from core.session_export import build_document, export_markdown
 from mcp_tools.client import DEFAULT_SERVERS, SEARCH_SERVER, McpHub
 
 LOG_DIR = BASE_DIR / "logs"
@@ -130,11 +132,8 @@ def save_session(records: list[tuple[str, str, str]], path: str | None = None) -
     """把会话记录导出为 Markdown"""
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     out = Path(path) if path else LOG_DIR / f"session_{datetime.datetime.now():%Y%m%d_%H%M%S}.md"
-    lines = [f"# NetworkClaw 会话记录（{datetime.datetime.now():%Y-%m-%d %H:%M:%S}）", ""]
-    for mode, question, answer in records:
-        lines += [f"## [{mode}] {question}", "", answer or "（无回答）", ""]
-    out.write_text("\n".join(lines), encoding="utf-8")
-    return out
+    document = build_document(records, title="NetworkClaw 会话记录")
+    return export_markdown(document, out)
 
 
 # 本地 llama-server 的按需管理（LocalService）已抽到 core/local_service.py，
@@ -157,6 +156,7 @@ async def chat_loop(hub: McpHub, mode: str, show_thinking: bool, stream: bool,
     """交互式对话循环，返回本次会话记录"""
     records: list[tuple[str, str, str]] = []   # [(mode, question, answer)]
     history: list[dict] = []                   # agent 模式的多轮上下文
+    conversation = ConversationService(hub)
     last_answer = ""
     images = list(images or [])                # 附加图片（拓扑截图），随每次提问送出
     parallel_providers = list(parallel_providers or [])
@@ -353,34 +353,31 @@ async def chat_loop(hub: McpHub, mode: str, show_thinking: bool, stream: bool,
 
         # ---------------------------------------------------- 正常提问
         try:
-            if parallel:
-                # 并行编排在网络与模型上较慢，放到线程里，避免卡住事件循环（MCP 连接保持可用）
-                report = await asyncio.to_thread(
-                    run_multimodal_parallel, raw, images or None,
-                    parallel_providers or None, "parallel", True, None, show_thinking)
-                print("\n" + report.render())
-                answer = report.synthesis or "\n\n".join(
-                    (o.result.content if o.ok else f"[{o.label} 失败] {o.error}")
-                    for o in report.outcomes) or "（没有拿到任何回答）"
-                if not report.synthesis and report.answers:
-                    print("\n（未生成融合答案，以上为各路原始回答）")
-            else:
-                use_agent = mode == "agent" and bool(hub.tools)
-                if mode == "agent" and not hub.tools:
-                    print("（没有可用的 MCP 工具，本次改用 RAG 问答）")
+            async def request_confirmation(pending: dict) -> str | None:
+                print("\n[需要确认] 目标：" + str(pending.get("target", "")))
+                print("命令：" + str(pending.get("command", "")))
+                choice = await asyncio.to_thread(input, "确认执行？输入 yes 执行，其它取消：")
+                if choice.strip().lower() not in {"y", "yes", "是"}:
+                    return None
+                from core.confirmation import approve_request
 
-                if use_agent:
-                    answer = await run_agent(raw, hub, history=history, max_rounds=max_rounds,
-                                             show_thinking=show_thinking,
-                                             images=images or None, provider=provider_name)
-                    history += [{"role": "user", "content": raw},
-                                {"role": "assistant", "content": answer}]
-                    del history[:-8]  # 只保留最近 4 轮，避免上下文无限增长
-                    print_answer(answer, streamed=True)
-                else:
-                    answer = await asyncio.to_thread(ask, raw, show_thinking, stream,
-                                                     images or None, provider_name)
-                    print_answer(answer, streamed=stream)
+                return approve_request(str(pending.get("request_id", "")))
+
+            result = await conversation.run(
+                raw, mode=mode, provider=provider_name, history=history,
+                images=images, parallel_providers=parallel_providers,
+                max_rounds=max_rounds, show_thinking=show_thinking,
+                parallel=parallel, stream=stream, on_log=print,
+                on_confirmation=request_confirmation,
+            )
+            answer = result.answer
+            if result.meta.get("kind") == "agent":
+                history += [{"role": "user", "content": raw},
+                            {"role": "assistant", "content": answer}]
+                del history[:-8]
+                print_answer(answer, streamed=True)
+            elif result.meta.get("kind") == "rag":
+                print_answer(answer, streamed=stream)
         except ProviderError as e:
             # 模型侧失败（密钥/余额/限流/断网）不应打断会话，提示后继续下一轮
             print(f"\n[调用失败] {e}")

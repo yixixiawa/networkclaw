@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 
 from core.llm_client import print_stats, stream_chat
 from core.providers import Provider, get_provider, vision_capable
@@ -121,7 +121,8 @@ SYSTEM_PROMPT = """你是 NetworkClaw 网络运维助手，服务对象是网络
 - **允许直接执行**：display / show / ping / tracert 等只读命令。可以自由调用，用于查看现状与验证。
 - **必须先确认再执行**：sysname、vlan、interface、ip、ospf、acl、aaa 等一切会改变配置的命令。
   流程是：① 先把「要执行哪条命令、在哪台设备的什么视图下、会产生什么影响」讲给用户；
-  ② 用户明确同意后，才可以带 confirm=true 重新调用工具。**绝不允许未获同意就带 confirm=true。**
+  ② GUI 展示待确认请求并取得用户明确同意后，使用一次性 confirmation_token 重试工具。
+      单独设置 confirm=true 不能授权执行。
 - **禁止执行**：undo、no、shutdown、delete、reset、reboot、reload、save/write 等破坏性或持久化命令。
   工具会直接拦截，**不要尝试改写、拼接、拆分或绕开**这些命令。
 - 单次只执行一条命令，不要用分号把多条命令串起来下发（工具会按多命令逐条裁决，仍属违规用法）；
@@ -148,6 +149,18 @@ def _preview(text: str, limit: int = 300) -> str:
     if len(text) <= limit:
         return text
     return text[:limit] + f"...（共 {len(text)} 字，此处截断显示）"
+
+
+def _confirmation_request(text: str) -> dict | None:
+    marker = "__NETWORKCLAW_CONFIRM__"
+    if marker not in (text or ""):
+        return None
+    raw = text.split(marker, 1)[1].strip()
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    return value if isinstance(value, dict) and value.get("request_id") else None
 
 
 def _flooded_topology_context(max_chars: int = 1200) -> str:
@@ -212,7 +225,9 @@ async def run_agent(query: str, hub, history: list[dict] | None = None,
                     on_think: Callable[[str], None] | None = None,
                     on_answer: Callable[[str], None] | None = None,
                     system_prompt: str | None = None,
-                    on_step: Callable[[dict], None] | None = None) -> str:
+                    on_step: Callable[[dict], None] | None = None,
+                    session: str = "",
+                    on_confirmation: Callable[[dict], Awaitable[str | None]] | None = None) -> str:
     """带工具调用的问答循环，返回最终回答文本。
 
     Args:
@@ -295,7 +310,21 @@ async def run_agent(query: str, hub, history: list[dict] | None = None,
                 print(f"  → {name} 参数解析失败")
             else:
                 print(f"  → {name} {json.dumps(args, ensure_ascii=False)}")
-                output = await hub.call_tool(name, args)
+                if session:
+                    output = await hub.call_tool(name, args, session=session)
+                else:
+                    output = await hub.call_tool(name, args)
+                    pending = _confirmation_request(output)
+                    if pending and on_confirmation is not None:
+                        token = await on_confirmation(pending)
+                        if token:
+                            args["confirmation_token"] = token
+                            if session:
+                                output = await hub.call_tool(name, args, session=session)
+                            else:
+                                output = await hub.call_tool(name, args)
+                        else:
+                            output = "用户未确认该配置命令，工具未执行。"
                 print(f"    结果：{_preview(output)}")
             # 运行日志 + 调用方回调：命令与设备回显是复盘/微调数据集的核心原料
             try:

@@ -8,6 +8,7 @@
 import pytest
 
 from core import command_guard as cg
+from core import confirmation
 
 
 @pytest.fixture(autouse=True)
@@ -43,11 +44,40 @@ def test_confirm_by_default(cmd):
     assert cg.classify(cmd)["level"] == cg.CONFIRM
 
 
-def test_confirm_requires_user_consent():
-    ok, _, d = cg.check("sysname SW1")
+def test_confirm_requires_one_time_user_token(tmp_path, monkeypatch):
+    monkeypatch.setattr(confirmation, "KEY_PATH", tmp_path / "confirmation.key")
+    monkeypatch.setattr(confirmation, "STATE_PATH", tmp_path / "confirmation.json")
+    context = {"transport": "telnet", "target": "10.0.0.1:23", "session": "s1"}
+    ok, text, d = cg.check("sysname SW1", **context)
     assert not ok and d["level"] == cg.CONFIRM
-    ok, text, _ = cg.check("sysname SW1", confirmed=True)
+    assert "__NETWORKCLAW_CONFIRM__" in text
+    request = d["confirmation_request"]
+    token = confirmation.approve_request(request["request_id"])
+    ok, text, _ = cg.check("sysname SW1", confirmed=True,
+                            confirmation_token=token, **context)
     assert ok and "已确认" in text
+    ok, _, _ = cg.check("sysname SW1", confirmation_token=token, **context)
+    assert not ok
+
+
+def test_confirmation_token_is_bound_to_command(tmp_path, monkeypatch):
+    monkeypatch.setattr(confirmation, "KEY_PATH", tmp_path / "confirmation.key")
+    monkeypatch.setattr(confirmation, "STATE_PATH", tmp_path / "confirmation.json")
+    context = {"transport": "serial", "target": "COM3", "session": "s1"}
+    _, _, decision = cg.check("vlan 10", **context)
+    token = confirmation.approve_request(
+        decision["confirmation_request"]["request_id"])
+    ok, _, _ = cg.check("vlan 20", confirmation_token=token, **context)
+    assert not ok
+
+
+def test_malformed_confirmation_token_is_rejected(tmp_path, monkeypatch):
+    monkeypatch.setattr(confirmation, "KEY_PATH", tmp_path / "confirmation.key")
+    monkeypatch.setattr(confirmation, "STATE_PATH", tmp_path / "confirmation.json")
+    ok, _, decision = cg.check(
+        "vlan 10", confirmation_token="not-a-token", transport="serial",
+        target="COM3", session="s1")
+    assert not ok and "confirmation_request" in decision
 
 
 # ---------------------------------------------------------------- block

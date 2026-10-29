@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import argparse
+import hmac
 import os
 import sys
 import threading
@@ -30,8 +31,10 @@ from urllib.parse import unquote, urlparse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_ROOT = BASE_DIR / "data" / "vm_bridge"
-HOST_IP = os.environ.get("VM_BRIDGE_HOST", "192.168.1.249")
+HOST_IP = os.environ.get("VM_BRIDGE_HOST", "127.0.0.1")
 PORT = int(os.environ.get("VM_BRIDGE_PORT", "8899"))
+TOKEN = os.environ.get("VM_BRIDGE_TOKEN", "")
+MAX_UPLOAD_BYTES = int(os.environ.get("VM_BRIDGE_MAX_BYTES", str(64 * 1024 * 1024)))
 
 ROOT: Path = DEFAULT_ROOT
 _counter = {"puts": 0, "gets": 0}
@@ -66,11 +69,20 @@ class Handler(BaseHTTPRequestHandler):
         if body:
             self.wfile.write(body)
 
+    def _authorized(self) -> bool:
+        if not TOKEN:
+            return HOST_IP in {"127.0.0.1", "localhost", "::1"}
+        supplied = self.headers.get("X-NetworkClaw-Token", "")
+        return hmac.compare_digest(supplied, TOKEN)
+
     # ------------------------------------------------------------ verbs
     def do_GET(self):  # noqa: N802
         path = urlparse(self.path).path
         if path == "/ping":
             self._send(200, b"pong")
+            return
+        if not self._authorized():
+            self._send(401, b"unauthorized")
             return
         if path == "/__list":
             files = []
@@ -92,14 +104,29 @@ class Handler(BaseHTTPRequestHandler):
         self._send(200, data, ctype)
 
     def do_PUT(self):  # noqa: N802
-        length = int(self.headers.get("Content-Length") or 0)
+        if not self._authorized():
+            self._send(401, b"unauthorized")
+            return
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            self._send(400, b"invalid content length")
+            return
+        if length < 0 or length > MAX_UPLOAD_BYTES:
+            self._send(413, b"request body too large")
+            return
         target = _safe(ROOT, urlparse(self.path).path)
         if target is None:
             self._send(400, b"bad path")
             return
         body = self.rfile.read(length) if length else b""
+        if len(body) != length:
+            self._send(400, b"incomplete request body")
+            return
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(body)
+        tmp = target.with_name(target.name + ".tmp")
+        tmp.write_bytes(body)
+        os.replace(tmp, target)
         _counter["puts"] += 1
         print(f"[bridge] PUT {target.relative_to(ROOT)} <- {len(body)} bytes")
         self._send(200, f"stored {len(body)} bytes".encode("utf-8"))
@@ -109,6 +136,8 @@ def serve(root: Path, port: int):
     global ROOT
     ROOT = root
     ROOT.mkdir(parents=True, exist_ok=True)
+    if HOST_IP not in {"127.0.0.1", "localhost", "::1"} and not TOKEN:
+        raise RuntimeError("远程 VM bridge 必须设置 VM_BRIDGE_TOKEN")
     httpd = ThreadingHTTPServer((HOST_IP, port), Handler)
     print(f"[bridge] listening on http://{HOST_IP}:{port}  root={ROOT}")
     sys.stdout.flush()

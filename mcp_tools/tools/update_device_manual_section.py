@@ -11,7 +11,8 @@ from mcp_tools.tools import _bootstrap  # noqa: F401  (sys.path 兜底)
 
 
 def update_device_manual_section(device: str, section: str, text: str,
-                                 mode: str = "append", title: str = "") -> str:
+                                 mode: str = "append", title: str = "",
+                                 session: str = "") -> str:
     """把内容写进设备手册的指定小节（手册不存在会自动建骨架）。
 
     典型用法：配置并被验证有效后，把命令序列沉淀进「常用配置」；
@@ -29,7 +30,7 @@ def update_device_manual_section(device: str, section: str, text: str,
 
     try:
         whole = device_manual.update_section(device, section, text,
-                                             mode=mode, title=title)
+                                             mode=mode, title=title, session=session)
     except device_manual.ManualError as e:
         return f"写入失败：{e}"
     except OSError as e:

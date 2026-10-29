@@ -21,6 +21,7 @@ from core import session_skills as ss  # noqa: E402
 @pytest.fixture(autouse=True)
 def _isolate_session_roots(tmp_path, monkeypatch):
     monkeypatch.setattr(ss, "SESSIONS_DIR", tmp_path / "session")
+    monkeypatch.delenv("NETWORKCLAW_SESSION", raising=False)
     try:
         from core import run_log
 

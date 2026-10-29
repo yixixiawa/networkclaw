@@ -94,7 +94,7 @@ def _read_pointer() -> str:
     fp = _pointer_file()
     try:
         st = fp.stat()
-        stamp = (st.st_mtime_ns, st.st_size)
+        stamp = (st.st_mtime_ns, st.st_size, getattr(st, "st_ino", 0))
     except OSError:
         return ""
     with _LOCK:
@@ -106,6 +106,10 @@ def _read_pointer() -> str:
         return ""
     sid = sid.splitlines()[0].strip() if sid else ""
     if not sid:
+        return ""
+    try:
+        sid = safe_name(sid, "指针中的会话标识")
+    except SessionError:
         return ""
     with _LOCK:
         _cache["sid"], _cache["stamp"] = sid, stamp
@@ -126,6 +130,7 @@ def set_session(sid: str) -> Path:
     with _LOCK:
         _pinned = sid
         _cache["sid"], _cache["stamp"] = sid, None
+    os.environ[ENV_VAR] = sid
     return d
 
 
@@ -163,7 +168,8 @@ def current() -> str:
 
 def session_dir(sid: str | None = None) -> Path:
     """会话根目录（不存在也不会报错，由写入方按需创建）。"""
-    return SESSIONS_DIR / (sid or current())
+    resolved = safe_name(sid, "会话标识") if sid is not None else current()
+    return SESSIONS_DIR / resolved
 
 
 def skill_dir(device: str, sid: str | None = None) -> Path:

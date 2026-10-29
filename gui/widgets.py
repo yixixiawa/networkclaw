@@ -331,10 +331,14 @@ class ChatView(QScrollArea):
 # ---------------------------------------------------------------- 侧边栏
 
 class SessionList(QListWidget):
-    """会话历史列表（右键可重命名 / 删除）"""
+    """会话历史列表（右键可重命名 / 顶置 / 删除）"""
 
     rename_requested = pyqtSignal(str)
     delete_requested = pyqtSignal(str)
+    pin_requested = pyqtSignal(str, bool)  # (sid, 是否顶置)
+
+    #: 顶置状态存在这个角色里，菜单据此显示「顶置 / 取消顶置」
+    PIN_ROLE = Qt.ItemDataRole.UserRole + 1
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -348,9 +352,16 @@ class SessionList(QListWidget):
             return
         from PyQt6.QtWidgets import QMenu
 
+        # 先取出 sid / pinned 再建 lambda：菜单回调触发时 item 可能已被删除，
+        # 直接捕获 item 引用会在延迟调用里踩到已释放的 C++ 对象
+        sid = item.data(Qt.ItemDataRole.UserRole)
+        pinned = bool(item.data(self.PIN_ROLE))
+
         menu = QMenu(self)
-        menu.addAction("重命名", lambda: self.rename_requested.emit(item.data(Qt.ItemDataRole.UserRole)))
-        menu.addAction("删除", lambda: self.delete_requested.emit(item.data(Qt.ItemDataRole.UserRole)))
+        menu.addAction("重命名", lambda: self.rename_requested.emit(sid))
+        menu.addAction("📌 取消顶置" if pinned else "📌 顶置",
+                       lambda: self.pin_requested.emit(sid, not pinned))
+        menu.addAction("删除", lambda: self.delete_requested.emit(sid))
         menu.exec(self.mapToGlobal(pos))
 
 

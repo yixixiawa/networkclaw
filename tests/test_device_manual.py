@@ -127,3 +127,8 @@ def test_manual_survives_roundtrip(manual_root):
     original = dm.read_manual("AR9")
     dm.save_manual("AR9", original)
     assert dm.read_manual("AR9") == original
+
+
+def test_tail_history_zero_returns_empty(manual_root):
+    dm.append_history("AR9", "display version", "ok", executed=True)
+    assert dm.tail_history("AR9", 0) == []

@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, QSettings, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QDragEnterEvent, QDropEvent, QKeyEvent
+from PyQt6.QtGui import QColor, QDragEnterEvent, QDropEvent, QFont, QKeyEvent
 from PyQt6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -254,6 +254,7 @@ class MainWindow(QMainWindow):
         self.session_list.itemClicked.connect(self._on_session_clicked)
         self.session_list.rename_requested.connect(self._rename_session)
         self.session_list.delete_requested.connect(self._delete_session)
+        self.session_list.pin_requested.connect(self._pin_session)
         layout.addWidget(self.session_list, 1)
 
         divider = QFrame()
@@ -334,6 +335,15 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.think_btn)
 
         layout.addStretch(1)
+
+        # 深 / 浅色一键切换（按钮显示的是「切换目标」主题）
+        self.theme_btn = QPushButton()
+        self.theme_btn.setObjectName("Ghost")
+        self.theme_btn.setToolTip("切换深色 / 浅色主题")
+        self.theme_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.theme_btn.clicked.connect(self._toggle_theme)
+        self._sync_theme_btn()
+        layout.addWidget(self.theme_btn)
 
         for text, tip, slot in (
             ("工具", "查看已接入的 MCP 工具", self._show_tools),
@@ -612,6 +622,7 @@ class MainWindow(QMainWindow):
         w.sig_answer_done.connect(self._on_answer_done)
         w.sig_stats.connect(self._on_stats)
         w.sig_error.connect(self._on_error)
+        w.sig_confirmation_required.connect(self._on_confirmation_required)
         w.sig_busy.connect(self._on_busy)
         w.sig_result.connect(self._on_command_result)
         w.sig_services.connect(self._on_services)
@@ -670,14 +681,20 @@ class MainWindow(QMainWindow):
         self.send_btn.setText("生成中…" if busy else "发送")
 
     # -------------------------------------------------- 流式渲染
-    def _on_output_begin(self, kind: str):
+    def _on_output_begin(self, sid: str, kind: str):
+        if self.current_session is None or sid != self.current_session.sid:
+            return
         if self._active_bubble is None:
             self._active_bubble = self.chat.add_bubble("assistant", "生成中…")
 
-    def _on_think(self, piece: str):
+    def _on_think(self, sid: str, piece: str):
+        if self.current_session is None or sid != self.current_session.sid:
+            return
         self._pending_think.append(piece)
 
-    def _on_answer(self, piece: str):
+    def _on_answer(self, sid: str, piece: str):
+        if self.current_session is None or sid != self.current_session.sid:
+            return
         if self._active_bubble is None:
             self._active_bubble = self.chat.add_bubble("assistant", "生成中…")
         self._pending_answer.append(piece)
@@ -692,6 +709,17 @@ class MainWindow(QMainWindow):
             self.chat.scroll_to_bottom()
 
     def _on_answer_done(self, answer: str, meta: dict):
+        sid = meta.get("sid", "")
+        session = self.store.get(sid) if sid else None
+        if session is None:
+            return
+        is_current = self.current_session is not None and sid == self.current_session.sid
+        if not is_current:
+            session.add_record(meta.get("mode", "agent"), meta.get("question", ""),
+                               answer, meta.get("provider", ""), meta.get("elapsed", 0.0))
+            self.store.touch(sid)
+            self._refresh_session_list()
+            return
         self._flush_stream()
         if self._active_bubble is None:
             self._active_bubble = self.chat.add_bubble("assistant", "")
@@ -703,11 +731,11 @@ class MainWindow(QMainWindow):
         self.chat.scroll_to_bottom(force=True)
         self._active_bubble = None
 
-        if self.current_session is not None:
-            self.current_session.add_record(
-                meta.get("mode", "agent"), self._last_question, answer,
+        if session is not None:
+            session.add_record(
+                meta.get("mode", "agent"), meta.get("question", self._last_question), answer,
                 meta.get("provider", ""), meta.get("elapsed", 0.0))
-            self.store.touch(self.current_session.sid)
+            self.store.touch(session.sid)
             self._refresh_session_list()
 
     def _on_stats(self, stats: dict):
@@ -727,6 +755,18 @@ class MainWindow(QMainWindow):
         if self._active_bubble is not None:
             self._active_bubble.finalize()
         self._active_bubble = None
+
+    def _on_confirmation_required(self, pending: dict):
+        command = str(pending.get("command", ""))
+        target = str(pending.get("target", ""))
+        session = str(pending.get("session", ""))
+        detail = f"设备：{target}\n会话：{session}\n\n命令：\n{command}"
+        approved = QMessageBox.question(
+            self, "确认执行配置命令", detail + "\n\n确认后仅允许执行这一条命令，且 token 只可使用一次。",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        ) == QMessageBox.StandardButton.Yes
+        self.worker.resolve_confirmation(str(pending.get("request_id", "")), approved)
 
     @staticmethod
     def _meta_text(meta: dict) -> str:
@@ -758,6 +798,7 @@ class MainWindow(QMainWindow):
             provs = [self.provider_box.currentData()] if mode != "parallel" else []
 
         self._last_question = text
+        sid = self.current_session.sid if self.current_session is not None else "default"
         bubble = self.chat.add_bubble("user", "")
         display = text or "（仅图片，无文字）"
         if self.images:
@@ -767,7 +808,7 @@ class MainWindow(QMainWindow):
 
         self.input.clear()
         self.worker.submit(
-            "ask", text=text, mode=mode,
+            "ask", sid=sid, text=text, mode=mode,
             provider=self.provider_box.currentData(),
             parallel=(mode == "parallel"),
             parallel_providers=provs,
@@ -781,16 +822,23 @@ class MainWindow(QMainWindow):
 
     # ============================================================ 会话
     def _refresh_session_list(self):
-        if self.current_session is None:
-            return
+        # 不再以 current_session 是否为空做早退：删除当前会话后会短暂为 None，
+        # 此时也必须刷新，否则列表里残留已删除的项（表现为「删不掉」）
         self.session_list.blockSignals(True)
         self.session_list.clear()
+        cur_sid = self.current_session.sid if self.current_session is not None else None
+        bold = QFont()
+        bold.setBold(True)
         for s in self.store.sessions:
-            item = QListWidgetItem(f"{s.title}\n{s.preview}")
-            item.setToolTip(f"{s.title} ｜ {s.preview}")
+            title = ("📌 " if s.pinned else "") + s.title
+            item = QListWidgetItem(f"{title}\n{s.preview}")
+            item.setToolTip(f"{title} ｜ {s.preview}")
             item.setData(Qt.ItemDataRole.UserRole, s.sid)
+            item.setData(SessionList.PIN_ROLE, s.pinned)
+            if s.pinned:
+                item.setFont(bold)
             self.session_list.addItem(item)
-            if s.sid == self.current_session.sid:
+            if s.sid == cur_sid:
                 self.session_list.setCurrentItem(item)
         self.session_list.blockSignals(False)
 
@@ -858,12 +906,27 @@ class MainWindow(QMainWindow):
         if QMessageBox.question(self, "删除会话", f"确定删除「{session.title}」？") \
                 != QMessageBox.StandardButton.Yes:
             return
+        was_current = self.current_session is not None and self.current_session.sid == sid
         self.store.delete(sid)
-        if self.current_session is not None and self.current_session.sid == sid:
-            self.current_session = None
-            self._new_session()
-        else:
+        if not was_current:
             self._refresh_session_list()
+            return
+        # 删除的是当前会话（通常就是列表最顶端的那个）。
+        # 根因修复：原来这里直接 _new_session() 又建一个「新会话」插到顶端，
+        # 看起来就像「最顶端的会话删不掉」。正确做法是选中剩余会话，
+        # 只有全部删光时才新建。
+        self.current_session = None
+        self._active_bubble = None
+        if self.store.sessions:
+            self._switch_session(self.store.sessions[0].sid)
+            self._refresh_session_list()
+        else:
+            self.chat.clear()
+            self._new_session()
+
+    def _pin_session(self, sid: str, pinned: bool):
+        self.store.set_pinned(sid, pinned)
+        self._refresh_session_list()
 
     def _export_session(self):
         if self.current_session is None:
@@ -1082,6 +1145,17 @@ class MainWindow(QMainWindow):
         if bool(new["with_search"]) != old_search or bool(new.get("mmproj")) != old_mmproj:
             self._append_log("[设置] 联网搜索 / mmproj 的变更在下次启动时生效\n")
 
+    def _toggle_theme(self):
+        name = "light" if self.palette_ref.name == "dark" else "dark"
+        self.settings["theme"] = name
+        self._apply_theme(get_palette(name))
+        self._save_settings()
+
+    def _sync_theme_btn(self):
+        btn = getattr(self, "theme_btn", None)
+        if btn is not None:
+            btn.setText("☀️ 浅色" if self.palette_ref.name == "dark" else "🌙 深色")
+
     def _apply_theme(self, palette):
         self.palette_ref = palette
         QApplication.instance().setStyleSheet(build_qss(palette))
@@ -1090,6 +1164,7 @@ class MainWindow(QMainWindow):
                 widget.retint(palette)
         for row in (self.row_llama, self.row_ollama, self.row_mcp, self.row_vision):
             row.palette_ref = palette
+        self._sync_theme_btn()
         self._append_log(f"[界面] 已切换到{'深色' if palette.name == 'dark' else '浅色'}主题\n")
 
     # ============================================================ 设置持久化

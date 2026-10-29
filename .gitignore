@@ -58,3 +58,4 @@ skills/
 .env
 config/llm.json
 .venv
+docs

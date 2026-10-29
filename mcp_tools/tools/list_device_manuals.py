@@ -8,7 +8,7 @@ from __future__ import annotations
 from mcp_tools.tools import _bootstrap  # noqa: F401  (sys.path 兜底)
 
 
-def list_device_manuals() -> str:
+def list_device_manuals(session: str = "") -> str:
     """列出设备建档情况：当前会话里哪些设备已有手册、哪些还没建（含手册更新时间）。
 
     首次处理某台设备前先调它，决定是「读已有手册」还是「先建档」。
@@ -19,7 +19,7 @@ def list_device_manuals() -> str:
 
     try:
         known = device_registry.list_devices()
-        has = {m["name"]: m for m in device_manual.list_manuals()}
+        has = {m["name"]: m for m in device_manual.list_manuals(session)}
     except Exception as e:  # noqa: BLE001  工具不抛异常
         return f"读取设备清单失败：{type(e).__name__}: {e}"
 
@@ -36,7 +36,7 @@ def list_device_manuals() -> str:
 
     extra = [m for n, m in has.items() if n not in {d.get('name') for d in known}]
     out = [f"设备共 {len(known)} 台，本会话已建档 {len(has)} 台"
-           f"（{where()}，目录 session/{session_skills.current()}/skill/）："]
+           f"（{where(session)}，目录 session/{session or session_skills.current()}/skill/）："]
     out += lines or ["  （暂无手册）"]
     if missing:
         out.append(f"尚未建档（首次操作前建议先 create_device_manual）：{', '.join(missing)}")

@@ -14,7 +14,7 @@ from mcp_tools.tools import _bootstrap  # noqa: F401  (sys.path 兜底)
 def create_device_manual(device: str, vendor: str = "", model: str = "",
                          address: str = "", role: str = "", login: str = "",
                          note: str = "", transport: str = "", host: str = "",
-                         port: int = 0, serial_port: str = "") -> str:
+                         port: int = 0, serial_port: str = "", session: str = "") -> str:
     """为设备首次建档（生成手册骨架并写入基本信息）。
 
     信息必须来自用户提供、探测结果（display version 等）或拓扑识读结论，**不得臆造**；
@@ -37,7 +37,7 @@ def create_device_manual(device: str, vendor: str = "", model: str = "",
     try:
         text, created = device_manual.ensure_manual(
             device, vendor=vendor, model=model, address=address,
-            login=login, role=role, note=note)
+            login=login, role=role, note=note, session=session)
     except device_manual.ManualError as e:
         return f"建档失败：{e}"
     except OSError as e:
@@ -48,7 +48,7 @@ def create_device_manual(device: str, vendor: str = "", model: str = "",
                                   port=int(port or 0), serial_port=serial_port)
 
     if created:
-        path = f"session/{session_skills.current()}/skill/{device}/SKILL.md"
+        path = f"session/{session or session_skills.current()}/skill/{device}/SKILL.md"
         return (f"已为 {device} 建立手册（{where()}）：{path}\n"
                 f"———— 当前骨架 ————\n{truncate_manual(text)}")
     return (f"{device} 在本会话已有手册，未覆盖。内容如下（如需补充请用 "

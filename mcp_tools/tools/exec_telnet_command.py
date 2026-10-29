@@ -59,7 +59,8 @@ def _hint(output: str) -> str:
 def exec_telnet_command(command: str, host: str, username: str = "", password: str = "",
                         port: int = DEFAULT_TELNET_PORT, enable_password: str = "",
                         confirm: bool = False, timeout: int = 20,
-                        disable_paging: bool = True) -> str:
+                        disable_paging: bool = True, session: str = "",
+                        confirmation_token: str = "") -> str:
     """通过 Telnet 登录目标设备并执行一条命令。
 
     Args:
@@ -69,7 +70,8 @@ def exec_telnet_command(command: str, host: str, username: str = "", password: s
         password: 登录密码
         port: Telnet 端口，默认 23
         enable_password: Cisco 等设备从用户视图进入特权模式（enable）所需的密码，可选
-        confirm: 仅当命令被判定为「需确认」且用户已明确同意时才传 true
+            confirm: 兼容字段；单独传 true 不能代表用户确认
+            confirmation_token: GUI 用户确认后发放的一次性授权 token
         timeout: 等待回显的超时秒数，默认 20
         disable_paging: 是否自动关闭长回显分页，默认 true
     """
@@ -84,12 +86,14 @@ def exec_telnet_command(command: str, host: str, username: str = "", password: s
 
     host = host.strip()
     target = f"{host}:{port}"
-    allowed, message, decision = check(command, confirmed=confirm)
+    allowed, message, decision = check(
+        command, confirmed=confirm, confirmation_token=confirmation_token,
+        transport="telnet", target=target, session=session)
     if not allowed:
         audit(command, decision, transport="telnet", target=target,
               confirmed=confirm, executed=False)
         record_telnet(host, port, command, decision["level"], confirm, False,
-                      result=message)
+                      result=message, session=session)
         return message
 
     sess = None
@@ -103,12 +107,12 @@ def exec_telnet_command(command: str, host: str, username: str = "", password: s
         audit(command, decision, transport="telnet", target=target,
               confirmed=confirm, executed=True)
         filed = record_telnet(host, port, command, decision["level"], confirm, True,
-                              result=output)
+                              result=output, session=session)
     except Exception as e:  # noqa: BLE001  工具不抛异常，转可读文本
         audit(command, decision, transport="telnet", target=target,
               confirmed=confirm, executed=False, extra=f"{type(e).__name__}: {e}")
         record_telnet(host, port, command, decision["level"], confirm, False,
-                      result=f"{type(e).__name__}: {e}")
+                  result=f"{type(e).__name__}: {e}", session=session)
         return f"Telnet 执行失败：{type(e).__name__}: {e}"
     finally:
         if sess is not None:

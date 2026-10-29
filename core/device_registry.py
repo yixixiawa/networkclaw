@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -27,6 +28,7 @@ from datetime import datetime
 from pathlib import Path
 
 from core.paths import BASE_DIR
+from core.file_lock import file_lock
 
 INVENTORY_PATH = BASE_DIR / "data" / "device_inventory.json"
 ACCESS_PATH = BASE_DIR / "data" / "device_access.json"
@@ -79,7 +81,7 @@ def record_access(transport: str, host: str = "", port: int = 0,
         name: 可选的设备名（不知道就留空，展示时用地址代替）
     """
     try:
-        with _LOCK:
+        with file_lock(ACCESS_PATH), _LOCK:
             data = _read_json(ACCESS_PATH, {"devices": {}})
             devices: dict = data.setdefault("devices", {})
             key = _device_key(transport, host, port, serial_port)
@@ -113,7 +115,7 @@ def bind_name(transport: str, name: str, host: str = "", port: int = 0,
         name = (name or "").strip()
         if not name:
             return
-        with _LOCK:
+        with file_lock(ACCESS_PATH), _LOCK:
             data = _read_json(ACCESS_PATH, {"devices": {}})
             devices: dict = data.setdefault("devices", {})
             key = _device_key(transport, host, port, serial_port)
@@ -158,7 +160,8 @@ def resolve_name(transport: str, host: str = "", port: int = 0,
     for d in inventories:
         if d["host"] == host and int(d["port"]) == int(port):
             return d["name"]
-    return f"{host}_{port}" if port else (host or "unknown-device")
+    raw = f"{host}_{port}" if port else (host or "unknown-device")
+    return re.sub(r"[^\w\-\u4e00-\u9fff.]", "_", raw)[:80] or "unknown-device"
 
 
 # ---------------------------------------------------------------- 清单合并

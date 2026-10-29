@@ -15,6 +15,7 @@
 测试体看到的就不是自己以为的那个对话了。
 """
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -158,12 +159,41 @@ def test_current_prefers_pinned_then_pointer(monkeypatch):
     assert ss.current() == "外部对话"
 
 
+@pytest.mark.parametrize("bad", ["../逃逸", "C:/逃逸", "a/b", "a\\b"])
+def test_pointer_rejects_unsafe_session(monkeypatch, bad):
+    ss._pinned = None
+    ss.SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+    (ss.SESSIONS_DIR / ".current").write_text(bad + "\n", encoding="utf-8")
+    monkeypatch.delenv("NETWORKCLAW_SESSION", raising=False)
+    assert ss.current() == ss.DEFAULT_SID
+
+
+@pytest.mark.parametrize("bad", ["../逃逸", "C:/逃逸", "a/b", "a\\b"])
+def test_explicit_session_path_rejects_unsafe_name(bad):
+    with pytest.raises(ss.SessionError):
+        ss.session_dir(bad)
+
+
 def test_current_falls_back_to_env(monkeypatch):
     """没有指针文件时用环境变量（父进程派生 MCP 子进程的兜底）。"""
     monkeypatch.setenv("NETWORKCLAW_SESSION", "env-会话")
     assert ss.current() == "env-会话"
     monkeypatch.setenv("NETWORKCLAW_SESSION", "../非法")
     assert ss.current() == ss.DEFAULT_SID, "非法 env 值不能当成路径用"
+
+
+def test_use_session_syncs_environment(monkeypatch):
+    monkeypatch.setenv("NETWORKCLAW_SESSION", "before")
+    use("环境同步会话")
+    assert os.environ["NETWORKCLAW_SESSION"] == "环境同步会话"
+
+
+def test_host_port_fallback_is_safe():
+    from core.device_registry import resolve_name
+
+    name = resolve_name("telnet", host="host:2000", port=23)
+    assert ":" not in name
+    assert ss.safe_name(name) == name
 
 
 def test_current_defaults_when_nothing_set():

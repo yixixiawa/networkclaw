@@ -37,6 +37,7 @@ from dataclasses import dataclass, field
 from PyQt6.QtCore import QThread, pyqtSignal
 
 from core.agent import run_agent
+from core.conversation_service import ConversationService
 from core.llama_start import find_mmproj, is_server_running, mmproj_hint
 from core.llm_client import ChatResult, ProviderError, set_stats_hook
 from core.local_service import LocalService
@@ -57,6 +58,8 @@ from core.rag import ask as rag_ask
 from core.rag import build_index as build_knowledge_index
 from core.template_search import build_index as build_template_index
 from core.vision import describe_images, vision_status
+from gui.command_dispatcher import CommandDispatcher
+from gui.service_coordinator import ServiceCoordinator
 from mcp_tools.client import DEFAULT_SERVERS, SEARCH_SERVER, McpHub
 
 
@@ -92,12 +95,13 @@ class AgentWorker(QThread):
     sig_log = pyqtSignal(str)                 # 运行日志（含被重定向的 print）
     sig_state = pyqtSignal(str)               # 状态栏文字
     sig_ready = pyqtSignal(dict)              # 初始化完成（工具清单/提供方/服务状态）
-    sig_think = pyqtSignal(str)               # 思考片段
-    sig_answer = pyqtSignal(str)              # 回答片段
-    sig_output_begin = pyqtSignal(str)        # "think" | "answer"：新一段输出开始
+    sig_think = pyqtSignal(str, str)          # (sid, 思考片段)
+    sig_answer = pyqtSignal(str, str)         # (sid, 回答片段)
+    sig_output_begin = pyqtSignal(str, str)   # (sid, "think" | "answer")
     sig_answer_done = pyqtSignal(str, dict)   # 最终回答 + 元信息
     sig_stats = pyqtSignal(dict)              # 一次生成的 token 统计
     sig_error = pyqtSignal(str)
+    sig_confirmation_required = pyqtSignal(dict)
     sig_busy = pyqtSignal(bool)
     sig_result = pyqtSignal(str, str)         # (命令名, 文本结果) → 控制台
     sig_services = pyqtSignal(dict)           # 服务状态快照
@@ -114,10 +118,14 @@ class AgentWorker(QThread):
         self._done: asyncio.Event | None = None
         self._hub: McpHub | None = None
         self._local = LocalService(self.options.get("mmproj"))
+        self._services = ServiceCoordinator(self._local)
+        self._commands = CommandDispatcher(None, self._services)
         self._history: list[dict] = []
         self._last_answer = ""
         self._stats_total = {"output_tokens": 0, "think": 0, "answer": 0}
         self.booted = False
+        self._stop_requested = False
+        self._confirmation_waiters: dict[str, asyncio.Future] = {}
 
     # ------------------------------------------------------------ 对外接口
     def submit(self, kind: str, **payload) -> None:
@@ -130,11 +138,37 @@ class AgentWorker(QThread):
 
     def stop(self) -> None:
         """请求退出（幂等）"""
+        self._stop_requested = True
         self.submit("shutdown")
         loop, done = self._loop, self._done
         if loop is not None and done is not None:
             with contextlib.suppress(RuntimeError):
                 loop.call_soon_threadsafe(done.set)
+                loop.call_soon_threadsafe(self._cancel_confirmations)
+
+    def resolve_confirmation(self, request_id: str, approved: bool) -> None:
+        """Resolve a GUI confirmation prompt from the main Qt thread."""
+        loop = self._loop
+        if loop is not None:
+            with contextlib.suppress(RuntimeError):
+                loop.call_soon_threadsafe(self._finish_confirmation,
+                                          request_id, approved)
+
+    def _finish_confirmation(self, request_id: str, approved: bool) -> None:
+        future = self._confirmation_waiters.get(request_id)
+        if future is None or future.done():
+            return
+        token = None
+        if approved:
+            from core.confirmation import approve_request
+
+            token = approve_request(request_id)
+        future.set_result(token)
+
+    def _cancel_confirmations(self) -> None:
+        for future in self._confirmation_waiters.values():
+            if not future.done():
+                future.set_result(None)
 
     @property
     def last_answer(self) -> str:
@@ -163,13 +197,16 @@ class AgentWorker(QThread):
 
         pump = asyncio.create_task(self._pump())
         try:
-            await self._boot()
+            if not self._stop_requested:
+                await self._boot()
         except Exception as e:
             self.sig_error.emit(f"初始化失败：{type(e).__name__}: {e}")
             self.sig_log.emit(traceback.format_exc())
             self.sig_state.emit("初始化失败（仍可尝试提问）")
             self.booted = True
 
+        if self._stop_requested and self._done is not None:
+            self._done.set()
         await self._done.wait()
         pump.cancel()
         with contextlib.suppress(asyncio.CancelledError):
@@ -208,7 +245,7 @@ class AgentWorker(QThread):
         elif job.kind == "start_local":
             await self._start_local(bool(job.payload.get("vision")))
         elif job.kind == "stop_local":
-            await asyncio.to_thread(self._local.stop)
+            await self._services.stop_local()
             await self._emit_services()
         elif job.kind == "auto_vision":
             await self._auto_vision(force=bool(job.payload.get("force")),
@@ -249,7 +286,9 @@ class AgentWorker(QThread):
         if self.options.get("with_search"):
             servers.update(SEARCH_SERVER)
         self._hub = McpHub(servers)
+        self._commands.hub = self._hub
         await self._hub.__aenter__()
+        self._services.hub = self._hub
         self.sig_log.emit(f"MCP 服务端已连接：{', '.join(self._hub.connected_servers) or '无'}")
         if self._hub.failed_servers:
             self.sig_log.emit(f"[警告] MCP 连接失败：{', '.join(self._hub.failed_servers)}")
@@ -280,33 +319,14 @@ class AgentWorker(QThread):
             with contextlib.suppress(Exception):
                 await self._hub.__aexit__(None, None, None)
             self._hub = None
+            self._services.hub = None
+            self._commands.hub = None
         with contextlib.suppress(Exception):
-            await asyncio.to_thread(self._local.stop)
+            await self._services.stop_local()
 
     # ------------------------------------------------------------ 服务状态
     async def _services_snapshot(self) -> dict:
-        """本地服务 / Ollama / MCP / 视觉 的状态快照（供侧边栏状态灯）"""
-        def _probe() -> dict:
-            snap: dict = {}
-            snap["llama"] = bool(is_server_running())
-            snap["llama_owned"] = self._local.owned
-            mmproj = find_mmproj()
-            snap["mmproj"] = str(mmproj) if mmproj else ""
-            try:
-                check_embedder()
-                snap["ollama"] = True
-                snap["ollama_detail"] = "nomic-embed-text 可用"
-            except Exception as e:
-                snap["ollama"] = False
-                snap["ollama_detail"] = str(e).splitlines()[0][:80]
-            state = vision_status()
-            snap["vision"] = state["available"]
-            snap["vision_detail"] = state["detail"]
-            return snap
-
-        snap = await asyncio.to_thread(_probe)
-        snap["mcp_servers"] = list(self._hub.connected_servers) if self._hub else []
-        snap["mcp_tools"] = len(self._hub.tools) if self._hub else 0
+        snap = await self._services.services_snapshot()
         snap["active"] = active_name()
         return snap
 
@@ -314,11 +334,11 @@ class AgentWorker(QThread):
         self.sig_services.emit(await self._services_snapshot())
 
     # ------------------------------------------------------------ 流式回调
-    def _on_think(self, piece: str) -> None:
-        self.sig_think.emit(piece)
+    def _on_think(self, sid: str, piece: str) -> None:
+        self.sig_think.emit(sid, piece)
 
-    def _on_answer(self, piece: str) -> None:
-        self.sig_answer.emit(piece)
+    def _on_answer(self, sid: str, piece: str) -> None:
+        self.sig_answer.emit(sid, piece)
 
     def _on_stats(self, result: ChatResult) -> None:
         self._stats_total["output_tokens"] += result.output_tokens
@@ -343,10 +363,11 @@ class AgentWorker(QThread):
 
         self.sig_busy.emit(True)
         started = time.time()
+        sid = str(p.get("sid") or "default")
         pname = p.get("provider") or active_name()
         mode = p.get("mode") or "agent"
         show_thinking = bool(p.get("show_thinking", True))
-        self.sig_output_begin.emit("answer")
+        self.sig_output_begin.emit(sid, "answer")
         try:
             prov = get_provider(pname)
         except KeyError as e:
@@ -368,9 +389,10 @@ class AgentWorker(QThread):
 
         try:
             if p.get("parallel"):
-                answer, meta = await self._run_parallel(text, images, p, show_thinking)
+                answer, meta = await self._run_parallel(sid, text, images, p, show_thinking)
             else:
-                answer, meta = await self._run_single(text, images, p, mode, pname, show_thinking)
+                answer, meta = await self._run_single(
+                    sid, text, images, p, mode, pname, show_thinking)
         except ProviderError as e:
             self.sig_error.emit(str(e))
             self.sig_log.emit("（本次不计入会话记录，可换提供方或检查密钥/网络后重试）")
@@ -383,67 +405,55 @@ class AgentWorker(QThread):
             self.sig_busy.emit(False)
             self.sig_state.emit("就绪")
 
-        meta = {**meta, "elapsed": round(time.time() - started, 1), "mode": mode}
+        meta = {**meta, "elapsed": round(time.time() - started, 1),
+            "mode": mode, "sid": sid, "question": text}
         self._last_answer = answer
         self.sig_answer_done.emit(answer, meta)
         self.submit("services") if False else None
 
-    async def _run_single(self, text: str, images: list[str], p: dict, mode: str,
+    async def _run_single(self, sid: str, text: str, images: list[str], p: dict, mode: str,
                           pname: str, show_thinking: bool) -> tuple[str, dict]:
-        use_agent = (mode == "agent" and self._hub is not None
-                     and bool(self._hub.tools) and get_provider(pname).supports_tools)
-        if mode == "agent" and not use_agent:
-            self.sig_log.emit("（agent 模式不可用：无 MCP 工具或该模型不支持工具调用，"
-                              "本次改用知识库问答）")
-
-        if use_agent:
-            self.sig_log.emit(f"[agent] 模型 {pname} 自主调用 MCP 工具…")
-            assert self._hub is not None
-            answer = await run_agent(
-                text, self._hub, history=self._history,
-                max_rounds=int(p.get("max_rounds") or 4),
-                show_thinking=show_thinking, images=images or None,
-                provider=pname, on_think=self._on_think, on_answer=self._on_answer)
+        service = ConversationService(self._hub)
+        result = await service.run(
+            text, mode=mode, provider=pname, history=self._history,
+            images=images, max_rounds=int(p.get("max_rounds") or 4),
+            show_thinking=show_thinking, session=sid,
+            on_think=lambda piece: self._on_think(sid, piece),
+            on_answer=lambda piece: self._on_answer(sid, piece),
+            on_log=self.sig_log.emit, on_confirmation=self._request_confirmation)
+        if result.meta.get("kind") == "agent":
             self._history += [{"role": "user", "content": text},
-                              {"role": "assistant", "content": answer}]
-            del self._history[:-8]  # 只保留最近 4 轮
-            return answer, {"provider": pname, "model": get_provider(pname).model,
-                            "kind": "agent"}
+                              {"role": "assistant", "content": result.answer}]
+            del self._history[:-8]
+        return result.answer, result.meta
 
-        answer = await asyncio.to_thread(
-            rag_ask, text, show_thinking, True, images or None, pname,
-            self._on_think, self._on_answer)
-        return answer, {"provider": pname, "model": get_provider(pname).model,
-                        "kind": "rag"}
+    async def _request_confirmation(self, pending: dict) -> str | None:
+        request_id = str(pending.get("request_id", ""))
+        if not request_id or self._loop is None:
+            return None
+        future = self._loop.create_future()
+        self._confirmation_waiters[request_id] = future
+        self.sig_confirmation_required.emit(pending)
+        try:
+            return await future
+        finally:
+            self._confirmation_waiters.pop(request_id, None)
 
-    async def _run_parallel(self, text: str, images: list[str], p: dict,
+    async def _run_parallel(self, sid: str, text: str, images: list[str], p: dict,
                             show_thinking: bool) -> tuple[str, dict]:
-        self.sig_log.emit("[parallel] 多模型并行 + 融合开始…")
-        report = await asyncio.to_thread(
-            run_multimodal_parallel, text, images or None,
-            p.get("parallel_providers") or None, "parallel", True, None,
-            False, None, self._on_think, self._on_answer)
-        self.sig_log.emit(report.render())
-
-        if report.synthesis:
-            answer = report.synthesis
-        else:
-            answer = "\n\n".join(
-                (o.result.content if o.ok else f"[{o.label} 失败] {o.error}")
-                for o in report.outcomes) or "（没有拿到任何回答）"
-            self.sig_log.emit("（未生成融合答案，以上为各路原始回答）")
-        return answer, {"provider": report.synth_label or "parallel",
-                        "model": "", "kind": "parallel",
-                        "elapsed": report.elapsed}
+        service = ConversationService(self._hub)
+        result = await service.run(
+            text, provider=p.get("provider") or "", images=images,
+            parallel_providers=p.get("parallel_providers") or None,
+            show_thinking=show_thinking, parallel=True,
+            on_think=lambda piece: self._on_think(sid, piece),
+            on_answer=lambda piece: self._on_answer(sid, piece),
+            on_log=self.sig_log.emit)
+        return result.answer, result.meta
 
     async def _ensure_vision(self) -> None:
-        """需要识图时确保本地服务带 mmproj 在跑"""
-        if self._local.running:
-            state = vision_status()
-            if state["available"] is True:
-                return
         try:
-            await asyncio.to_thread(self._local.ensure, True)
+            await self._services.ensure_vision()
         except Exception as e:
             self.sig_log.emit(f"[警告] 本地视觉服务启动失败：{type(e).__name__}: {e}")
 
@@ -475,97 +485,40 @@ class AgentWorker(QThread):
     # ------------------------------------------------------------ 设备管理
     async def _device_probe(self) -> None:
         """设备清单 + 在线探测（只读 TCP/串口枚举），结果发设备页签"""
-        from core import device_registry
-
-        def _run() -> list[dict]:
-            return device_registry.probe_all()
-
         try:
-            self.sig_devices.emit(await asyncio.to_thread(_run))
+            self.sig_devices.emit(await self._services.device_probe())
         except Exception as e:
             self.sig_log.emit(f"[设备管理] 探测失败：{type(e).__name__}: {e}")
 
     # ------------------------------------------------------------ 控制台命令
     async def _command(self, p: dict) -> None:
         name = p.get("name", "")
-        arg = p.get("arg", "")
         try:
-            if name == "tools":
-                text = self._hub.describe_tools() if self._hub else "（MCP 未连接）"
-            elif name == "call":
-                if self._hub is None:
-                    text = "（MCP 未连接）"
-                else:
-                    tool = p.get("tool", "")
-                    text = await self._hub.call_tool(tool, p.get("args") or {})
-            elif name == "audit":
-                if self._hub is None:
-                    text = "（MCP 未连接）"
-                else:
-                    n = int(arg) if str(arg).isdigit() else 10
-                    text = await self._hub.call_tool("recent_audit", {"n": n})
-            elif name == "vision":
-                text = await self._vision_report()
-            elif name == "rebuild":
+            if name == "rebuild":
                 self.sig_state.emit("重建索引…")
-                k = await asyncio.to_thread(build_knowledge_index, True)
-                t = await asyncio.to_thread(build_template_index, True)
-                text = f"索引已重建：知识库 {k} 个文本块，命令模板 {t} 条"
-                await self._emit_services()
-            elif name == "probe":
-                text = await self._probe_report()
-            elif name == "reset_history":
+            result = await self._commands.dispatch(
+                name, arg=p.get("arg", ""), tool=p.get("tool", ""),
+                args=p.get("args") or {})
+            if result.reset_history:
                 self._history.clear()
                 return
-            elif name == "providers":
-                text = describe_table(active=active_name())
-            elif name == "services":
-                snap = await self._services_snapshot()
-                text = "\n".join(f"{k}: {v}" for k, v in snap.items())
-            elif name == "tools_json":
-                import json as _json
-                text = _json.dumps(
-                    [{"name": t["name"], "server": t["server"], "params":
-                      list((t["input_schema"].get("properties") or {}).keys())}
-                     for t in (self._hub.tools if self._hub else [])],
-                    ensure_ascii=False, indent=2)
-            else:
-                text = f"未知命令：{name}"
-            self.sig_result.emit(name, text)
+            self.sig_result.emit(result.name, result.text)
+            if result.refresh_services:
+                await self._emit_services()
         except Exception as e:
             self.sig_result.emit(name, f"命令执行失败：{type(e).__name__}: {e}")
 
     async def _vision_report(self) -> str:
-        def _collect() -> str:
-            status = vision_status()
-            found = find_mmproj()
-            lines = [f"视觉能力：{'可用' if status['available'] else ('待确认' if status['available'] is None else '不可用')}",
-                     f"判据：{status['detail']}",
-                     f"mmproj：{found if found else '未找到'}"]
-            for p in list_providers():
-                lines.append(f"  {p.name}：{'支持图片' if p.supports_vision else '不支持图片（走多模态桥接）'}")
-            if not found:
-                from core.llama_start import mmproj_hint
-                lines.append(mmproj_hint())
-            return "\n".join(lines)
-        return await asyncio.to_thread(_collect)
+        return await self._services.vision_report()
 
     async def _probe_report(self) -> str:
-        def _run() -> str:
-            lines = ["提供方可用性探测："]
-            for p in configured_providers():
-                r = probe(p)
-                flag = "可用" if r["ok"] else "不可用"
-                extra = f"（{r['latency']}s）" if r.get("latency") else ""
-                lines.append(f"[{flag}] {p.name:<18} {p.model:<20} {extra} {r['detail']}")
-            return "\n".join(lines)
-        return await asyncio.to_thread(_run)
+        return await self._services.provider_probe_report()
 
     # ------------------------------------------------------------ 其它
     async def _start_local(self, with_vision: bool) -> None:
         self.sig_state.emit("启动本地 llama-server（加载模型可能较慢）…")
         try:
-            started = await asyncio.to_thread(self._local.ensure, with_vision)
+            started, running = await self._services.start_local(with_vision)
             self.sig_log.emit("本地 llama-server 已就绪" if self._local.running
                               else "本地 llama-server 启动未成功")
             if not started and self._local.running:

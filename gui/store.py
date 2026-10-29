@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from core.paths import BASE_DIR
+from core.session_export import build_document, export_markdown, render_markdown
 
 STORE_FILE = BASE_DIR / "data" / "sessions.json"
 MAX_SESSIONS = 200
@@ -35,6 +36,7 @@ class Session:
     created: str = field(default_factory=_now)
     updated: str = field(default_factory=_now)
     records: list[dict] = field(default_factory=list)
+    pinned: bool = False  # 顶置：始终排在列表最前
 
     # -------------------------------------------------- 展示
     @property
@@ -58,27 +60,21 @@ class Session:
         return rec
 
     def to_markdown(self) -> str:
-        lines = [f"# {self.title}", "",
-                 f"- 创建时间：{self.created}",
-                 f"- 最后更新：{self.updated}",
-                 f"- 轮次：{len(self.records)}", ""]
-        for i, rec in enumerate(self.records, 1):
-            head = f"## {i}. [{rec.get('mode', '?')}]"
-            if rec.get("provider"):
-                head += f" {rec['provider']}"
-            lines += [head, "", f"**提问：** {rec.get('question', '')}", "",
-                      rec.get("answer") or "（无回答）", ""]
-        return "\n".join(lines)
+        document = build_document(
+            self.records, sid=self.sid, title=self.title,
+            created=self.created, updated=self.updated)
+        return render_markdown(document)
 
     def export_markdown(self, path: str | Path) -> Path:
-        out = Path(path)
-        out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(self.to_markdown(), encoding="utf-8")
-        return out
+        document = build_document(
+            self.records, sid=self.sid, title=self.title,
+            created=self.created, updated=self.updated)
+        return export_markdown(document, path)
 
     def to_dict(self) -> dict:
         return {"sid": self.sid, "title": self.title, "created": self.created,
-                "updated": self.updated, "records": self.records}
+                "updated": self.updated, "records": self.records,
+                "pinned": self.pinned}
 
     @classmethod
     def from_dict(cls, data: dict) -> "Session":
@@ -88,6 +84,7 @@ class Session:
             created=data.get("created") or _now(),
             updated=data.get("updated") or _now(),
             records=list(data.get("records") or []),
+            pinned=bool(data.get("pinned")),
         )
 
 
@@ -123,9 +120,14 @@ class SessionStore:
             pass  # 存档失败不应影响正在进行的对话
 
     # -------------------------------------------------- 增删改查
+    def _pinned_count(self) -> int:
+        """顶置会话数量（都排在列表最前）"""
+        return sum(1 for s in self.sessions if s.pinned)
+
     def create(self, title: str = "新会话") -> Session:
         s = Session(sid=uuid.uuid4().hex[:12], title=title)
-        self.sessions.insert(0, s)
+        # 插在顶置块之后、普通会话之前（顶置始终压在最前）
+        self.sessions.insert(self._pinned_count(), s)
         self.save()
         return s
 
@@ -143,11 +145,24 @@ class SessionStore:
             s.updated = _now()
             self.save()
 
+    def set_pinned(self, sid: str, pinned: bool) -> None:
+        """顶置 / 取消顶置，并保持「顶置块在前」的顺序"""
+        s = self.get(sid)
+        if s is None or s.pinned == pinned:
+            return
+        s.pinned = pinned
+        self.sessions.remove(s)
+        if pinned:
+            self.sessions.insert(0, s)
+        else:
+            self.sessions.insert(self._pinned_count(), s)
+        self.save()
+
     def touch(self, sid: str) -> None:
-        """把某个会话移到最前（最近使用优先）"""
+        """把某个会话移到最前（最近使用优先；顶置会话移到顶置块最前）"""
         s = self.get(sid)
         if s is None:
             return
         self.sessions.remove(s)
-        self.sessions.insert(0, s)
+        self.sessions.insert(self._pinned_count() if not s.pinned else 0, s)
         self.save()
