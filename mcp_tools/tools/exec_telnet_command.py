@@ -26,18 +26,28 @@ from mcp_tools.tools._bootstrap import truncate
 DEFAULT_TELNET_PORT = 23
 
 
-def _run(sess, command: str, timeout: int) -> str:
-    """在同一会话里执行命令；多条（; 或换行）逐条执行并标注各自回显。"""
+def _run_parts(sess, command: str, timeout: int) -> list[tuple[str, str, bool]]:
+    """在同一会话里逐条执行命令（`;`/换行拆分），返回 `[(命令, 回显, 是否下发成功)]`。
+
+    会话是状态机（视图切换会延续），某条命令异常后继续下发没有意义——
+    首条失败即停，剩余部分标成「未执行」交回调用方，保证**每一条**都有审计与归档。
+    """
     from core.command_guard import split_commands
 
     parts = split_commands(command)
-    if len(parts) == 1:
-        return sess.exec_command(command, timeout=timeout)
-    chunks = []
+    results: list[tuple[str, str, bool]] = []
+    failed = False
     for part in parts:
-        r = sess.exec_command(part, timeout=timeout)
-        chunks.append(f"$ {part}\n{r}" if r else f"$ {part}\n(无回显)")
-    return "\n".join(chunks)
+        if failed:
+            results.append((part, "(未执行：前序命令失败，会话状态不可靠)", False))
+            continue
+        try:
+            r = sess.exec_command(part, timeout=timeout)
+            results.append((part, r or "", True))
+        except Exception as e:  # noqa: BLE001  单条失败不中断归档
+            results.append((part, f"{type(e).__name__}: {e}", False))
+            failed = True
+    return results
 
 
 def _hint(output: str) -> str:
@@ -103,11 +113,7 @@ def exec_telnet_command(command: str, host: str, username: str = "", password: s
             enable_password=enable_password, timeout=max(5, timeout),
             disable_paging=disable_paging,
         )
-        output = _run(sess, command, max(5, timeout))
-        audit(command, decision, transport="telnet", target=target,
-              confirmed=confirm, executed=True)
-        filed = record_telnet(host, port, command, decision["level"], confirm, True,
-                              result=output, session=session)
+        results = _run_parts(sess, command, max(5, timeout))
     except Exception as e:  # noqa: BLE001  工具不抛异常，转可读文本
         audit(command, decision, transport="telnet", target=target,
               confirmed=confirm, executed=False, extra=f"{type(e).__name__}: {e}")
@@ -118,7 +124,26 @@ def exec_telnet_command(command: str, host: str, username: str = "", password: s
         if sess is not None:
             sess.close()
 
-    tail = f"\n（已记入 {filed}）" if filed else ""
+    # 逐条审计 + 逐条归档（plan 阶段二）：复合命令不能只记整串，
+    # 否则 history.jsonl 里查不到「实际下发的是哪一条、各自回显是什么」。
+    # 注意：授权裁决仍按整串的最高风险一次判定（confirmation_token 是一次性的，
+    # 不能逐条消费）；这里复用该裁决给每一条做审计记录。
+    chunks: list[str] = []
+    filed_list: list[str] = []
+    for part, output, ok in results:
+        audit(part, decision, transport="telnet", target=target,
+              confirmed=confirm, executed=ok,
+              extra="" if ok else output)
+        filed_list.append(record_telnet(host, port, part, decision["level"],
+                                        confirm, ok, result=output,
+                                        session=session))
+        chunks.append(f"$ {part}\n{output}" if output else f"$ {part}\n(无回显)")
+    output = "\n".join(chunks)
+
+    filed = [p for p in filed_list if p]
+    tail = f"\n（已记入 {len(filed)}/{len(filed_list)} 条历史）" if filed else ""
+    if len(filed) != len(filed_list):
+        tail += "\n（注意：部分历史归档失败，详见 logs/archive_errors.log）"
     return (f"[已执行] {target} 执行：{command}\n"
             f"———— 回显 ————\n{truncate(output) if output else '(设备无回显)'}"
             f"{_hint(output)}{tail}")

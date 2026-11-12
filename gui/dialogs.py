@@ -1,7 +1,6 @@
 """对话框：设置 / MCP 工具浏览器 / 命令审计查看。"""
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
@@ -122,19 +121,45 @@ class SettingsDialog(QDialog):
             self.provider_box.setCurrentIndex(idx)
         form.addRow("默认提供方", self.provider_box)
 
+        # 主 Key / 备用 Key：键名与提示随所选提供方变化（DeepSeek / 智谱 / Kimi 各一套）
+        self.key_label = QLabel("主 API Key")
         self.key_edit = QLineEdit()
         self.key_edit.setEchoMode(QLineEdit.EchoMode.Password)
-        self.key_edit.setPlaceholderText("sk-… （留空表示不改动）")
-        self.key_edit.setText(os.environ.get("DEEPSEEK_API_KEY", ""))
-        form.addRow("DeepSeek API Key", self.key_edit)
+        self.key_edit.setPlaceholderText("留空表示不改动")
+        form.addRow(self.key_label, self.key_edit)
 
-        self.save_key_check = QCheckBox("写入项目 .env（持久保存，推荐）")
-        self.save_key_check.setChecked(True)
+        self.alt_key_label = QLabel("备用 API Key")
+        self.alt_key_edit = QLineEdit()
+        self.alt_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.alt_key_edit.setPlaceholderText("可选：主 Key 被拒或额度用尽时自动启用")
+        form.addRow(self.alt_key_label, self.alt_key_edit)
+
+        self.key_state = QLabel("")
+        self.key_state.setObjectName("Hint")
+        self.key_state.setWordWrap(True)
+        form.addRow("", self.key_state)
+        self.provider_box.currentIndexChanged.connect(self._sync_key_fields)
+        self._sync_key_fields()
+
+        # 密钥与模型默认持久化到用户目录（与仓库无关，不会被误提交）
+        try:
+            from core.user_config import config_path
+
+            store_path = str(config_path())
+        except Exception:  # noqa: BLE001  提示是增强项
+            store_path = "%USERPROFILE%\\.networkclaw\\networkclaw.json"
+        store_hint = QLabel(f"模型与密钥保存在：{store_path}")
+        store_hint.setObjectName("Hint")
+        store_hint.setWordWrap(True)
+        form.addRow("", store_hint)
+
+        self.save_key_check = QCheckBox("同时写入项目 .env（可选，便于脚本复用）")
+        self.save_key_check.setChecked(False)
         form.addRow("", self.save_key_check)
 
         self.mode_box = QComboBox()
-        for label, value in (("agent（模型自主调用工具）", "agent"),
-                             ("rag（固定知识库问答）", "rag"),
+        for label, value in (("对话（统一入口：内置知识检索 + 按需工具）", "agent"),
+                             ("plan（拓扑规划：只读探测 + 手册沉淀）", "plan"),
                              ("parallel（多模型并行 + 融合）", "parallel")):
             self.mode_box.addItem(label, value)
         i = self.mode_box.findData(self.settings.get("mode", "agent"))
@@ -151,6 +176,26 @@ class SettingsDialog(QDialog):
         probe_btn.clicked.connect(self._probe)
         form.addRow("", probe_btn)
         return page
+
+    def _sync_key_fields(self) -> None:
+        """切换提供方时刷新两行 Key 的标题与状态（密钥本身不回显）。"""
+        try:
+            from core.providers import get_provider
+
+            prov = get_provider(self.provider_box.currentData())
+        except Exception:  # noqa: BLE001  提示是增强项
+            return
+        self.key_label.setText(f"{prov.name} 主 Key")
+        self.alt_key_label.setText(f"{prov.name} 备用 Key")
+        self.key_edit.setPlaceholderText(
+            f"留空＝不改动（环境变量 {prov.api_key_env or '—'}）")
+        self.alt_key_edit.setPlaceholderText(
+            f"可选：主 Key 失败时自动启用（环境变量 {prov.api_key_alt_env or '—'}）")
+        chain = " → ".join(prov.fallback) or "无"
+        self.key_state.setText(
+            f"主 Key：{'已配置' if prov.api_key_value else '未配置'}"
+            f" ｜ 备用 Key：{'已配置' if prov.api_key_alt_value else '未配置'}"
+            f" ｜ 失败后自动切到：{chain}")
 
     def _tab_runtime(self) -> QWidget:
         page = QWidget()
@@ -274,6 +319,7 @@ class SettingsDialog(QDialog):
         return {
             "provider": self.provider_box.currentData(),
             "api_key": self.key_edit.text().strip(),
+            "api_key_alt": self.alt_key_edit.text().strip(),
             "save_key": self.save_key_check.isChecked(),
             "mode": self.mode_box.currentData(),
             "parallel_providers": self.parallel_edit.text().strip(),

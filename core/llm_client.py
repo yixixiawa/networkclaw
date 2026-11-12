@@ -16,11 +16,11 @@ import json
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import requests
 
-from core.providers import Provider, get_provider
+from core.providers import Provider, fallback_chain, fallback_enabled, get_provider
 
 THINK_TAGS = ("<think>", "</think>")
 
@@ -32,7 +32,20 @@ _no_sampling: set[str] = set()
 
 
 class ProviderError(RuntimeError):
-    """调用模型提供方失败，message 里带用户可读的原因与修复建议"""
+    """调用模型提供方失败，message 里带用户可读的原因与修复建议。
+
+    额外带两个标记，供上层决定「要不要换个提供方再试」：
+        retryable  换一条路（备用 Key / 备用提供方）有意义吗（鉴权、限流、
+                   余额、连不上、5xx 都是 True；参数内容本身不合法也先试，由调用方决定）
+        auth       是否属于密钥问题（主 Key 被拒时优先试备用 Key）
+    """
+
+    def __init__(self, message: str, *, status: int | None = None,
+                 retryable: bool = True, auth: bool = False):
+        super().__init__(message)
+        self.status = status
+        self.retryable = retryable
+        self.auth = auth
 
 
 # 统计钩子：GUI 用它在每次生成结束后拿到 token 统计，而不用解析 stdout
@@ -54,7 +67,7 @@ def _friendly_http_error(provider: Provider, status: int, body: str) -> Provider
     snippet = (body or "").strip()[:300]
     if status in (401, 403):
         tip = (f"鉴权失败（HTTP {status}）。请检查 API Key：环境变量 "
-               f"{provider.api_key_env or 'DEEPSEEK_API_KEY'} 或 config/llm.json 中的 api_key。")
+               f"{provider.key_hint} 或 config/llm.json 中的 api_key。")
     elif status == 402:
         tip = "账户余额不足（HTTP 402），请到平台充值后重试。"
     elif status == 429:
@@ -68,7 +81,8 @@ def _friendly_http_error(provider: Provider, status: int, body: str) -> Provider
         tip = f"服务端错误（HTTP {status}），可稍后重试。"
     else:
         tip = f"请求失败（HTTP {status}）。"
-    return ProviderError(f"{_provider_tag(provider)}：{tip}\n服务端返回：{snippet}")
+    return ProviderError(f"{_provider_tag(provider)}：{tip}\n服务端返回：{snippet}",
+                         status=status, auth=status in (401, 403, 402))
 
 
 class ThinkStreamSplitter:
@@ -139,9 +153,11 @@ class ChatResult:
     usage: dict | None
     think_chunks: int
     answer_chunks: int
-    provider: str = ""          # 提供方标识（local / deepseek …）
+    provider: str = ""          # 提供方标识（local / deepseek-flash / glm-4.6 …）
     model: str = ""             # 实际调用的模型名
     tools_dropped: bool = False  # 该提供方不支持工具调用，已忽略 tools 参数
+    fallback_from: str = ""     # 非空表示「原提供方失败，已自动切到本提供方」
+    key_slot: str = "主"        # 实际生效的密钥槽位：主 / 备用（本地提供方为「本地」）
 
     @property
     def output_tokens(self) -> int:
@@ -193,7 +209,12 @@ def _build_payload(messages: list[dict], provider: Provider, tools: list[dict] |
 
 
 def _payload_variants(payload: dict, provider: Provider) -> list[dict]:
-    """400 时的降级候选：先去掉 stream_options，再去掉 temperature"""
+    """400 时的降级候选：先去掉 stream_options，再去掉 temperature，最后连 extra_body 也去掉。
+
+    最后一步是给备用提供方兜底的：像 thinking / enable_thinking 这类厂商私有字段
+    一旦不被接受就是 400，而模型本身完全可用——不能因为一个可选参数就判定整个
+    提供方不可用。
+    """
     variants = [payload]
     if "stream_options" in payload:
         v = {k: val for k, val in payload.items() if k != "stream_options"}
@@ -201,6 +222,11 @@ def _payload_variants(payload: dict, provider: Provider) -> list[dict]:
     if "temperature" in payload:
         base = variants[-1]
         variants.append({k: val for k, val in base.items() if k != "temperature"})
+    if provider.extra_body:
+        base = variants[-1]
+        dropped = {k: val for k, val in base.items()
+                   if k not in (provider.extra_body or {})}
+        variants.append(dropped)
     # 去重
     seen, out = set(), []
     for v in variants:
@@ -287,8 +313,63 @@ def stream_chat(messages: list[dict], tools: list[dict] | None = None,
     Raises:
         ProviderError: 调用失败（含鉴权、余额、限流、端点、连接等可读原因）
     """
-    prov = provider if isinstance(provider, Provider) else get_provider(provider)
-    timeout = timeout or prov.timeout
+def _provider_with_key(prov: Provider, slot: str) -> Provider:
+    """把「主/备用」槽位的密钥固化进 Provider 副本。
+
+    备用 Key 必须写进 api_key 并**清空 api_key_env**：`api_key_value` 是环境变量
+    优先的，不清空的话主 Key（env）会把备用 Key 盖掉，切换等于没做。
+    """
+    if slot != "备用":
+        return prov
+    return replace(prov, api_key=prov.api_key_alt_value,
+                   api_key_env="", api_key_alt="", api_key_alt_env="")
+
+
+def _attempt_plan(prov: Provider, allow_fallback: bool) -> list[tuple[Provider, str]]:
+    """算出尝试序列 [(提供方, 密钥槽位)]。
+
+    槽位为 "" 表示「该提供方需要 Key 但一个都没有」——照样排进队列，轮到它时
+    抛一条可读错误；这样「主提供方没配 Key 但有备用提供方」也不会被判死。
+    """
+    chain = [prov]
+    if allow_fallback and fallback_enabled():
+        chain.extend(fallback_chain(prov))
+    plan: list[tuple[Provider, str]] = []
+    for cand in chain:
+        keys = cand.key_candidates()
+        if not keys:
+            plan.append((cand, "本地" if cand.kind == "local" else ""))
+            continue
+        plan.extend((cand, slot) for slot, _ in keys)
+    return plan
+
+
+def _short_reason(err: Exception) -> str:
+    text = (str(err).strip().splitlines() or [""])[0]
+    return text if len(text) <= 80 else text[:77] + "…"
+
+
+def _aggregate_errors(prov: Provider, tried: list[str], errors: list[str]) -> ProviderError:
+    """把多轮失败收敛成一条错误（单条时原样返回，免得信息被稀释）"""
+    if len(errors) == 1:
+        return ProviderError(errors[0], retryable=False)
+    head = (f"{prov.label} 及其备用提供方全部调用失败"
+            f"（依次尝试：{' → '.join(tried)}）")
+    return ProviderError(head + "\n\n" + "\n\n".join(errors), retryable=False)
+
+
+def _stream_once(messages: list[dict], prov: Provider, tools: list[dict] | None,
+                 temperature: float | None, show_thinking: bool, show_answer: bool,
+                 timeout: int,
+                 on_think: "Callable[[str], None] | None",
+                 on_answer: "Callable[[str], None] | None",
+                 state: dict, fallback_from: str = "",
+                 key_slot: str = "主") -> ChatResult:
+    """对一个具体提供方（已绑好密钥）跑一次流式请求。
+
+    `state["emitted"]` 记账「已经吐给用户多少片」：中途失败时上层据此判断能否
+    安全地换提供方重来（已经吐过字就不能重来，否则回答会拼接错乱）。
+    """
     _started = time.time()
     tools_dropped: list[bool] = []
     payload = _build_payload(messages, prov, tools, temperature, tools_dropped)
@@ -307,6 +388,7 @@ def stream_chat(messages: list[dict], tools: list[dict] | None = None,
         if not piece:
             return
         if on_think is not None:
+            state["emitted"] += 1
             on_think(piece)
             return
         if not show_thinking:
@@ -314,12 +396,14 @@ def stream_chat(messages: list[dict], tools: list[dict] | None = None,
         if not printed_header["think"]:
             print("\n———— 模型思考过程 ————")
             printed_header["think"] = True
+        state["emitted"] += 1
         print(piece, end="", flush=True)
 
     def _emit_answer(piece: str):
         if not piece:
             return
         if on_answer is not None:
+            state["emitted"] += 1
             on_answer(piece)
             return
         if not show_answer:
@@ -327,6 +411,7 @@ def stream_chat(messages: list[dict], tools: list[dict] | None = None,
         if not printed_header["answer"]:
             print("\n\n———— 回答 ————" if printed_header["think"] else "\n———— 回答 ————")
             printed_header["answer"] = True
+        state["emitted"] += 1
         print(piece, end="", flush=True)
 
     resp = _post_stream(prov, payload, timeout)
@@ -368,7 +453,7 @@ def stream_chat(messages: list[dict], tools: list[dict] | None = None,
                 if func.get("arguments"):
                     slot["arguments"] += func["arguments"]
 
-            # 方式一：reasoning_content 字段（DeepSeek 思考模式 / llama.cpp --jinja）
+            # 方式一：reasoning_content 字段（DeepSeek / GLM / Kimi 思考模式、llama.cpp --jinja）
             reasoning = delta.get("reasoning_content")
             if reasoning:
                 think_chunks += 1
@@ -405,17 +490,97 @@ def stream_chat(messages: list[dict], tools: list[dict] | None = None,
         provider=prov.name,
         model=prov.model,
         tools_dropped=bool(tools_dropped),
+        fallback_from=fallback_from,
+        key_slot=key_slot,
     )
 
     # 运行日志：每次调用都留痕，供复盘与微调数据集导出（失败也要记）
     try:
         from core import run_log
 
+        note = f"fallback_from={fallback_from}" if fallback_from else ""
+        if key_slot == "备用":
+            note = (note + " " if note else "") + "key=备用"
         run_log.log_call(messages=messages, result=result,
-                         elapsed=time.time() - _started)
+                         elapsed=time.time() - _started, note=note)
     except Exception:
         pass  # 日志绝不能影响主流程
     return result
+
+
+def stream_chat(messages: list[dict], tools: list[dict] | None = None,
+                temperature: float | None = 0.1, show_thinking: bool = True,
+                show_answer: bool = True, timeout: int | None = None,
+                provider: str | Provider | None = None,
+                on_think: "Callable[[str], None] | None" = None,
+                on_answer: "Callable[[str], None] | None" = None,
+                allow_fallback: bool = True) -> ChatResult:
+    """流式对话调用（支持本地与云端提供方，失败时自动降级）。
+
+    Args:
+        messages: OpenAI 风格消息列表
+        tools: OpenAI 风格工具定义；提供方不支持工具调用时会被忽略并置 tools_dropped
+        temperature: 采样温度；None 或不支持采样的模型会省略该参数
+        show_thinking: 是否实时打印思考过程（reasoning_content 字段或 <think> 标签）
+        show_answer: 是否实时逐 token 打印回答正文（False 时只收集不打印）
+        timeout: 请求超时秒数；默认取提供方配置
+        provider: 提供方名称或对象；默认用当前激活的提供方
+        on_think: 思考片段的回调（GUI 用）。**给了回调就不再往 stdout 打印**，
+                  由调用方决定怎么呈现（避免同一份内容既上屏又进日志）
+        on_answer: 回答片段的回调（GUI 用），语义同上
+        allow_fallback: 是否允许在主提供方失败时自动换「备用 Key / 备用提供方」。
+                  单次任务里显式指定了提供方且希望严格报错时可置 False。
+
+    Returns:
+        ChatResult：最终回答文本、模型请求的工具调用、token 统计、提供方与模型名；
+        发生过降级时 `fallback_from` / `key_slot` 会标出原提供方与实际用的密钥槽位。
+
+    Raises:
+        ProviderError: 全部路径都失败（含鉴权、余额、限流、端点、连接等可读原因）
+    """
+    prov = provider if isinstance(provider, Provider) else get_provider(provider)
+    plan = _attempt_plan(prov, allow_fallback)
+    errors: list[str] = []
+    tried: list[str] = []
+
+    for idx, (cand, slot) in enumerate(plan):
+        actual = cand
+        tried.append(cand.name + ("（备用 Key）" if slot == "备用" else ""))
+        state = {"emitted": 0}
+        try:
+            if slot == "":
+                raise ProviderError(
+                    f"{_provider_tag(cand)}：未配置 API Key（需要 {cand.key_hint}），"
+                    "可在设置里填写，或写进用户配置 / 环境变量", auth=True)
+            actual = _provider_with_key(cand, slot)
+            result = _stream_once(messages, actual, tools, temperature,
+                                  timeout or cand.timeout, show_thinking, show_answer,
+                                  on_think, on_answer, state,
+                                  # 换 Key 不算换家：只有提供方真的换了才记 fallback_from
+                                  fallback_from=(prov.name
+                                                 if idx and cand.name != prov.name else ""),
+                                  key_slot=slot or "主")
+        except ProviderError as e:
+            if state["emitted"]:
+                # 已经流给用户看了：换模型重来会把两段回答拼在一起，只能如实报错
+                raise
+            errors.append(str(e))
+            nxt = plan[idx + 1] if idx + 1 < len(plan) else None
+            if not e.retryable or nxt is None:
+                raise _aggregate_errors(prov, tried, errors) from e
+            print(f"[降级] {actual.name} 调用失败（{_short_reason(e)}），"
+                  f"改用 {nxt[0].name}"
+                  + ("（备用 Key）" if nxt[1] == "备用" else ""))
+            continue
+
+        if idx:
+            if cand.name != prov.name:
+                print(f"[降级] 已自动切换：{prov.name} → {actual.name}")
+            elif slot == "备用":
+                print(f"[降级] 已改用 {actual.name} 的备用 Key")
+        return result
+
+    raise _aggregate_errors(prov, tried, errors)
 
 
 # ---------------------------------------------------------------- 并行调用

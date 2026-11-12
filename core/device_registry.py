@@ -23,6 +23,7 @@ import os
 import re
 import threading
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
@@ -39,6 +40,39 @@ PROBE_WORKERS = 16         # 并发探测线程数
 
 
 # ---------------------------------------------------------------- 读写
+
+def _norm(s) -> str:
+    """统一比较用的归一化：去空白 + 小写"""
+    return str(s or "").strip().lower()
+
+
+def _sanitize_name(raw: str) -> str:
+    """把 host:port / 任意字符串变成合法目录名（safe_name 的字符集）"""
+    return re.sub(r"[^\w\-\u4e00-\u9fff.]", "_", str(raw or ""))[:80] or "unknown-device"
+
+
+_SAFE_RE = re.compile(r"^[\w\-\u4e00-\u9fff.]{1,80}$")
+
+
+def _canonical_name(d: dict) -> str:
+    """设备身份用的 canonical 名：必须是**能直接当目录名**的字符串。
+
+    访问登记没绑定名字时，`list_devices()` 给的是 `host:port`（展示用），
+    冒号不是合法目录名，直接拿去查历史会抛 ManualError。这里统一退化成
+    `resolve_name()` 那套地址兜底名（`192.168.1.1_2001`），保证
+    「清单里看到的名字 = 历史目录名 = 可直接查询的名字」。
+    """
+    raw = str(d.get("name") or "").strip()
+    if raw and _SAFE_RE.match(raw) and not raw.startswith("."):
+        # 保留设备名（COM3/LPT1…）虽然过得了正则，但当不了目录名，统一加后缀
+        return _serial_dirname(raw)
+    if (d.get("transport") or "") == "serial":
+        return _serial_dirname(_sanitize_name(
+            d.get("serial_port") or raw or d.get("key")))
+    if d.get("host"):
+        return _sanitize_name(f"{d['host']}_{d['port']}" if d.get("port") else d["host"])
+    return _sanitize_name(raw or d.get("key") or "unknown-device")
+
 
 def _read_json(path: Path, default):
     try:
@@ -104,22 +138,57 @@ def record_access(transport: str, host: str = "", port: int = 0,
         pass
 
 
+def _unique_name(devices: dict, key: str, name: str,
+                 port: int = 0, serial_port: str = "") -> str:
+    """给 key 找一个不与**其他地址**重名的名字。
+
+    为什么必须去重：手册与命令历史都以设备名当目录名（`session/<sid>/skill/<名>/`），
+    两台设备绑同一个名字，历史就会写进同一个 history.jsonl——之后
+    `recent_device_history("SW1")` 会把另一台设备的记录当成这台的经验，
+    跟「一个对话一套技能」要防的串味是同一类事故。
+    """
+    base = (name or "").strip()
+    if not base:
+        return base
+    taken = {_norm(e.get("name")) for k, e in devices.items()
+             if k != key and _norm(e.get("name"))}
+    if _norm(base) not in taken:
+        return base
+    suffix = str(port) if port else (serial_port or "2")
+    candidate = f"{base}-{suffix}"
+    i = 2
+    while _norm(candidate) in taken:
+        candidate = f"{base}-{suffix}-{i}"
+        i += 1
+        if i > 50:                      # 兜底：极端情况下加随机后缀，绝不静默重名
+            candidate = f"{base}-{uuid.uuid4().hex[:4]}"
+            break
+    return candidate
+
+
 def bind_name(transport: str, name: str, host: str = "", port: int = 0,
-              serial_port: str = "") -> None:
-    """把设备名绑定到某个地址（模型为该设备建档时调用）。
+              serial_port: str = "") -> str:
+    """把设备名绑定到某个地址（模型为该设备建档时调用），返回**实际生效的名字**。
 
     绑定后，后续该地址的命令历史会自动归到这个名字的文件里，
-    清单展示也用它代替裸地址。任何失败都静默。
+    清单展示也用它代替裸地址。任何失败都静默（返回空串）。
+
+    返回实际名字很重要：请求的名字若已被**另一个地址**占用，这里会自动加
+    `-<端口>` 后缀，调用方必须拿返回值去建档，否则手册与历史会落到两个目录。
     """
     try:
         name = (name or "").strip()
         if not name:
-            return
+            return ""
+        # 绑定名会直接当目录名用：COM3 这类保留名先规范化成 COM3-serial，
+        # 否则调用方拿返回值去建档时会被 safe_name 拒收（串口设备无法建档）。
+        name = _serial_dirname(name)
         with file_lock(ACCESS_PATH), _LOCK:
             data = _read_json(ACCESS_PATH, {"devices": {}})
             devices: dict = data.setdefault("devices", {})
             key = _device_key(transport, host, port, serial_port)
             entry = devices.get(key) or {}
+            name = _unique_name(devices, key, name, port=port, serial_port=serial_port)
             entry.update({
                 "transport": transport,
                 "host": host or entry.get("host", ""),
@@ -131,8 +200,36 @@ def bind_name(transport: str, name: str, host: str = "", port: int = 0,
             entry.setdefault("count", 0)
             devices[key] = entry
             _write_json(ACCESS_PATH, data)
+            return name
     except Exception:
+        return ""
+
+
+def _serial_dirname(name: str) -> str:
+    """串口设备名要当**目录名**用（session/<sid>/skill/<名>/history.jsonl）。
+
+    坑：COM1-COM9 / LPT1 等是 Windows 保留设备名，`session_skills.safe_name`
+    会拒收——此前 `resolve_name` 兜底返回裸 "COM3"，导致 `append_history`
+    静默返回空串，**串口命令历史从项目开始就没归档过**。
+    处理：保留名加 `-serial` 后缀（COM3 → COM3-serial，合法且一眼看出通道）；
+    其它非法字符走 `_sanitize_name` 清洗；已合法的名字（用户绑定的 "SW1"）原样返回，
+    历史目录不漂移。
+    """
+    try:
+        from core.session_skills import safe_name
+
+        safe_name(name)
+        return name
+    except Exception:  # noqa: BLE001  非法名字分两类处理
         pass
+    try:
+        from core.session_skills import is_reserved
+
+        if is_reserved(name):
+            return f"{name}-serial"
+    except Exception:  # noqa: BLE001
+        pass
+    return _sanitize_name(name)
 
 
 def resolve_name(transport: str, host: str = "", port: int = 0,
@@ -150,7 +247,7 @@ def resolve_name(transport: str, host: str = "", port: int = 0,
         sp = (serial_port or "").strip().upper()
         accesses = _read_json(ACCESS_PATH, {"devices": {}}).get("devices", {})
         entry = accesses.get(_device_key("serial", serial_port=sp)) or {}
-        return (entry.get("name") or sp or "unknown-serial").strip()
+        return _serial_dirname((entry.get("name") or sp or "unknown-serial").strip())
 
     accesses = _read_json(ACCESS_PATH, {"devices": {}}).get("devices", {})
     entry = accesses.get(_device_key("telnet", host, port)) or {}
@@ -161,7 +258,175 @@ def resolve_name(transport: str, host: str = "", port: int = 0,
         if d["host"] == host and int(d["port"]) == int(port):
             return d["name"]
     raw = f"{host}_{port}" if port else (host or "unknown-device")
-    return re.sub(r"[^\w\-\u4e00-\u9fff.]", "_", raw)[:80] or "unknown-device"
+    return _sanitize_name(raw)
+
+
+# ---------------------------------------------------------------- 设备身份解析
+#
+# 为什么需要这一层：
+#   手册与历史按「设备名」落目录，而模型/用户嘴里的名字、清单里的名字、
+#   访问登记里的名字、地址（host:port / COM3）经常不一致：
+#     模型说 SW1，登记里是 LSW1；登记为空时名字退化成 `192.168.183.137_2001`；
+#     用户直接给 `192.168.183.137:2001` 又会因为冒号不是合法目录名而报错。
+#   结果就是「明明有历史，查出来 0 条」，模型据此以为没做过、然后重做一遍。
+#   这里提供唯一的解析入口：把任意写法解析成**一个确定的设备身份**，
+#   歧义时拒绝猜（返回候选），而不是随便挑一个写进别人的历史文件。
+
+def identities(session: str = "") -> list[dict]:
+    """当前可查询的设备身份表（种子清单 ∪ 访问登记 ∪ 会话技能目录）。
+
+    每条含：name（canonical，可直接当目录名）/ key / transport / host / port /
+    serial_port / aliases（该设备的全部已知写法）/ sources（registry / skill）。
+    """
+    rows: dict[str, dict] = {}
+    for d in list_devices():
+        rows[d["key"]] = {
+            "key": d["key"],
+            "name": _canonical_name(d),
+            "display": d.get("name") or _display_name(d),
+            "transport": d.get("transport", "telnet"),
+            "host": d.get("host", ""),
+            "port": int(d.get("port", 0) or 0),
+            "serial_port": d.get("serial_port", ""),
+            "sources": {"registry"},
+        }
+
+    # 会话技能目录：读写都落在这里，名字必须能被解析到，否则查不到自己刚写的文件
+    names: set[str] = set()
+    try:
+        from core import device_manual
+
+        names = {m["name"] for m in device_manual.list_manuals(session)}
+        names |= set(device_manual.history_only_devices(session))
+    except Exception:  # noqa: BLE001  技能目录不可读不能拖垮设备清单
+        names = set()
+
+    by_name = {_norm(r["name"]): key for key, r in rows.items() if r.get("name")}
+    for n in sorted(names):
+        key = by_name.get(_norm(n))
+        if key:
+            rows[key]["sources"].add("skill")
+        else:
+            rows[f"skill:{n}"] = {
+                "key": "", "name": n, "display": n, "transport": "", "host": "",
+                "port": 0, "serial_port": "", "sources": {"skill"},
+            }
+
+    for r in rows.values():
+        al: set[str] = {r["name"], r.get("display", "")}
+        if r["key"]:
+            al.add(r["key"])
+            al.add(_sanitize_name(r["key"]))
+        if r["host"]:
+            al.add(r["host"])
+            al.add(f"{r['host']}:{r['port']}" if r["port"] else r["host"])
+        if r["port"]:
+            al.add(str(r["port"]))
+        if r["serial_port"]:
+            al.add(r["serial_port"])
+        r["aliases"] = sorted({a for a in al if str(a or "").strip()})
+    return list(rows.values())
+
+
+def session_devices(sid: str) -> list[dict]:
+    """本会话出现过的设备（skill 目录里有手册或有命令历史），带注册表地址元数据。
+
+    会话隔离的清单来源：`session/<sid>/skill/<设备>/`（SKILL.md / history.jsonl）——
+    助手在本会话里真正连过并留档的设备才算数。命中后到全局注册表（identities）
+    里找同名设备的地址元数据（host:port / 串口号），在线探测才有目标；
+    只在 skill 目录出现、注册表查不到的设备也返回（key 为空，GUI 能列出但探不了）。
+    """
+    if not sid:
+        return []
+    try:
+        from core import device_manual
+
+        names = {m["name"] for m in device_manual.list_manuals(sid)}
+        names |= set(device_manual.history_only_devices(sid))
+    except Exception:  # noqa: BLE001  会话目录不可读 → 该会话暂无设备记录
+        return []
+    if not names:
+        return []
+
+    wanted = {_norm(n) for n in names if str(n or "").strip()}
+    rows = [r for r in identities(sid)
+            if _norm(r.get("name")) in wanted or _norm(r.get("display", "")) in wanted]
+    rows.sort(key=lambda r: str(r.get("name") or ""))
+    return rows
+
+
+def _brief(rows: list[dict], limit: int = 8) -> str:
+    out = []
+    for r in rows[:limit]:
+        addr = (f"{r['host']}:{r['port']}" if r.get("host") and r.get("port")
+                else r.get("serial_port") or "地址未知")
+        out.append(f"{r['name']}（{addr}）")
+    return "、".join(out) + ("…" if len(rows) > limit else "")
+
+
+def resolve_device(query: str, session: str = "") -> dict:
+    """把任意设备写法解析成唯一身份。
+
+    支持：设备名 / host:port / 裸 host / 端口号 / COM 口 / 由地址兜底生成的
+    `192.168.1.1_2001` 形式，大小写不敏感。
+
+    Returns:
+        成功 `{"ok": True, "name": ..., "key": ..., "aliases": [...], "matched": ...}`
+        失败 `{"ok": False, "reason": "empty"|"not_found"|"ambiguous",
+                "candidates": [...], "message": "..."}`
+
+    歧义（同名两台设备、或端口号命中多台）**不猜**，交回候选让调用方决定。
+    """
+    q = str(query or "").strip()
+    if not q:
+        return {"ok": False, "reason": "empty", "candidates": [],
+                "message": "设备名不能为空"}
+    qn = _norm(q)
+    rows = identities(session)
+
+    scored: list[tuple[int, dict, str]] = []
+    for r in rows:
+        aliases = [_norm(a) for a in r["aliases"]]
+        name = _norm(r["name"])
+        if qn == name:
+            scored.append((100, r, "name"))
+        elif qn == _norm(r["key"]) and r["key"]:
+            scored.append((95, r, "key"))
+        elif qn in aliases:
+            scored.append((85, r, "alias"))
+        elif qn == _norm(r.get("host")) and r.get("host"):
+            scored.append((75, r, "host"))
+        elif len(qn) >= 3 and not qn.isdigit() and any(
+                qn in a or (len(a) >= 3 and a in qn) for a in aliases if a):
+            scored.append((40, r, "fuzzy"))
+
+    if not scored:
+        near = [r for r in rows if qn in _norm(r["name"]) or _norm(r["name"]) in qn]
+        msg = f"没有找到设备「{q}」。"
+        if rows:
+            msg += f"当前可查询的设备：{_brief(near or rows)}。"
+            msg += "也可以直接用「IP:端口」查询；若在别的对话里，用 list_session_skills 查看分布。"
+        return {"ok": False, "reason": "not_found", "candidates": [],
+                "message": msg}
+
+    best = max(s for s, _, _ in scored)
+    top = [(r, why) for s, r, why in scored if s == best]
+    uniq: dict[tuple[str, str], tuple[dict, str]] = {}
+    for r, why in top:
+        uniq.setdefault((r["key"], _norm(r["name"])), (r, why))
+    if len(uniq) > 1:
+        cands = [{"name": r["name"], "key": r["key"], "host": r["host"],
+                  "port": r["port"], "serial_port": r["serial_port"]}
+                 for r, _ in uniq.values()]
+        return {"ok": False, "reason": "ambiguous", "candidates": cands,
+                "message": (f"设备「{q}」匹配到 {len(cands)} 台不同的设备，拒绝猜测。"
+                            f"请改用更精确的名字或地址：{_brief([r for r, _ in uniq.values()])}。")}
+
+    r, why = next(iter(uniq.values()))
+    return {"ok": True, "name": r["name"], "key": r["key"], "matched": why,
+            "transport": r.get("transport", ""), "host": r.get("host", ""),
+            "port": r.get("port", 0), "serial_port": r.get("serial_port", ""),
+            "aliases": r["aliases"], "sources": sorted(r["sources"])}
 
 
 # ---------------------------------------------------------------- 清单合并

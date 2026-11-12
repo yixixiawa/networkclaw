@@ -6,7 +6,7 @@
 
 可选启动参数（与命令行入口保持一致的语义）：
     --provider local|deepseek-flash|deepseek-pro   指定默认提供方
-    --mode agent|rag|parallel                     指定默认模式
+    --mode agent|plan|parallel                   指定默认模式
     --parallel-providers local,deepseek           并行模式参与方
     --mmproj [路径]                                启用图像识别（留空自动探测）
     --image 图片路径                               预载拓扑截图（可多次）
@@ -46,7 +46,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="NetworkClaw", add_help=True,
                                      description="NetworkClaw 桌面端")
     parser.add_argument("--provider", default=None)
-    parser.add_argument("--mode", choices=["agent", "rag", "parallel"], default=None)
+    parser.add_argument("--mode", choices=["agent", "plan", "parallel"], default=None)
     parser.add_argument("--parallel-providers", default=None)
     parser.add_argument("--mmproj", nargs="?", const="auto", default=None)
     parser.add_argument("--image", action="append", default=[])
@@ -138,6 +138,17 @@ def run(argv: list[str] | None = None) -> int:
         app.setWindowIcon(icon)
 
     settings = load_settings(reset=args.reset_settings)
+    # 用户级配置里的激活模型优先（%USERPROFILE%\.networkclaw\networkclaw.json）：
+    # 上次退出前用的模型，重启后原样还原；命令行 --provider 仍然最高优先。
+    if not args.provider:
+        try:
+            from core import user_config
+
+            saved_model = user_config.get_active_model()
+        except Exception:  # noqa: BLE001  用户配置读不出就按默认走
+            saved_model = ""
+        if saved_model:
+            settings["provider"] = saved_model
     # 命令行参数只影响「本次运行」，不写回设置
     if args.provider:
         settings["provider"] = args.provider

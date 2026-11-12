@@ -19,3 +19,20 @@ def truncate_manual(text: str, limit: int = MAX_MANUAL_CHARS) -> str:
     if len(text) <= limit:
         return text
     return text[:limit] + f"\n...（手册共 {len(text)} 字，已截断）"
+
+
+def resolve(device: str, session: str = "") -> tuple[dict | None, str]:
+    """把用户/模型的任意设备写法解析成唯一设备身份。
+
+    返回 `(身份, "")` 或 `(None, 给模型看的可操作提示)`。
+
+    读操作（读手册、查历史）可以接受别名（IP:端口、端口号、旧地址兜底名）；
+    写操作必须落到 canonical 名上——否则会在 `session/<sid>/skill/` 下新建
+    一个**第二个目录**，之后两份记录各查一半。
+    """
+    from core import device_registry
+
+    r = device_registry.resolve_device(device, session)
+    if r.get("ok"):
+        return r, ""
+    return None, str(r.get("message") or f"设备「{device}」无法解析")

@@ -31,6 +31,7 @@
 """
 import argparse
 import datetime
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
@@ -269,13 +270,21 @@ def load_chunks() -> list[str]:
     """读取知识文档 + eNSP 实验集 + 实验运行报告 + 当前会话运行日志摘要，切分为文本块。
 
     设备手册不在这里——它按会话隔离，改为直注系统提示词（见模块 docstring）。
+
+    「精」而非「多」（2026-11 起职责分离）：
+    - 命令语法以 command_templates.csv（TEMPLATE_COLLECTION）为唯一权威来源，
+      知识库不再收编纯命令语法块——语法碎片既占检索名额，又和模板库互相过时；
+    - 设备上下文以 SKILL.md（会话内直注）为准，知识库只留概念性/事实性知识。
+      切分后统一过 _clean_chunks 清洗（碎片、纯命令块、重复块剔除）。
     """
     with open(KNOWLEDGE_FILE, "r", encoding="utf-8") as f:
         raw_text = f.read()
 
+    # chunk 从 300 调到 600：300 的块在中文里经常只剩一两句话（碎片化），
+    # 检索回来的片段缺少上下文，模型看到的是断言而不是知识。
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=300,
-        chunk_overlap=50,
+        chunk_size=600,
+        chunk_overlap=80,
         separators=["\n\n", "\n", "。", "，", " "]
     )
     chunks = splitter.split_text(_decorate(raw_text, TIER_INSTANCE))
@@ -285,14 +294,81 @@ def load_chunks() -> list[str]:
         chunks += splitter.split_text(_decorate(text, TIER_HISTORY))
     for text in _run_log_digests():
         chunks += splitter.split_text(_decorate(text, TIER_HISTORY))
-    return chunks
+    return _clean_chunks(chunks)
+
+
+# ------------------------------------------------------------------ 知识清洗
+
+#: 命令行特征词（行首匹配，不区分大小写）。覆盖 VRP 常见配置/查看命令与
+#: Cisco 侧的 switchport/no/conf t。判定意图是剔除「纯语法块」，
+#: 宁可漏剔（带解释的命令块保留）不可误剔（说明文字绝不能像命令）。
+_CMD_LINE_WORDS = (
+    "system-view", "sysname", "undo ", "display ", "quit", "return",
+    "vlan ", "vlan batch", "interface ", "port ", "port-group",
+    "eth-trunk", "link-aggregation", "trunkport", "stp ", "ospf ", "bgp ",
+    "rip ", "acl ", "aaa", "local-user", "ip route", "ip address",
+    "dhcp ", "save", "shutdown", "ping ", "tracert ", "switchport",
+    "no ", "conf t", "hostname ", "enable", "set ", "commit",
+)
+
+
+def _looks_like_command(line: str) -> bool:
+    """一行是否像裸命令（VRP 视图提示符 / 命令词开头且不是自然语句）"""
+    s = line.strip()
+    if not s:
+        return False
+    if s.startswith("[") and s.endswith("]"):
+        return True                                    # [SW1-GigabitEthernet0/0/1] 视图提示符
+    if s.endswith(("。", "，", "；", "：", ".", ",", ";", ":")):
+        return False                                   # 自然语言句子结尾特征
+    low = s.lower()
+    return any(low.startswith(w) for w in _CMD_LINE_WORDS)
+
+
+def _clean_chunks(chunks: list[str]) -> list[str]:
+    """入库前清洗：碎片块、纯命令语法块、重复块剔除。
+
+    为什么在切分后统一洗而不是各来源自己洗：清洗标准必须全局一致
+    （「重复」要跨来源去重，「纯命令」要看块的整行构成），且来源还会增减。
+    返回清洗后的块列表；剔除统计打到 stdout 便于重建日志追溯。
+    """
+    seen: set[str] = set()
+    out: list[str] = []
+    dropped = {"fragment": 0, "syntax": 0, "duplicate": 0}
+    for ch in chunks:
+        text = re.sub(r"\n{3,}", "\n\n", ch).strip()
+        if len(text) < 40:                             # 一两句话的碎片，缺上下文
+            dropped["fragment"] += 1
+            continue
+        lines = [ln for ln in text.splitlines() if ln.strip()]
+        body = lines[1:] if lines and lines[0].startswith("【") else lines
+        # 判定「纯语法块」：整块几乎全是命令，且**开头就是命令**。
+        # 开头是解释句的（例如「在接入交换机上执行下面的命令……」后跟命令示例）
+        # 属于做法讲解，必须保留——否则实验参考答案会被整体剔掉。
+        if (body and len(body) >= 3 and _looks_like_command(body[0])
+                and sum(_looks_like_command(ln) for ln in body) >= 0.85 * len(body)):
+            dropped["syntax"] += 1
+            continue
+        key = re.sub(r"\s+", "", text)
+        if key in seen:
+            dropped["duplicate"] += 1
+            continue
+        seen.add(key)
+        out.append(text)
+    total_dropped = sum(dropped.values())
+    if total_dropped:
+        print(f"知识库清洗：剔除碎片 {dropped['fragment']}、纯命令语法块 "
+              f"{dropped['syntax']}、重复块 {dropped['duplicate']}（共 {total_dropped}）")
+    return out
 
 
 def knowledge_sources() -> str:
     """索引来源的可读描述（写入 data/index_state.json，便于追溯）。"""
     return (f"{KNOWLEDGE_FILE.name}[instance] + knowledge/experiments/*.md[rule] + "
             f"data/lab_reports/*.md[history] + data/run_logs/<当前会话>/*.jsonl[history]；"
-            f"设备手册按会话隔离，走 session/<sid>/skill/ 直注提示词，不进索引")
+            f"设备手册按会话隔离，走 session/<sid>/skill/ 直注提示词，不进索引；"
+            f"清洗规则：碎片/纯命令语法/重复块剔除，命令语法以 command_templates.csv "
+            f"为唯一来源，设备上下文以 SKILL.md 为准（职责分离）")
 
 
 def build_index(force: bool = False) -> int:

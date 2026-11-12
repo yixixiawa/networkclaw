@@ -19,21 +19,30 @@ def update_device_manual_section(device: str, section: str, text: str,
     执行中发现的坑（接口需先 shutdown、Eth-Trunk 两端需同配等）写进「注意事项」。
 
     Args:
-        device: 设备名，例如 SW1
+        device: 设备名，例如 SW1（也接受该设备的地址/别名，会规范化到设备名）
         section: 小节名，通常是「常用配置」或「注意事项」（也可「设备信息」）
         text: 要写入的内容，建议用代码块给出命令序列，并说明适用场景
         mode: append（追加，默认）或 replace（替换该小节原有内容）
         title: 可选小标题，如「链路聚合 Eth-Trunk 1」（会写成 `## 标题（日期）`）
     """
     from core import device_manual
-    from mcp_tools.tools._manual_common import truncate_manual, where
+    from mcp_tools.tools._manual_common import resolve, truncate_manual, where
+
+    # 写操作必须落到 canonical 名：用别名写会新建第二个目录，之后两份记录各查一半。
+    # 解析不到时拒绝而不是「就地新建」——否则一个拼写错误就会永久留下一台假设备。
+    r, err = resolve(device, session)
+    if r is None:
+        return (f"{err}\n（写操作不自动新建设备目录：请先用 create_device_manual 建档，"
+                f"再写入手册。）")
+    name = r["name"]
 
     try:
-        whole = device_manual.update_section(device, section, text,
+        whole = device_manual.update_section(name, section, text,
                                              mode=mode, title=title, session=session)
     except device_manual.ManualError as e:
         return f"写入失败：{e}"
     except OSError as e:
         return f"写入失败（文件错误）：{e}"
-    return (f"已写入 {device} 手册的「{section}」小节（{where()}）。\n"
+    note = f"（按「{device}」写成设备 {name}）\n" if r.get("matched") not in ("name", "key") else ""
+    return (f"{note}已写入 {name} 手册的「{section}」小节（{where()}）。\n"
             f"———— 更新后的手册 ————\n{truncate_manual(whole)}")

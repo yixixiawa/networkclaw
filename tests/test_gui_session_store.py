@@ -95,7 +95,9 @@ def test_delete_pinned_session(store):
 
 def test_pinned_round_trips_through_disk(store):
     a = store.create("A")
+    a.add_record("agent", "看下拓扑", "好的")
     store.set_pinned(a.sid, True)
+    store.save()
     store2 = SessionStore(path=store.path)
     store2.load()
     assert store2.get(a.sid) is not None
@@ -104,8 +106,52 @@ def test_pinned_round_trips_through_disk(store):
 
 def test_legacy_file_without_pinned_field_loads(store, tmp_path):
     old = {"version": 1, "sessions": [
-        {"sid": "x1", "title": "旧会话", "created": "t", "updated": "t", "records": []}]}
+        {"sid": "x1", "title": "旧会话", "created": "t", "updated": "t",
+         "records": [{"question": "q", "answer": "a"}]}]}
     store.path.write_text(json.dumps(old, ensure_ascii=False), encoding="utf-8")
     store.load()
     s = store.get("x1")
     assert s is not None and s.pinned is False
+
+
+# ---------------------------------------------------------------- 空会话清理
+
+def test_load_drops_empty_sessions(store):
+    """用户约定：只保留有对话历史的 session，空 session 一律不载入。
+
+    背景：原来每次启动都无条件新建空会话，空会话在列表里越积越多。
+    """
+    a = store.create("有内容")
+    a.add_record("agent", "display version", "VRP V5")
+    store.create("空会话")            # create 会 save
+    store.save()
+    store2 = SessionStore(path=store.path)
+    loaded = store2.load()
+    assert [s.sid for s in loaded] == [a.sid]
+
+
+def test_load_all_empty_leaves_nothing(store, tmp_path):
+    old = {"version": 1, "sessions": [
+        {"sid": "e1", "title": "空1", "records": []},
+        {"sid": "e2", "title": "空2", "records": []}]}
+    store.path.write_text(json.dumps(old, ensure_ascii=False), encoding="utf-8")
+    assert store.load() == []
+    assert store.sessions == []
+
+
+def test_prune_empty_keeps_protected_sid(store):
+    keep = store.create("正在用")
+    junk1 = store.create("空1")
+    junk2 = store.create("空2")
+    removed = store.prune_empty(keep=keep.sid)
+    assert removed == 2
+    assert [s.sid for s in store.sessions] == [keep.sid]
+    assert store.get(junk1.sid) is None and store.get(junk2.sid) is None
+
+
+def test_prune_empty_keeps_session_with_records(store):
+    a = store.create("A")
+    a.add_record("agent", "q", "a")
+    removed = store.prune_empty()
+    assert removed == 0
+    assert store.get(a.sid) is not None

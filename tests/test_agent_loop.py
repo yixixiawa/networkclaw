@@ -197,3 +197,84 @@ async def test_custom_system_prompt_overrides_default(patch_llm):
     hub = FakeHub()
     await run_agent("问题", hub, system_prompt="实验专用提示词")
     assert calls[0]["messages"][0]["content"] == "实验专用提示词"
+
+
+# ---------------------------------------------------------------- 统一入口：内置 search_knowledge
+
+@pytest.mark.anyio
+async def test_search_knowledge_always_mounted(patch_llm):
+    """MCP 服务端没提供 search_knowledge 时也要挂上内置兜底（统一入口的抓手）。"""
+    calls = patch_llm([FakeResult(content="答")])
+    hub = FakeHub()                                  # 只有 exec_telnet_command
+    await run_agent("问题", hub)
+
+    names = [t["function"]["name"] for t in calls[0]["tools"]]
+    assert "exec_telnet_command" in names
+    assert "search_knowledge" in names
+
+
+@pytest.mark.anyio
+async def test_no_duplicate_search_knowledge_when_hub_has_it(patch_llm):
+    calls = patch_llm([FakeResult(content="答")])
+    hub = FakeHub(tools=[{"type": "function",
+                          "function": {"name": "search_knowledge", "parameters": {}}}])
+    await run_agent("问题", hub)
+
+    names = [t["function"]["name"] for t in calls[0]["tools"]]
+    assert names.count("search_knowledge") == 1
+
+
+@pytest.mark.anyio
+async def test_builtin_search_knowledge_used_without_hub(patch_llm, monkeypatch):
+    """hub=None（MCP 不可用）时，模型的 search_knowledge 调用走内置实现。"""
+    seen = {}
+
+    def fake_builtin(query, top=3):
+        seen["query"], seen["top"] = query, top
+        return "内置检索结果"
+
+    monkeypatch.setattr(ag, "_builtin_search_knowledge", fake_builtin)
+    calls = patch_llm([
+        FakeResult(content="", tool_calls=[
+            _tool_call(name="search_knowledge", args={"query": "S5700", "top": 2})]),
+        FakeResult(content="最终答案"),
+    ])
+
+    out = await run_agent("S5700 是什么", None)
+
+    assert out == "最终答案"
+    assert seen == {"query": "S5700", "top": 2}
+    tool_msg = [m for m in calls[1]["messages"] if m.get("role") == "tool"][0]
+    assert tool_msg["content"] == "内置检索结果"
+
+
+@pytest.mark.anyio
+async def test_unknown_tool_without_hub_returns_readable_error(patch_llm):
+    """hub 缺失且工具没有内置实现时，要如实告诉模型不可用（不静默失败）。"""
+    calls = patch_llm([
+        FakeResult(content="", tool_calls=[
+            _tool_call(name="exec_telnet_command", args={"command": "display version"})]),
+        FakeResult(content="答"),
+    ])
+    await run_agent("查版本", None)
+
+    tool_msg = [m for m in calls[1]["messages"] if m.get("role") == "tool"][0]
+    assert "不可用" in tool_msg["content"]
+
+
+def test_system_prompt_requires_knowledge_before_config():
+    """硬性规则必须写进系统提示词：配置前先检索/读 SKILL.md。"""
+    from core.agent import SYSTEM_PROMPT
+
+    assert "搜" in SYSTEM_PROMPT or "search_knowledge" in SYSTEM_PROMPT
+    assert "SKILL.md" in SYSTEM_PROMPT
+    assert "配置前必查" in SYSTEM_PROMPT
+
+
+def test_plan_prompt_is_readonly():
+    """PLAN 模式提示词要明确「只读探测 + 手册沉淀」。"""
+    from core.agent import PLAN_SYSTEM_PROMPT
+
+    assert "只读" in PLAN_SYSTEM_PROMPT
+    assert "display current-configuration" in PLAN_SYSTEM_PROMPT
+    assert "拓扑关系" in PLAN_SYSTEM_PROMPT

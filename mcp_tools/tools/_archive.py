@@ -13,13 +13,31 @@
     record_telnet(host, port, ...)    Telnet：以 host:port 为身份
     record_serial(port, ...)          串口：以 COMx 为身份
 
-失败静默：归档是「锦上添花」，绝不能因为它抛异常而影响命令本身的结论。
+失败不阻断命令结论，但**不再静默**：写结构化告警到 logs/archive_errors.log
+（带 transport/target/session/命令前缀/异常类型），调用方据返回空串可区分
+「归档失败」与「归档成功」，在回显里明示，不伪装成完整成功。
 """
 from __future__ import annotations
 
+import time
+
 from mcp_tools.tools import _bootstrap  # noqa: F401  (sys.path 兜底)
 
-from mcp_tools.tools._bootstrap import relpath
+from mcp_tools.tools._bootstrap import PROJECT_ROOT, relpath
+
+# 归档失败告警文件（测试可 monkeypatch 此路径隔离）
+WARN_LOG = PROJECT_ROOT / "logs" / "archive_errors.log"
+
+
+def _warn(message: str) -> None:
+    """尽力而为写一条告警行；写失败也绝不抛出（归档永远不干扰命令结论）。"""
+    line = f"{time.strftime('%Y-%m-%d %H:%M:%S')} {message}\n"
+    try:
+        WARN_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(WARN_LOG, "a", encoding="utf-8") as f:
+            f.write(line)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _archive(name_kwargs: dict, command: str, result: str, transport: str,
@@ -29,13 +47,20 @@ def _archive(name_kwargs: dict, command: str, result: str, transport: str,
     try:
         from core import device_manual, device_registry
 
-        device_registry.record_access(transport, **name_kwargs)
+        # 只有**真正执行成功**才登记「访问过该设备」。
+        # 被 block 拦截、confirm 未确认、连接失败也照样归档命令（便于诊断），
+        # 但不能把它们写进设备清单——否则设备页会出现一堆从没连上的地址。
+        if executed:
+            device_registry.record_access(transport, **name_kwargs)
         name = device_registry.resolve_name(transport, **name_kwargs)
         path = device_manual.append_history(
             name, command, result, transport=transport, target=target,
             level=level, confirmed=confirmed, executed=executed, extra=extra,
             session=session)
-    except Exception:  # noqa: BLE001  归档失败不影响命令结论
+    except Exception as e:  # noqa: BLE001  归档失败不影响命令结论，但要可追溯
+        _warn(f"archive_failed transport={transport} target={target} "
+              f"session={session or '-'} executed={executed} "
+              f"command={command[:120]!r} error={type(e).__name__}: {e}")
         return ""
     return relpath(path)
 

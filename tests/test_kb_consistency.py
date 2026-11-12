@@ -70,7 +70,12 @@ def test_topology_dataset_matches_index():
 
 
 def test_lab_reports_are_fed_into_knowledge():
-    """回归③：实验报告（含 issues.md）必须进知识库，且带「历史记录」抬头。"""
+    """回归③：实验报告（含 issues.md）必须进知识库，且带「历史记录」抬头。
+
+    2026-11 起知识库改为「精」而非「多」：清洗会剔除碎片/纯命令/重复块，
+    块数比过去少是预期结果。因此这里改断言「报告内容确实在索引里」+
+    「规模仍然可观」，不再用写死的 1000 当质量代理。
+    """
     from core.rag import REPORT_HEADER, _lab_report_texts, load_chunks
 
     texts = _lab_report_texts()
@@ -79,5 +84,6 @@ def test_lab_reports_are_fed_into_knowledge():
     assert any("踩坑清单" in t for t in texts), "issues.md 未纳入"
     assert any(REPORT_HEADER in t for t in texts), "运行报告缺少历史记录抬头"
     chunks = load_chunks()
-    assert len(chunks) > 1000
+    assert len(chunks) > 300, "清洗后知识库规模异常偏小，检查清洗规则是否误删"
+    assert all(len(c) >= 40 for c in chunks), "清洗后不应残留碎片块"
     assert any(REPORT_HEADER in c or "踩坑清单" in c for c in chunks)

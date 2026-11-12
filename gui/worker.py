@@ -84,6 +84,9 @@ def provider_summary() -> list[dict]:
             "configured": bool(p.is_configured),
             "needs_key": bool(p.needs_key),
             "key_env": p.api_key_env,
+            "alt_key_env": p.api_key_alt_env,
+            "alt_configured": bool(p.api_key_alt_value),
+            "fallback": list(p.fallback),
             "note": p.note,
         })
     return out
@@ -107,7 +110,9 @@ class AgentWorker(QThread):
     sig_services = pyqtSignal(dict)           # 服务状态快照
     sig_providers = pyqtSignal(list)          # 提供方列表
     sig_topology = pyqtSignal(str)            # 自动拓扑巡检结果（显示为对话气泡）
-    sig_devices = pyqtSignal(list)            # 设备清单+在线状态（设备管理页签）
+    sig_devices = pyqtSignal(object, int)     # {"ok","devices","error"} + generation
+    sig_topology_model = pyqtSignal(object)   # 拓扑图数据 {ok,nodes,edges,error}
+    sig_compliance = pyqtSignal(object)       # 等保扫描报告 {results,errors,generated}
 
     def __init__(self, options: dict | None = None, parent=None):
         super().__init__(parent)
@@ -241,7 +246,9 @@ class AgentWorker(QThread):
         elif job.kind == "set_provider":
             self._set_provider(job.payload.get("name", ""))
         elif job.kind == "set_key":
-            self._set_key(job.payload.get("key", ""))
+            self._set_key(job.payload.get("key", ""),
+                          alt_key=job.payload.get("alt_key", ""),
+                          provider=job.payload.get("provider", ""))
         elif job.kind == "start_local":
             await self._start_local(bool(job.payload.get("vision")))
         elif job.kind == "stop_local":
@@ -253,8 +260,21 @@ class AgentWorker(QThread):
         elif job.kind == "reload_providers":
             load_providers(refresh=True)
             self.sig_providers.emit(provider_summary())
+        elif job.kind == "restore_history":
+            # 切换/启动恢复会话：把该会话的记录回灌成模型上下文，
+            # 否则界面有气泡、模型却「失忆」（切换后追问接不上）
+            from core.conversation_service import history_from_records
+
+            self._history = history_from_records(job.payload.get("records") or [])
+            self.sig_log.emit(f"[会话] 已恢复上下文 {len(self._history)} 条消息")
         elif job.kind == "device_probe":
-            await self._device_probe()
+            await self._device_probe(int(job.payload.get("gen") or 0),
+                                     session=str(job.payload.get("session") or ""))
+        elif job.kind == "topology_build":
+            await self._topology_build(session=str(job.payload.get("session") or ""))
+        elif job.kind == "compliance_scan":
+            await self._compliance_scan(job.payload.get("keys") or [],
+                                        session=str(job.payload.get("session") or ""))
         else:
             self.sig_log.emit(f"[警告] 未知任务：{job.kind}")
 
@@ -421,7 +441,7 @@ class AgentWorker(QThread):
             on_think=lambda piece: self._on_think(sid, piece),
             on_answer=lambda piece: self._on_answer(sid, piece),
             on_log=self.sig_log.emit, on_confirmation=self._request_confirmation)
-        if result.meta.get("kind") == "agent":
+        if result.meta.get("kind") in ("agent", "plan"):
             self._history += [{"role": "user", "content": text},
                               {"role": "assistant", "content": result.answer}]
             del self._history[:-8]
@@ -483,12 +503,71 @@ class AgentWorker(QThread):
             await self._emit_services()
 
     # ------------------------------------------------------------ 设备管理
-    async def _device_probe(self) -> None:
-        """设备清单 + 在线探测（只读 TCP/串口枚举），结果发设备页签"""
+    async def _device_probe(self, gen: int = 0, session: str = "") -> None:
+        """设备清单 + 在线探测（只读 TCP/串口枚举），结果发设备页签。
+
+        带上 generation：探测可能排队（自动刷新 + 手动刷新叠加），旧任务的结果
+        会晚于新任务返回。界面只接受最新一代，否则会「刷新完又变回旧数据」。
+        session 非空时只探测本会话的设备（会话隔离）；未打开会话返回空清单。
+        """
         try:
-            self.sig_devices.emit(await self._services.device_probe())
+            devices = await self._services.device_probe(session=session)
+            self.sig_devices.emit({"ok": True, "devices": devices,
+                                   "session": session, "error": ""}, gen)
         except Exception as e:
-            self.sig_log.emit(f"[设备管理] 探测失败：{type(e).__name__}: {e}")
+            msg = f"{type(e).__name__}: {e}"
+            self.sig_devices.emit({"ok": False, "devices": [], "error": msg}, gen)
+            self.sig_log.emit(f"[设备管理] 探测失败：{msg}")
+
+    # ------------------------------------------------------------ 拓扑 / 等保
+    async def _topology_build(self, session: str = "") -> None:
+        """合成拓扑图数据（读快照 + 设备注册表，只读本地文件，不连设备）。
+
+        session 非空时优先读本会话的快照（session/<sid>/topology_discovered.json），
+        并把节点过滤到本会话出现过的设备——拓扑页签是会话视图。
+        """
+        from core import topology_model
+
+        try:
+            model = await asyncio.to_thread(
+                topology_model.load_topology_model, None, session)
+        except Exception as e:  # noqa: BLE001
+            model = {"ok": False, "nodes": [], "edges": [], "error":
+                     f"{type(e).__name__}: {e}"}
+        self.sig_topology_model.emit(model)
+
+    async def _compliance_scan(self, keys: list, session: str = "") -> None:
+        """一键安全检查：逐台拉配置跑 dengbao 规则（只读 display，线程池并发）。
+
+        session 非空时设备池限定为本会话的 Telnet 设备（会话隔离），
+        keys 是界面上选中的那批（通常就是本轮探测到的在线设备）。
+        """
+        from core import compliance, device_registry
+
+        keys = {str(k) for k in keys}
+
+        def run() -> dict:
+            if session:
+                devs = [d for d in device_registry.session_devices(session)
+                        if d.get("transport") == "telnet" and d.get("host")]
+            else:
+                devs = [d for d in device_registry.list_devices()
+                        if d.get("transport") == "telnet"]
+            if keys:
+                picked = [d for d in devs
+                          if (f"{d.get('host')}:{d.get('port')}" if d.get("host")
+                              else d.get("key")) in keys]
+                if picked:
+                    devs = picked
+            return compliance.scan_devices(devs)
+
+        try:
+            report = await asyncio.to_thread(run)
+        except Exception as e:  # noqa: BLE001
+            report = {"results": [], "errors": [f"{type(e).__name__}: {e}"],
+                      "generated": ""}
+            self.sig_log.emit(f"[等保检查] 失败：{type(e).__name__}: {e}")
+        self.sig_compliance.emit(report)
 
     # ------------------------------------------------------------ 控制台命令
     async def _command(self, p: dict) -> None:
@@ -533,6 +612,13 @@ class AgentWorker(QThread):
         except KeyError as e:
             self.sig_error.emit(str(e.args[0] if e.args else e))
             return
+        # 记住选择：默认写 %USERPROFILE%\.networkclaw\networkclaw.json，重启自动还原
+        try:
+            from core import user_config
+
+            user_config.set_active_model(prov.name)
+        except OSError as e:
+            self.sig_log.emit(f"[警告] 模型选择未能持久化：{e}")
         self.sig_log.emit(f"已切换到 {prov.label}（{prov.model}）")
         self.sig_providers.emit(provider_summary())
         if prov.needs_key and not prov.api_key_value:
@@ -541,12 +627,42 @@ class AgentWorker(QThread):
         if prov.kind == "local" and not self._local.running:
             self.sig_log.emit("[提示] 本地模型尚未启动，可在侧边栏点「启动本地模型」")
 
-    def _set_key(self, key: str) -> None:
+    def _set_key(self, key: str, alt_key: str = "", provider: str = "") -> None:
+        """保存主 Key / 备用 Key：写入用户配置（持久化）并同步到进程环境变量。
+
+        provider 为目标提供方（DeepSeek / 智谱 / Kimi 各存各的）；不传时按
+        DeepSeek 处理，兼容旧调用点。
+        """
         key = (key or "").strip()
-        if not key:
+        alt_key = (alt_key or "").strip()
+        if not key and not alt_key:
             self.sig_result.emit("key", "密钥为空，未做修改")
             return
-        os.environ["DEEPSEEK_API_KEY"] = key
+        try:
+            prov = get_provider(provider or "deepseek-flash")
+        except KeyError:
+            self.sig_result.emit("key", f"未知提供方 {provider}，密钥未保存")
+            return
+        if not prov.needs_key:
+            self.sig_result.emit("key", f"{prov.label} 无需密钥，已忽略")
+            return
+
+        saved = "仅本次运行有效"
+        try:
+            from core import user_config
+
+            path = None
+            if key:
+                path = user_config.set_api_key(prov.name, key,
+                                               api_key_env=prov.api_key_env)
+            if alt_key:
+                path = user_config.set_api_key_alt(prov.name, alt_key,
+                                                   api_key_alt_env=prov.api_key_alt_env)
+            if path is not None:
+                saved = f"已持久化到 {path}"
+        except OSError as e:
+            saved = f"持久化失败（{e}），仅本次运行有效"
         load_providers(refresh=True)
         self.sig_providers.emit(provider_summary())
-        self.sig_result.emit("key", "已设置本次运行的 DeepSeek API Key（建议写入 .env 持久保存）")
+        which = "/".join(x for x, ok in (("主 Key", key), ("备用 Key", alt_key)) if ok)
+        self.sig_result.emit("key", f"已设置 {prov.name} 的 {which}（{saved}）")

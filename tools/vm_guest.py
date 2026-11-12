@@ -1,7 +1,8 @@
 """VMware 来宾操作封装（vmrun）。
 
 用途：在不登录虚拟机桌面的前提下，执行来宾命令、搬运文件。
-凭据优先级：环境变量 VM_GU / VM_GP > 本文件默认值（仅本机实验环境）。
+凭据来源：环境变量 VM_GU / VM_GP（或项目根 `.env`）；源码不含任何口令，
+缺失时直接报错（见 _require_cred）。
 
 用法（命令行）：
     python tools/vm_guest.py run "<cmd 命令行>"
@@ -23,8 +24,28 @@ import tempfile
 import time
 from pathlib import Path
 
-VMRUN = os.environ.get("VM_VMRUN", r"D:\VMware\vmrun.exe")
-VM_ROOT = os.environ.get("VM_ROOT", r"D:\virtualmachine")
+BASE = Path(__file__).resolve().parent.parent
+
+
+def _env(name: str, default: str = "") -> str:
+    """读配置：环境变量优先，缺失时回落到项目根 `.env`。
+
+    为什么要有 .env 回落：这些工具经常被单独 `python -c` 调用，父进程没有
+    加载过 .env；而凭据与路径**不能**写死在源码里（曾经的明文口令就留在这里）。
+    """
+    v = (os.environ.get(name) or "").strip()
+    if v:
+        return v
+    try:
+        from dotenv import dotenv_values
+
+        return str(dotenv_values(BASE / ".env").get(name) or "").strip() or default
+    except Exception:  # noqa: BLE001  .env 不可读就用默认值
+        return default
+
+
+VMRUN = _env("VM_VMRUN", r"D:\VMware\vmrun.exe")
+VM_ROOT = _env("VM_ROOT", r"D:\virtualmachine")
 
 
 class VmError(RuntimeError):
@@ -84,11 +105,21 @@ VMX = discover_vmx()
 # - yixixiawa：日常交互账号，vmrun -interactive 拉图形界面必须用它（活动桌面在它会话里）
 # - Administrator：**High Mandatory Level** 的完整管理员令牌，写 HKLM / 改 UAC 策略要用它；
 #   yixixiawa 在 UAC 开启时是 Medium IL，改 HKLM 会被 ACCESS DENIED。
-USER_CRED = (os.environ.get("VM_GU", "yixixiawa"), os.environ.get("VM_GP", "eNSP@2026"))
-ADMIN_CRED = (os.environ.get("VM_ADMIN_U", "Administrator"),
-              os.environ.get("VM_ADMIN_P", "eNSP@2026"))
+#
+# 口令**不再写死在本文件**（2026-10 清理）：只从环境变量 / .env 读，
+# 缺失时由 _require_cred() 直接报错，而不是静默用一个可能已失效的旧口令去撞锁。
+USER_CRED = (_env("VM_GU", "yixixiawa"), _env("VM_GP"))
+ADMIN_CRED = (_env("VM_ADMIN_U", "Administrator"), _env("VM_ADMIN_P"))
 
 GU, GP = USER_CRED
+
+
+def _require_cred(cred: tuple[str, str]) -> None:
+    """缺口令直接失败（明确告诉用户配哪个变量），不拿空口令去调 vmrun。"""
+    if not cred[1]:
+        raise VmError(
+            "未配置虚拟机来宾口令：请在 .env 或环境变量里设置 VM_GP（日常账号）"
+            "或 VM_ADMIN_P（管理员账号）。口令不写进源码，也不写入日志。")
 
 # 来宾侧的临时输出文件（每次命令后清理）
 _REMOTE_TMP = r"C:\vm_guest_out.txt"
@@ -177,6 +208,8 @@ def _vmrun(args: list[str], timeout: int = 180,
     cred=False 时不带 -gu/-gp：来宾操作由 VMware Tools 服务（SYSTEM）执行，
     进程完整性级别为 High —— 这是向提权程序（eNSP）注入输入的唯一通道。
     """
+    if cred:
+        _require_cred((GU, GP))
     pre = ["-gu", GU, "-gp", GP] if cred else []
     cmd = [VMRUN, "-T", "ws", *pre, *args]
 

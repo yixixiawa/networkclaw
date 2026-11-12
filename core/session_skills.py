@@ -63,6 +63,15 @@ class SessionError(ValueError):
     """会话标识 / 设备名非法等可读错误"""
 
 
+def is_reserved(name: str) -> bool:
+    """是否是 Windows 保留设备名（CON/PRN/AUX/NUL/COM1-9/LPT1-9）。
+
+    这类名字**可以**出现在业务语义里（串口号就叫 COM3），但不能当目录名。
+    调用方据此决定「加后缀」而不是「直接报错」，避免把 COM3 的历史静默丢掉。
+    """
+    return (name or "").strip().lower() in _RESERVED
+
+
 def safe_name(name: str, what: str = "名称") -> str:
     """校验一个要当目录名用的字符串（会话标识或设备名），非法直接报错。"""
     s = (name or "").strip()

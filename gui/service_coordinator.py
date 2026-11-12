@@ -53,10 +53,20 @@ class ServiceCoordinator:
     async def stop_local(self) -> None:
         await asyncio.to_thread(self.local.stop)
 
-    async def device_probe(self) -> list[dict]:
+    async def device_probe(self, session: str = "") -> list[dict]:
+        """探测设备在线状态（只读 TCP/串口枚举，不下发命令）。
+
+        会话隔离：session 非空时只探测**本会话**出现过的设备
+        （session/<sid>/skill/ 里有手册或命令历史的）；未打开会话返回空。
+        """
         from core import device_registry
 
-        return await asyncio.to_thread(device_registry.probe_all)
+        if not session:
+            return []
+        devs = await asyncio.to_thread(device_registry.session_devices, session)
+        if not devs:
+            return []
+        return await asyncio.to_thread(device_registry.probe_all, devs)
 
     async def vision_report(self) -> str:
         def collect() -> str:

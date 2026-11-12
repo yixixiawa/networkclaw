@@ -132,3 +132,193 @@ def test_manual_survives_roundtrip(manual_root):
 def test_tail_history_zero_returns_empty(manual_root):
     dm.append_history("AR9", "display version", "ok", executed=True)
     assert dm.tail_history("AR9", 0) == []
+
+
+# ---------------------------------------------------------------- Wiki 化（LLM 说明书）
+
+def test_skeleton_has_topology_section(manual_root):
+    """骨架要有「拓扑关系」小节——Wiki 生成与 PLAN 模式都往这里写。"""
+    text, created = dm.ensure_manual("SW9", model="S5700")
+    assert created
+    assert "# 拓扑关系" in text
+    assert dm.SECTIONS == ("设备信息", "拓扑关系", "常用配置", "注意事项")
+
+
+def test_generate_wiki_prompt_carries_config_and_topology():
+    """生成提示词必须带配置回显与实测拓扑，否则模型只能编。"""
+    sent = {}
+
+    def fake_chat(messages):
+        sent["messages"] = messages
+        return "# 拓扑关系\n- 上级 AR1\n# 配置基线\n- VLAN 10"
+
+    out = dm.generate_wiki_markdown(
+        "SW1", "sysname SW1\nvlan batch 10 20", "- 上级设备（生成树推导）：AR1",
+        chat=fake_chat)
+
+    assert "# 拓扑关系" in out
+    user = sent["messages"][-1]["content"]
+    assert "vlan batch 10 20" in user
+    assert "AR1" in user
+    assert "SW1" in user
+
+
+def test_split_wiki_topics_tolerates_extra_headings():
+    text = ("# 设备信息\n（忽略）\n# 拓扑关系\n- 上级 AR1\n"
+            "# 配置基线\n- VLAN 10\n# 其它\n（忽略）")
+    topics = dm._split_wiki_topics(text)
+    assert topics["拓扑关系"] == "- 上级 AR1"
+    assert topics["配置基线"] == "- VLAN 10"
+    assert "其它" not in topics
+
+
+def test_wiki_enrich_writes_sections_into_manual(manual_root):
+    """Wiki 生成后要真正写进手册，并且后续摘要能读到拓扑一行。"""
+    dm.ensure_manual("SW1", model="S5700")
+
+    def fake_chat(messages):
+        return ("# 拓扑关系\n\n- 实测邻居：GE0/0/1 ↔ AR1 的 GE0/0/0\n"
+                "- 上级设备（生成树推导）：AR1\n\n"
+                "# 配置基线\n\n- VLAN 10 / 20 已创建\n- GE0/0/1 为 trunk\n")
+
+    res = dm.wiki_enrich("SW1", "sysname SW1", "- 上级：AR1", chat=fake_chat)
+
+    assert res["ok"] and res["written"] == ["拓扑关系", "配置基线"]
+    text = dm.read_manual("SW1")
+    assert "AR1" in text and "trunk" in text
+    assert "（建档后由 PLAN/Wiki 生成流程自动补全" not in text   # 占位被替换
+
+    meta = dm._extract_meta(text)
+    assert "AR1" in meta["topo"]
+
+
+def test_wiki_enrich_degrades_on_empty_generation(manual_root):
+    """模型返回空内容时不能清空手册，只能如实报「未完成」。"""
+    before, _ = dm.ensure_manual("SW2")
+    res = dm.wiki_enrich("SW2", "config", chat=lambda messages: "")
+    assert res["ok"] is False and "空" in res["note"]
+    assert dm.read_manual("SW2") == before
+
+
+def test_wiki_enrich_falls_back_when_model_ignores_format(manual_root):
+    """模型没按小节输出时整篇落到拓扑关系，好过丢掉内容。"""
+    dm.ensure_manual("SW3")
+    res = dm.wiki_enrich("SW3", "cfg", chat=lambda messages: "- GE0/0/1 接 AR1")
+    assert res["ok"] and res["written"] == ["拓扑关系"]
+    assert "GE0/0/1" in dm.read_manual("SW3")
+
+
+def test_topology_for_device_extracts_neighbors(monkeypatch):
+    """实测拓扑里有本设备时，要能抽出「接口 ↔ 邻居」与上级。"""
+    from core import topology_flood as tf
+
+    topo = tf.Topology(
+        devices=["SW1", "AR1"],
+        links=[tf.Link(a_device="SW1", a_interface="GE0/0/1",
+                       b_device="AR1", b_interface="GE0/0/0",
+                       evidence="lldp", confidence="high")],
+        parents={"SW1": "AR1"},
+        generated="2026-11-12 20:00:00",
+    )
+    monkeypatch.setattr(tf, "load_snapshot", lambda path=None: topo)
+
+    text = dm.topology_for_device("SW1")
+
+    assert "GE0/0/1" in text and "AR1" in text
+    assert "上级设备" in text
+    assert dm.topology_for_device("不存在的设备") == ""
+
+
+# ---------------------------------------------------------------- Wiki 化（LLM 说明书）
+
+def test_skeleton_has_topology_section(manual_root):
+    """骨架要有「拓扑关系」小节——Wiki 生成与 PLAN 模式都往这里写。"""
+    text, created = dm.ensure_manual("SW9", model="S5700")
+    assert created
+    assert "# 拓扑关系" in text
+    assert dm.SECTIONS == ("设备信息", "拓扑关系", "常用配置", "注意事项")
+
+
+def test_generate_wiki_prompt_carries_config_and_topology():
+    """生成提示词必须带配置回显与实测拓扑，否则模型只能编。"""
+    sent = {}
+
+    def fake_chat(messages):
+        sent["messages"] = messages
+        return "# 拓扑关系\n- 上级 AR1\n# 配置基线\n- VLAN 10"
+
+    out = dm.generate_wiki_markdown(
+        "SW1", "sysname SW1\nvlan batch 10 20", "- 上级设备（生成树推导）：AR1",
+        chat=fake_chat)
+
+    assert "# 拓扑关系" in out
+    user = sent["messages"][-1]["content"]
+    assert "vlan batch 10 20" in user
+    assert "AR1" in user
+    assert "SW1" in user
+
+
+def test_split_wiki_topics_tolerates_extra_headings():
+    text = ("# 设备信息\n（忽略）\n# 拓扑关系\n- 上级 AR1\n"
+            "# 配置基线\n- VLAN 10\n# 其它\n（忽略）")
+    topics = dm._split_wiki_topics(text)
+    assert topics["拓扑关系"] == "- 上级 AR1"
+    assert topics["配置基线"] == "- VLAN 10"
+    assert "其它" not in topics
+
+
+def test_wiki_enrich_writes_sections_into_manual(manual_root):
+    """Wiki 生成后要真正写进手册，并且后续摘要能读到拓扑一行。"""
+    dm.ensure_manual("SW1", model="S5700")
+
+    def fake_chat(messages):
+        return ("# 拓扑关系\n\n- 实测邻居：GE0/0/1 ↔ AR1 的 GE0/0/0\n"
+                "- 上级设备（生成树推导）：AR1\n\n"
+                "# 配置基线\n\n- VLAN 10 / 20 已创建\n- GE0/0/1 为 trunk\n")
+
+    res = dm.wiki_enrich("SW1", "sysname SW1", "- 上级：AR1", chat=fake_chat)
+
+    assert res["ok"] and res["written"] == ["拓扑关系", "配置基线"]
+    text = dm.read_manual("SW1")
+    assert "AR1" in text and "trunk" in text
+    assert "（建档后由 PLAN/Wiki 生成流程自动补全" not in text   # 占位被替换
+
+    meta = dm._extract_meta(text)
+    assert "AR1" in meta["topo"]
+
+
+def test_wiki_enrich_degrades_on_empty_generation(manual_root):
+    """模型返回空内容时不能清空手册，只能如实报「未完成」。"""
+    before, _ = dm.ensure_manual("SW2")
+    res = dm.wiki_enrich("SW2", "config", chat=lambda messages: "")
+    assert res["ok"] is False and "空" in res["note"]
+    assert dm.read_manual("SW2") == before
+
+
+def test_wiki_enrich_falls_back_when_model_ignores_format(manual_root):
+    """模型没按小节输出时整篇落到拓扑关系，好过丢掉内容。"""
+    dm.ensure_manual("SW3")
+    res = dm.wiki_enrich("SW3", "cfg", chat=lambda messages: "- GE0/0/1 接 AR1")
+    assert res["ok"] and res["written"] == ["拓扑关系"]
+    assert "GE0/0/1" in dm.read_manual("SW3")
+
+
+def test_topology_for_device_extracts_neighbors(monkeypatch):
+    """实测拓扑里有本设备时，要能抽出「接口 ↔ 邻居」与上级。"""
+    from core import topology_flood as tf
+
+    topo = tf.Topology(
+        devices=["SW1", "AR1"],
+        links=[tf.Link(a_device="SW1", a_interface="GE0/0/1",
+                       b_device="AR1", b_interface="GE0/0/0",
+                       evidence="lldp", confidence="high")],
+        parents={"SW1": "AR1"},
+        generated="2026-11-12 20:00:00",
+    )
+    monkeypatch.setattr(tf, "load_snapshot", lambda path=None: topo)
+
+    text = dm.topology_for_device("SW1")
+
+    assert "GE0/0/1" in text and "AR1" in text
+    assert "上级设备" in text
+    assert dm.topology_for_device("不存在的设备") == ""

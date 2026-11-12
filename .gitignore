@@ -15,6 +15,12 @@ artifacts/
 data/sessions.json
 data/device_history/
 data/device_access.json
+data/device_access.json.lock
+# 配置类命令的一次性确认令牌（运行期生成，含敏感 token，绝不入库）
+data/confirmation_tokens.json
+data/confirmation_tokens.json.lock
+# 任何运行期文件锁
+data/*.lock
 data/*.tmp
 data/run_logs/
 # 58 个实验包原件（zip/efz/topo 二进制）：本地保存，结构化结果已导出到
@@ -33,6 +39,8 @@ data/topology_snapshot.json
 data/topology_snapshot.md
 # 拓扑泛洪发现结果（由 core/topology_flood.py 运行时生成，重新探测即可复现）
 data/topology_discovered.json
+# 剪贴板粘贴的图片（输入框粘贴截图时由 core/paste_store.py 落盘，运行时产物）
+data/pasted_images/
 # tools 下的临时诊断脚本（与根目录 /_*.py 同性质）
 tools/_*.py
 # 例外：这不是诊断脚本，是 tools/build_dengbao_rules.py 与 tests/test_dengbao_rules.py

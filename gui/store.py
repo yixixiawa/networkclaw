@@ -107,6 +107,9 @@ class SessionStore:
             return self.sessions
         items = data.get("sessions") if isinstance(data, dict) else data
         self.sessions = [Session.from_dict(d) for d in (items or []) if isinstance(d, dict)]
+        # 只保留有对话历史的会话：空会话没有复盘价值，却会随启动/新建不断堆积，
+        # 用户要求「空 session 一律删除」。当前会话在界面层另行兜底（见 main_window）。
+        self.sessions = [s for s in self.sessions if s.records]
         return self.sessions
 
     def save(self) -> None:
@@ -166,3 +169,18 @@ class SessionStore:
         self.sessions.remove(s)
         self.sessions.insert(self._pinned_count() if not s.pinned else 0, s)
         self.save()
+
+    def prune_empty(self, keep: str | None = None) -> int:
+        """删除没有对话历史的空会话（keep 指定的 sid 保留，例如正在使用的当前会话）。
+
+        注意：这里只清 GUI 清单（sessions.json）。会话在磁盘上的技能目录
+        （session/<sid>/skill/）可能含有 MCP 写入的设备手册/命令历史，
+        不在这里删，避免误伤运行期产物；目录清理走独立的维护入口。
+        返回删除的数量。
+        """
+        before = len(self.sessions)
+        self.sessions = [s for s in self.sessions if s.records or s.sid == keep]
+        removed = before - len(self.sessions)
+        if removed:
+            self.save()
+        return removed

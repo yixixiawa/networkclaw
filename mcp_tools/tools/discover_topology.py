@@ -72,4 +72,16 @@ def discover_topology(workers: int = 4, timeout: float = 25.0,
     if save:
         tail = ("\n\n（已落盘到 data/topology_discovered.json，"
                 "下次可直接用 load_discovered_topology 复用）")
+        # 会话副本：GUI 的拓扑页签按会话隔离，只读 session/<sid>/ 下的这一份。
+        # MCP 子进程每次工具调用前都会读会话指针，这里能拿到当前 sid。
+        try:
+            from core.session_skills import current, session_dir
+
+            sid = current()
+            if sid:
+                topology_flood.save_snapshot(
+                    topo, path=session_dir(sid) / "topology_discovered.json")
+                tail += f"\n（本会话快照：session/{sid}/topology_discovered.json）"
+        except Exception:  # noqa: BLE001  会话副本失败不影响全局快照与报告
+            pass
     return report + tail

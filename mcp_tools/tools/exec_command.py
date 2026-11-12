@@ -25,18 +25,28 @@ from mcp_tools.tools._bootstrap import truncate
 DEFAULT_BAUDRATE = 9600    # 网络设备 Console 口默认波特率
 
 
-def _run(sess, command: str, timeout: int) -> str:
-    """在同一会话里执行命令；多条（; 或换行）逐条执行并标注各自回显。"""
+def _run_parts(sess, command: str, timeout: int) -> list[tuple[str, str, bool]]:
+    """在同一会话里逐条执行命令（`;`/换行拆分），返回 `[(命令, 回显, 是否下发成功)]`。
+
+    会话是状态机（视图切换会延续），某条命令异常后继续下发没有意义——
+    首条失败即停，剩余部分标成「未执行」交回调用方，保证**每一条**都有审计与归档。
+    """
     from core.command_guard import split_commands
 
     parts = split_commands(command)
-    if len(parts) == 1:
-        return sess.exec_command(command, timeout=timeout)
-    chunks = []
+    results: list[tuple[str, str, bool]] = []
+    failed = False
     for part in parts:
-        r = sess.exec_command(part, timeout=timeout)
-        chunks.append(f"$ {part}\n{r}" if r else f"$ {part}\n(无回显)")
-    return "\n".join(chunks)
+        if failed:
+            results.append((part, "(未执行：前序命令失败，会话状态不可靠)", False))
+            continue
+        try:
+            r = sess.exec_command(part, timeout=timeout)
+            results.append((part, r or "", True))
+        except Exception as e:  # noqa: BLE001  单条失败不中断归档
+            results.append((part, f"{type(e).__name__}: {e}", False))
+            failed = True
+    return results
 
 
 def exec_command(command: str, port: str, baudrate: int = DEFAULT_BAUDRATE,
@@ -78,11 +88,7 @@ def exec_command(command: str, port: str, baudrate: int = DEFAULT_BAUDRATE,
     try:
         sess = device_conn.open_serial(port, baudrate=baudrate, timeout=max(5, timeout),
                                        disable_paging=disable_paging)
-        output = _run(sess, command, max(5, timeout))
-        audit(command, decision, transport="serial", target=port,
-              confirmed=confirm, executed=True)
-        filed = record_serial(port, command, decision["level"], confirm, True,
-                              result=output, session=session)
+        results = _run_parts(sess, command, max(5, timeout))
     except Exception as e:  # noqa: BLE001  工具不抛异常
         audit(command, decision, transport="serial", target=port,
               confirmed=confirm, executed=False, extra=f"{type(e).__name__}: {e}")
@@ -93,6 +99,23 @@ def exec_command(command: str, port: str, baudrate: int = DEFAULT_BAUDRATE,
         if sess is not None:
             sess.close()
 
-    tail = f"\n（已记入 {filed}）" if filed else ""
+    # 逐条审计 + 逐条归档（plan 阶段二）：与 Telnet 版同构；授权裁决仍按
+    # 整串最高风险一次判定（confirmation_token 一次性，不能逐条消费）。
+    chunks: list[str] = []
+    filed_list: list[str] = []
+    for part, output, ok in results:
+        audit(part, decision, transport="serial", target=port,
+              confirmed=confirm, executed=ok,
+              extra="" if ok else output)
+        filed_list.append(record_serial(port, part, decision["level"],
+                                        confirm, ok, result=output,
+                                        session=session))
+        chunks.append(f"$ {part}\n{output}" if output else f"$ {part}\n(无回显)")
+    output = "\n".join(chunks)
+
+    filed = [p for p in filed_list if p]
+    tail = f"\n（已记入 {len(filed)}/{len(filed_list)} 条历史）" if filed else ""
+    if len(filed) != len(filed_list):
+        tail += "\n（注意：部分历史归档失败，详见 logs/archive_errors.log）"
     return (f"[{LEVEL_CN[decision['level']]}] {port} 执行：{command}\n"
             f"———— 回显 ————\n{truncate(output) if output else '(设备无回显)'}{tail}")

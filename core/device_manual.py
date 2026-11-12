@@ -45,8 +45,24 @@ MANUAL_MAX_BYTES = 256 * 1024     # 单份手册上限
 HISTORY_MAX_BYTES = 4 * 1024 * 1024
 RESULT_MAX_CHARS = 4000           # 单条历史里回显截断长度
 
-SECTIONS = ("设备信息", "常用配置", "注意事项")
+SECTIONS = ("设备信息", "拓扑关系", "常用配置", "注意事项")
 _FILE_LOCK = threading.Lock()
+
+#: Wiki 生成时让模型输出的两个一级小节（生成后逐节 replace 进手册）
+WIKI_TOPICS = ("拓扑关系", "配置基线")
+
+WIKI_SYSTEM_PROMPT = """你是网络设备文档工程师。给你一台设备的名称、当前配置回显和实测拓扑信息，
+你要生成一份**简洁、可直接当背景知识用**的 Markdown 说明手册。
+
+硬性要求：
+1. 只输出两个一级小节，顺序与标题固定：
+# 拓扑关系
+# 配置基线
+2. 「拓扑关系」写：上下游邻居（上级/下级、互联接口）、本设备角色、承载的 VLAN/网段；
+   拓扑信息缺失的部分明确写「待确认」，禁止编造接口号、IP 或邻居。
+3. 「配置基线」写：从当前配置里提炼的关键事实（VLAN 划分、接口模式 access/trunk/hybrid、
+   管理地址、路由/链路聚合要点），用短 bullet；不要整段照抄配置原文，单条不超过 2 行。
+4. 总长度不超过 60 行；不输出任何解释性文字、代码围栏之外的闲聊或开场白。"""
 
 
 class ManualError(ValueError):
@@ -116,6 +132,10 @@ updated: {datetime.now().strftime("%Y-%m-%d %H:%M")}
 - 登录方式：{login or "（待确认，密码不写入本文件）"}
 - 角色：{role or "（待确认）"}
 {f"- 备注：{note}" if note else ""}
+
+# 拓扑关系
+
+（建档后由 PLAN/Wiki 生成流程自动补全：上下游邻居、互联接口、本设备角色）
 
 # 常用配置
 
@@ -224,6 +244,145 @@ def update_section(name: str, section: str, text: str,
     return read_manual(name, session)
 
 
+# ---------------------------------------------------------------- Wiki 生成
+
+def fetch_current_config(host: str, port: int = 0, username: str = "",
+                         password: str = "", enable_password: str = "",
+                         timeout: float = 30.0) -> str:
+    """抓取设备当前配置（只读 display current-configuration）。
+
+    供「新设备建档 → Wiki 化」流水线使用：独立于 MCP 工具层直接建会话，
+    只下发 allow 级只读命令，不走确认流。失败抛异常（调用方决定如何降级）。
+    """
+    from core import device_conn
+
+    sess = device_conn.open_telnet(
+        host, port=int(port or 23), username=username, password=password,
+        enable_password=enable_password, timeout=timeout)
+    try:
+        return sess.exec_command("display current-configuration",
+                                 timeout=timeout) or ""
+    finally:
+        sess.close()
+
+
+def topology_for_device(name: str, max_chars: int = 1500) -> str:
+    """从实测拓扑快照里抠出与本设备相关的邻居/层级信息（供 Wiki 生成用）。"""
+    try:
+        from core import topology_flood
+    except Exception:
+        return ""
+    try:
+        topo = topology_flood.load_snapshot()
+    except Exception:
+        return ""
+    if topo is None or not topo.devices:
+        return ""
+    target = name.lower()
+    links = [lk for lk in topo.links
+             if target in (lk.a_device.lower(), lk.b_device.lower())]
+    if not links:
+        return ""
+    parent = topo.parents.get(name) or topo.parents.get(target) or ""
+    lines = [f"- 实测邻居（LLDP/MAC 泛洪，快照 {topo.generated or '未知时间'}）："]
+    for lk in links[:12]:
+        other = lk.b_device if lk.a_device.lower() == target else lk.a_device
+        my_if = lk.a_interface if lk.a_device.lower() == target else lk.b_interface
+        peer_if = lk.b_interface if lk.a_device.lower() == target else lk.a_interface
+        lines.append(f"  - {my_if or '?'} ↔ {other}"
+                     f"{f' 的 {peer_if}' if peer_if else ''}"
+                     f"（{lk.evidence}/{lk.confidence}）")
+    if parent and parent.lower() != target:
+        lines.append(f"- 上级设备（生成树推导）：{parent}")
+    text = "\n".join(lines)
+    return text[:max_chars]
+
+
+def _default_chat(messages: list[dict]) -> str:
+    """默认的 LLM 调用：用当前激活提供方，非流式、不打扰 stdout。"""
+    from core.llm_client import stream_chat
+
+    result = stream_chat(messages, tools=None, show_thinking=False,
+                         show_answer=False, timeout=180)
+    return result.content or ""
+
+
+def generate_wiki_markdown(name: str, config: str, topology: str = "",
+                           chat=None) -> str:
+    """让模型根据当前配置 + 拓扑信息生成说明手册（只含 WIKI_TOPICS 两个小节）。
+
+    chat 可注入（测试用）；默认走当前激活提供方。返回原始生成文本。
+    """
+    user = (
+        f"设备名：{name}\n\n"
+        f"———— 实测拓扑信息（可能为空）————\n{topology or '（无实测拓扑数据）'}\n\n"
+        f"———— display current-configuration 回显（可能截断）————\n"
+        f"{(config or '').strip()[:6000] or '（未抓到配置）'}\n\n"
+        "请按系统要求生成两个一级小节。"
+    )
+    chat = chat or _default_chat
+    return chat([
+        {"role": "system", "content": WIKI_SYSTEM_PROMPT},
+        {"role": "user", "content": user},
+    ]) or ""
+
+
+def _split_wiki_topics(text: str) -> dict[str, str]:
+    """把模型输出按 WIKI_TOPICS 拆成 {小节名: 正文}；缺失的小节不出现。"""
+    out: dict[str, str] = {}
+    current = ""
+    buf: list[str] = []
+    for line in (text or "").splitlines():
+        stripped = line.strip()
+        if stripped.startswith("# "):
+            title = stripped[2:].strip()
+            if current:
+                out[current] = "\n".join(buf).strip()
+            matched = next((t for t in WIKI_TOPICS
+                            if title == t or title.endswith(t)), None)
+            current = matched or ""
+            buf = []
+            continue
+        if current:
+            buf.append(line)
+    if current:
+        out[current] = "\n".join(buf).strip()
+    return {k: v for k, v in out.items() if v}
+
+
+def wiki_enrich(name: str, config: str, topology: str = "",
+                chat=None, session: str = "") -> dict:
+    """新设备建档后的 Wiki 化：生成说明手册并写进「拓扑关系/配置基线」小节。
+
+    返回 {"ok", "written": [小节名], "note"}。生成失败/内容为空时不动手册
+    （骨架仍在，模型可稍后手工 update_device_manual_section 补）。
+    """
+    note = ""
+    try:
+        raw = generate_wiki_markdown(name, config, topology, chat=chat)
+    except Exception as e:  # noqa: BLE001  LLM 失败不阻断建档
+        return {"ok": False, "written": [],
+                "note": f"Wiki 生成调用失败：{type(e).__name__}: {e}"}
+    if not raw.strip():
+        return {"ok": False, "written": [], "note": "Wiki 生成返回空内容"}
+    topics = _split_wiki_topics(raw)
+    if not topics:
+        # 模型没按格式输出：整篇塞进「拓扑关系」当兜底，好过丢掉
+        topics = {WIKI_TOPICS[0]: raw.strip()[:4000]}
+        note = "模型输出未按小节格式，已整篇写入拓扑关系小节"
+    written = []
+    for topic in WIKI_TOPICS:
+        body = topics.get(topic)
+        if not body:
+            continue
+        try:
+            update_section(name, topic, body, mode="replace", session=session)
+            written.append(topic)
+        except (ManualError, OSError) as e:
+            note = f"{note}；写入 {topic} 失败：{e}".strip("；")
+    return {"ok": bool(written), "written": written, "note": note}
+
+
 # ---------------------------------------------------------------- 命令历史
 
 def append_history(name: str, command: str, result: str = "", *, transport: str = "",
@@ -276,6 +435,52 @@ def tail_history(name: str, n: int = 10, session: str = "") -> list[dict]:
             except json.JSONDecodeError:
                 continue
     return rows[-n:]
+
+
+def tail_history_merged(names: list[str], n: int = 10,
+                        session: str = "") -> list[dict]:
+    """按**多个名字**读同一台设备的历史并合并（按时间排序）。
+
+    为什么需要：设备身份会变。首次访问时可能还没绑定名字，历史落在地址兜底名
+    （`192.168.1.1_2001`）下；后来建档绑定成 `SW1`，新历史进 `SW1/`。
+    只看 canonical 名就会丢掉绑定之前那段记录——而那往往正是「第一次怎么配的」。
+    因此解析出设备后把它的全部别名目录一起读，去重后按时间给最近 n 条。
+    """
+    if n <= 0:
+        return []
+    merged: list[dict] = []
+    seen: set[str] = set()
+    for name in names:
+        try:
+            safe = safe_name(name)
+        except ManualError:
+            continue                    # 形如 host:port 的别名不是合法目录名，跳过
+        if safe.lower() in seen:
+            continue
+        seen.add(safe.lower())
+        try:
+            merged.extend(tail_history(safe, n, session))
+        except (ManualError, OSError):
+            continue
+    merged.sort(key=lambda r: str(r.get("time") or ""))
+    return merged[-n:]
+
+
+def history_only_devices(session: str = "") -> list[str]:
+    """只有命令历史、还没有手册的设备目录名（旧版命名不一致的产物）。
+
+    必须能被查询到：否则模型 `list_device_manuals` 看不见它，会以为设备从没接触过。
+    """
+    root = ss.session_dir(session or None) / "skill"
+    if not root.is_dir():
+        return []
+    out: list[str] = []
+    for d in sorted(root.iterdir()):
+        if not d.is_dir():
+            continue
+        if (d / "history.jsonl").is_file() and not (d / "SKILL.md").is_file():
+            out.append(d.name)
+    return out
 
 
 # ---------------------------------------------------------------- 清单
@@ -343,26 +548,41 @@ def sessions_overview() -> list[dict]:
 # ---------------------------------------------------------------- 提示词注入
 
 def _extract_meta(text: str) -> dict:
-    """从手册正文里抠出型号/角色/一条注意事项（供系统提示词做紧凑摘要）。
+    """从手册正文里抠出型号/角色/拓扑摘要/一条注意事项（供系统提示词做紧凑摘要）。
 
     注意事项按**出现顺序取最后一条**：新建手册时它是型号基线的最后一条；
     模型在本对话里学过东西之后，它就是最新沉淀的那条——摘要要突出
     「最近学到什么」，而不是每台设备都重复同一句基线。
 
+    拓扑摘要取「拓扑关系」小节的第一条实质内容（邻居/角色一句话），
+    让模型开局就知道这台设备挂在哪，无需每次都 read_device_manual 全文。
+
     候选行的取舍： bullet（`- `）优先收录；模型用散文写的坑（不以 `-` 开头的
     短行）也收，避免「写了但摘要里看不见」；代码块 / 标题 / 占位句跳过。
     """
-    meta: dict = {"model": "", "role": "", "tip": ""}
+    meta: dict = {"model": "", "role": "", "tip": "", "topo": ""}
     cands: list[str] = []
-    in_tips = False
+    section = ""            # 当前所处的一级小节名
     in_code = False
     for line in text.splitlines():
         s = line.strip()
         if s.startswith("# "):
-            in_tips = s.endswith("注意事项")
+            title = s[2:].strip()
+            section = ("注意事项" if title.endswith("注意事项")
+                       else "拓扑关系" if title.endswith("拓扑关系")
+                       else "")
             in_code = False
             continue
-        if not in_tips:
+        if section == "拓扑关系":
+            # 只取邻居/上级这类结论行；快照时间戳行与占位句跳过
+            if s.startswith("- 实测邻居"):
+                meta["topo"] = s
+            elif s.startswith("- 上级设备") and not meta["topo"]:
+                meta["topo"] = s
+            elif s.startswith("  - ") and not meta["topo"]:
+                meta["topo"] = s.strip()[2:]
+            continue
+        if not section:
             if s.startswith("- 型号：") and not meta["model"]:
                 meta["model"] = s.split("：", 1)[-1].strip()
             elif s.startswith("- 角色：") and not meta["role"]:
@@ -412,12 +632,17 @@ def context_for_model(max_devices: int = 8, max_chars: int = 4000) -> str:
         tip = ""
         if meta["tip"]:
             tip = "    坑：" + (meta["tip"][:110] + "…" if len(meta["tip"]) > 110 else meta["tip"])
-        if used + len(head) + len(tip) + 2 > max_chars:
+        topo = ""
+        if meta.get("topo"):
+            topo = "    拓扑：" + (meta["topo"][:110] + "…" if len(meta["topo"]) > 110 else meta["topo"])
+        if used + len(head) + len(tip) + len(topo) + 3 > max_chars:
             break                      # 字符预算用尽，剩下的靠工具按需读
         lines.append(head)
+        if topo:
+            lines.append(topo)
         if tip:
             lines.append(tip)
-        used += len(head) + len(tip) + 2
+        used += len(head) + len(tip) + len(topo) + 3
         listed += 1
     if listed < len(manuals):
         lines.append(f"（还有 {len(manuals) - listed} 台设备的技能未列出，"

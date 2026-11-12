@@ -209,3 +209,63 @@ def test_build_prompt_normal_has_no_warning():
     prompt = rag._build_prompt("问题", "片段正文")
     assert "检索不可用" not in prompt
     assert "片段正文" in prompt
+
+
+# ---------------------------------------------------------------- 知识清洗（2026-11 职责分离）
+
+def test_looks_like_command_detects_vrp_lines():
+    assert rag._looks_like_command("[SW1-GigabitEthernet0/0/1]")
+    assert rag._looks_like_command("vlan batch 10 20")
+    assert rag._looks_like_command("interface GigabitEthernet0/0/1")
+    assert rag._looks_like_command("undo shutdown")
+    # 自然语言句子不能被误判成命令
+    assert not rag._looks_like_command("交换机上电后需要先做基础配置，再接入业务。")
+    assert not rag._looks_like_command("display 命令用于查看设备状态，不改变配置。")
+
+
+def test_clean_chunks_drops_fragments_syntax_and_duplicates():
+    """清洗三件事：碎片、纯命令语法块、重复块。"""
+    long_desc = ("接入层交换机负责把终端接入网络，通常配置 VLAN 划分、"
+                 "接口模式与生成树保护，避免环路影响整个园区。")
+    syntax = "\n".join([
+        "system-view",
+        "vlan batch 10 20",
+        "interface GigabitEthernet0/0/1",
+        "port link-type trunk",
+        "port trunk allow-pass vlan 10 20",
+        "quit",
+    ])
+    chunks = [
+        long_desc,
+        "太短的碎片。",
+        syntax,
+        long_desc,                       # 重复
+        long_desc + "（不同内容）",       # 不是重复，保留
+    ]
+
+    out = rag._clean_chunks(chunks)
+
+    assert out[0] == long_desc
+    assert all(len(c) >= 40 for c in out)
+    assert syntax not in out, "纯命令语法块应交给 command_templates.csv，不进知识库"
+    assert len(out) == 2
+
+
+def test_clean_chunks_keeps_command_block_with_explanation():
+    """命令 + 解释混排的块要保留（它教的是做法，不只是语法）。"""
+    mixed = ("在接入交换机上创建 VLAN 并把端口加入的命令如下，"
+             "注意先 system-view 再进入接口视图：\n"
+             "system-view\nvlan 10\ninterface GigabitEthernet0/0/1\n"
+             "port link-type access\nport default vlan 10\n"
+             "下发后用 display vlan 10 验证端口是否真的加入了该 VLAN。")
+    out = rag._clean_chunks([mixed])
+    assert out == [mixed]
+
+
+def test_load_chunks_is_cleaned():
+    """真实知识库走一遍：清洗后无碎片、无纯命令块、无重复。"""
+    chunks = rag.load_chunks()
+    assert chunks, "知识库不应为空"
+    assert len({c for c in chunks}) == len(chunks), "重复块未去净"
+    for c in chunks:
+        assert len(c.strip()) >= 40, "碎片块未去净"

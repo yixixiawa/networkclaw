@@ -13,7 +13,7 @@ import html
 import re
 
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QFont, QGuiApplication, QTextCursor
+from PyQt6.QtGui import QFont, QGuiApplication, QPixmap, QTextCursor
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -328,6 +328,117 @@ class ChatView(QScrollArea):
             bar.setValue(bar.maximum())
 
 
+# ---------------------------------------------------------------- 欢迎页
+
+class WelcomePage(QWidget):
+    """未打开任何会话时的落地页。
+
+    产品约定：**程序启动不自动打开会话**，历史只在用户主动点击侧边栏时才加载。
+    这里只做三件事：说明这是什么工具、给一个新建入口、列最近几条会话（点击即打开）。
+    全部样式走 objectName + 全局 QSS，切主题不需要重建控件。
+    """
+
+    new_session_requested = pyqtSignal()
+    session_requested = pyqtSignal(str)   # sid
+
+    #: 最近会话最多列几条（再多的去侧边栏翻）
+    MAX_RECENT = 6
+
+    def __init__(self, palette: Palette, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.palette_ref = palette
+        self.setObjectName("WelcomePage")
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(28, 28, 28, 28)
+        outer.setSpacing(0)
+        outer.addStretch(1)
+
+        card = QFrame()
+        card.setObjectName("WelcomeCard")
+        card.setMaximumWidth(680)
+        card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
+        cl = QVBoxLayout(card)
+        cl.setContentsMargins(30, 28, 30, 26)
+        cl.setSpacing(10)
+
+        badge = QLabel("NetworkClaw")
+        badge.setObjectName("WelcomeBadge")
+        badge.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        cl.addWidget(badge)
+
+        title = QLabel("有什么可以帮你配置？")
+        title.setObjectName("WelcomeTitle")
+        title.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        cl.addWidget(title)
+
+        sub = QLabel("本地大模型 + MCP 设备工具 · 华为交换机 / 路由器智能运维\n"
+                     "启动时不打开任何会话，点击左侧历史或新建一个开始")
+        sub.setObjectName("WelcomeSubtitle")
+        sub.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        sub.setWordWrap(True)
+        cl.addWidget(sub)
+
+        cl.addSpacing(8)
+        btn_row = QHBoxLayout()
+        btn_row.addStretch(1)
+        self.new_btn = QPushButton("＋  新建会话")
+        self.new_btn.setObjectName("Primary")
+        self.new_btn.setMinimumWidth(160)
+        self.new_btn.setMinimumHeight(36)
+        self.new_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.new_btn.clicked.connect(self.new_session_requested)
+        btn_row.addWidget(self.new_btn)
+        btn_row.addStretch(1)
+        cl.addLayout(btn_row)
+
+        self._recent_title = QLabel("最近会话")
+        self._recent_title.setObjectName("WelcomeSection")
+        cl.addWidget(self._recent_title)
+
+        self._recent_host = QWidget()
+        self._recent_layout = QVBoxLayout(self._recent_host)
+        self._recent_layout.setContentsMargins(0, 0, 0, 0)
+        self._recent_layout.setSpacing(4)
+        cl.addWidget(self._recent_host)
+
+        self._empty = QLabel("还没有历史会话，点上面的「新建会话」开始。")
+        self._empty.setObjectName("WelcomeHint")
+        self._empty.setWordWrap(True)
+        cl.addWidget(self._empty)
+
+        outer.addWidget(card, 0, Qt.AlignmentFlag.AlignHCenter)
+        outer.addStretch(1)
+
+        self._recent_buttons: list[QPushButton] = []
+        self.set_recent([])
+
+    # ---------------------------------------------------------------- 数据
+    def set_recent(self, items: list[tuple[str, str, str]]) -> None:
+        """items = [(sid, 标题, 预览)]，按传入顺序展示（store 已按最近使用排好）"""
+        for b in self._recent_buttons:
+            self._recent_layout.removeWidget(b)
+            b.deleteLater()
+        self._recent_buttons.clear()
+
+        shown = items[: self.MAX_RECENT]
+        for sid, title, preview in shown:
+            text = title if not preview else f"{title}\n{preview}"
+            b = QPushButton(text)
+            b.setObjectName("RecentItem")
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            b.setToolTip(f"{title} ｜ {preview}")
+            b.setMinimumHeight(44)
+            b.clicked.connect(lambda _=False, s=sid: self.session_requested.emit(s))
+            self._recent_layout.addWidget(b)
+            self._recent_buttons.append(b)
+
+        has = bool(shown)
+        self._recent_title.setVisible(has)
+        self._recent_host.setVisible(has)
+        self._empty.setVisible(not has)
+
+
 # ---------------------------------------------------------------- 侧边栏
 
 class SessionList(QListWidget):
@@ -363,6 +474,131 @@ class SessionList(QListWidget):
                        lambda: self.pin_requested.emit(sid, not pinned))
         menu.addAction("删除", lambda: self.delete_requested.emit(sid))
         menu.exec(self.mapToGlobal(pos))
+
+
+# ---------------------------------------------------------------- 图片标记 / 预览
+
+#: 输入框里图片标记的文字前缀（`🖼 paste-20261101-185512-a1b2c3d4.png`）
+IMAGE_MARKER_PREFIX = "🖼 "
+
+
+def image_marker_text(path: str) -> str:
+    """图片在输入框里的「文件名形式」：前缀 + 文件名（不含目录）。
+
+    main_window 的删除同步、草稿还原都靠这个字符串定位标记，所以统一从这里出，
+    不要在别处另拼一份。
+    """
+    name = str(path).replace("\\", "/").rsplit("/", 1)[-1]
+    return f"{IMAGE_MARKER_PREFIX}{name}"
+
+
+class ImagePreviewPopup(QWidget):
+    """跟随鼠标的图片预览浮层。
+
+    要点：
+    - 用 ``Qt.ToolTip`` 窗口类型 + ``WA_ShowWithoutActivating``：不抢焦点、
+      不打断输入（否则鼠标一划过输入框焦点就被偷走，回车发不出去）；
+    - ``WA_TransparentForMouseEvents``：鼠标事件继续落到底下的输入框，
+      这样"移开"能被立刻感知，浮层不会自己卡住；
+    - 缩略图按原图等比缩到 MAX_W×MAX_H，同一路径只缩放一次（缓存）。
+    """
+
+    MAX_W = 340
+    MAX_H = 240
+    GAP = 16
+
+    def __init__(self, palette: Palette, parent: QWidget | None = None):
+        super().__init__(parent, Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint)
+        self.palette_ref = palette
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False)
+        # QWidget 子类默认不画样式表背景（背景会透成父窗口的颜色），必须显式打开
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 8, 8, 6)
+        layout.setSpacing(4)
+
+        self._image = QLabel(self)
+        self._image.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._caption = QLabel(self)
+        self._caption.setObjectName("Hint")
+        layout.addWidget(self._image)
+        layout.addWidget(self._caption)
+
+        self._path = ""
+        self._thumb: QPixmap | None = None
+        self._cache: dict[str, QPixmap] = {}
+        self.retint(palette)
+        self.hide()
+
+    # -------------------------------------------------- 对外
+    def retint(self, palette: Palette):
+        self.palette_ref = palette
+        self.setStyleSheet(
+            f"QWidget {{ background:{palette.panel}; border:1px solid {palette.border_strong};"
+            f" border-radius:8px; }}"
+            f" QLabel {{ background:transparent; border:none; color:{palette.text_dim};"
+            f" font-size:11px; }}")
+
+    def show_for(self, path: str, global_pos) -> bool:
+        """在鼠标旁展示 path 的预览；图不存在/读不出来则隐藏并返回 False。"""
+        got = self._thumb_for(path)
+        if got is None:
+            self.hide()
+            return False
+        thumb, orig_w, orig_h = got
+        if path != self._path:
+            self._path = path
+            self._thumb = thumb
+            self._image.setPixmap(thumb)
+            self._caption.setText(
+                f"{image_marker_text(path)[len(IMAGE_MARKER_PREFIX):]} ｜ "
+                f"{orig_w}×{orig_h}")
+            self.adjustSize()
+        self.move_near(global_pos)
+        self.show()
+        self.raise_()
+        return True
+
+    def hide_preview(self):
+        self._path = ""
+        self.hide()
+
+    def move_near(self, global_pos):
+        """贴在鼠标右下方；贴近屏幕边缘时翻到左侧/上方，保证整块可见。"""
+        pos = global_pos
+        x = pos.x() + self.GAP
+        y = pos.y() + self.GAP
+        screen = QGuiApplication.screenAt(pos) or QGuiApplication.primaryScreen()
+        if screen is not None:
+            area = screen.availableGeometry()
+            if x + self.width() > area.right():
+                x = max(area.left(), pos.x() - self.width() - self.GAP)
+            if y + self.height() > area.bottom():
+                y = max(area.top(), pos.y() - self.height() - self.GAP)
+        self.move(x, y)
+
+    # -------------------------------------------------- 内部
+    def _thumb_for(self, path: str) -> tuple[QPixmap, int, int] | None:
+        """返回 (缩略图, 原图宽, 原图高)；读不出图返回 None"""
+        cached = self._cache.get(path)
+        if cached is not None:
+            return cached
+        pix = QPixmap(path)
+        if pix.isNull():
+            return None
+        thumb = pix.scaled(
+            self.MAX_W, self.MAX_H,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation)
+        item = (thumb, pix.width(), pix.height())
+        # 缓存上限很小：用户不会同时悬停几十张图，避免图片常驻内存
+        if len(self._cache) > 8:
+            self._cache.clear()
+        self._cache[path] = item
+        return item
 
 
 # ---------------------------------------------------------------- 附件栏

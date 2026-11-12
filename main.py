@@ -59,8 +59,11 @@ LOG_DIR = BASE_DIR / "logs"
 HELP_TEXT = """
 可用命令：
   /help               显示本帮助
-  /model [名称]       查看/切换模型提供方（local / deepseek-flash / deepseek-pro …）
-  /key sk-xxx         临时设置 DeepSeek API Key（更推荐写进 .env 或环境变量）
+  /model [名称]       查看/切换模型提供方（local / deepseek-flash / glm-4.6 / kimi-k2.5 …）
+  /key                查看各云端提供方的主/备用 Key 状态（不回显）
+  /key sk-xxx         设置 DeepSeek 主 Key（兼容旧用法；更推荐写进 .env 或环境变量）
+  /key glm-4.6 sk-xxx 设置指定提供方的主 Key
+  /key glm-4.6 alt sk-xxx  设置指定提供方的备用 Key（主 Key 被拒时自动启用）
   /parallel [列表]    开关多模型并行：不带参数切换；/parallel local,deepseek 指定组合；
                       /parallel off 关闭。开启时先识图（如有），再并行回答并融合
   /tools              列出已接入的 MCP 工具
@@ -85,8 +88,9 @@ HELP_TEXT = """
 
 def parse_args():
     parser = argparse.ArgumentParser(description="NetworkClaw 对话入口（RAG + MCP + 设备 + 视觉 + 多模型）")
-    parser.add_argument("--mode", choices=["agent", "rag"], default="agent",
-                        help="启动模式，默认 agent（模型自主调用 MCP 工具）")
+    parser.add_argument("--mode", choices=["agent", "plan"], default="agent",
+                        help="启动模式，默认 agent（统一对话入口：模型自主调用工具 + 内置知识检索）"
+                             "；plan 为拓扑规划模式（只读探测 + 手册沉淀）")
     parser.add_argument("--provider", default=None, metavar="名称",
                         help="模型提供方：local / deepseek-flash / deepseek-pro，默认用配置里的激活项")
     parser.add_argument("--deepseek-key", default=None, metavar="sk-xxx",
@@ -196,6 +200,12 @@ async def chat_loop(hub: McpHub, mode: str, show_thinking: bool, stream: bool,
                         print(f"{e.args[0] if e.args else e}")
                         continue
                     provider_name = prov.name
+                    try:
+                        from core import user_config
+
+                        user_config.set_active_model(prov.name)
+                    except OSError:
+                        pass
                     print(f"已切换到 {prov.label}（{prov.model}）")
                     if prov.needs_key and not prov.api_key_value:
                         print(f"[警告] 该提供方还没有 API Key：请设置环境变量 "
@@ -211,14 +221,51 @@ async def chat_loop(hub: McpHub, mode: str, show_thinking: bool, stream: bool,
                         print(f"[提示] {prov.name} 不看图；已附图片将由本地视觉模型识读后"
                               f"以文字形式提供给它（多模态桥接）")
             elif cmd == "key":
-                key = rest.strip()
-                if not key:
-                    print(f"DEEPSEEK_API_KEY：{'已设置' if os.environ.get('DEEPSEEK_API_KEY') else '未设置'}")
+                # 用法：
+                #   /key                     看各云端提供方的主/备用 Key 状态（不回显）
+                #   /key sk-xxx              兼容旧用法：设置 DeepSeek 主 Key
+                #   /key glm-4.6 sk-xxx      设置指定提供方的主 Key
+                #   /key glm-4.6 alt sk-xxx  设置指定提供方的备用 Key
+                parts = rest.split()
+                if not parts:
+                    for p in list_providers():
+                        if not p.needs_key:
+                            continue
+                        main = "✓" if p.api_key_value else "✗"
+                        alt = "✓" if p.api_key_alt_value else "✗"
+                        print(f"  {p.name:<16} 主{main} 备用{alt}"
+                              f"（{p.api_key_env or '—'} / {p.api_key_alt_env or '—'}）")
+                    print("用法：/key <提供方> [alt] <密钥>；不带参数看状态")
                 else:
-                    os.environ["DEEPSEEK_API_KEY"] = key
-                    load_providers(refresh=True)
-                    print("已设置本次会话的 DeepSeek API Key（重启后失效；"
-                          "建议写入项目根 .env：DEEPSEEK_API_KEY=sk-xxx）")
+                    if len(parts) == 1:
+                        target, key, is_alt = "deepseek-flash", parts[0], False
+                    elif parts[1].lower() in ("alt", "backup", "备用") and len(parts) >= 3:
+                        target, key, is_alt = parts[0], parts[2], True
+                    else:
+                        target, key, is_alt = parts[0], parts[1], False
+                    try:
+                        prov = get_provider(target)
+                    except KeyError as e:
+                        print(e.args[0] if e.args else e)
+                        prov = None
+                    if prov is not None and not prov.needs_key:
+                        print(f"{prov.label} 无需密钥")
+                    elif prov is not None:
+                        slot = "备用" if is_alt else "主"
+                        try:
+                            from core import user_config
+
+                            if is_alt:
+                                path = user_config.set_api_key_alt(
+                                    prov.name, key, api_key_alt_env=prov.api_key_alt_env)
+                            else:
+                                path = user_config.set_api_key(
+                                    prov.name, key, api_key_env=prov.api_key_env)
+                            print(f"已保存 {prov.name} 的{slot} Key"
+                                  f"（持久化到 {path}，不回显）")
+                        except OSError as e:
+                            print(f"密钥已用于本次运行，但持久化失败：{e}")
+                        load_providers(refresh=True)
             elif cmd == "parallel":
                 target = rest.strip().lower()
                 if target in ("off", "close", "0"):
@@ -332,8 +379,9 @@ async def chat_loop(hub: McpHub, mode: str, show_thinking: bool, stream: bool,
                           + ", ".join(f"{m['name']}（{m['history_lines']} 条历史）" for m in manuals))
                 else:
                     print("本对话暂未建档任何设备（首次接触设备时会自动建档）")
-            elif cmd in ("agent", "rag"):
-                mode = cmd
+            elif cmd in ("agent", "rag", "plan"):
+                # rag 已并入统一入口（agent 内置知识检索），保留 /rag 仅作兼容别名
+                mode = "agent" if cmd == "rag" else cmd
                 parallel = False
                 print(f"已切换到 {mode} 模式（已关闭并行）")
             elif cmd == "thinking":
@@ -371,13 +419,11 @@ async def chat_loop(hub: McpHub, mode: str, show_thinking: bool, stream: bool,
                 on_confirmation=request_confirmation,
             )
             answer = result.answer
-            if result.meta.get("kind") == "agent":
+            if result.meta.get("kind") in ("agent", "plan"):
                 history += [{"role": "user", "content": raw},
                             {"role": "assistant", "content": answer}]
                 del history[:-8]
-                print_answer(answer, streamed=True)
-            elif result.meta.get("kind") == "rag":
-                print_answer(answer, streamed=stream)
+            print_answer(answer, streamed=stream)
         except ProviderError as e:
             # 模型侧失败（密钥/余额/限流/断网）不应打断会话，提示后继续下一轮
             print(f"\n[调用失败] {e}")
@@ -499,8 +545,9 @@ async def main():
                     except Exception as e:
                         print(f"[自动拓扑巡检] 失败：{type(e).__name__}: {e}（不影响后续对话）")
 
-            if args.mode == "rag":
-                print("\n当前为 rag 模式：固定知识库检索问答（输入 /agent 可切换到工具模式）")
+            if args.mode == "plan":
+                print("\n当前为 plan 模式：为各设备预先准备拓扑信息（只读探测 + 手册沉淀，"
+                      "输入 /agent 可切回普通对话）")
             if args.parallel:
                 print(f"已开启多模型并行"
                       f"{'：' + ', '.join(parallel_providers) if parallel_providers else ''}"

@@ -106,6 +106,13 @@ QWidget {{
     font-size: 13px;
 }}
 
+/* QLabel 不自带背景：上面这条 QWidget 通配规则会让每个 QLabel 都把页面底色
+   画成一块矩形，叠在卡片/气泡上就是「文字后面一圈深色条」。这里显式声明
+   背景透明，文字底下永远露出容器的颜色。个别需要色块的标签自行内联设置。 */
+QLabel {{
+    background: transparent;
+}}
+
 QToolTip {{
     background: {p.elevated};
     color: {p.text};
@@ -290,6 +297,50 @@ QScrollBar::add-page, QScrollBar::sub-page {{ background: transparent; }}
     border-radius: 8px;
     color: {p.text_dim};
     font-size: 12px;
+}}
+
+/* ---------------------------------------------------------------- 欢迎页 */
+#WelcomePage {{ background: {p.bg}; }}
+QFrame#WelcomeCard {{
+    background: {p.panel};
+    border: 1px solid {p.border};
+    border-radius: 12px;
+}}
+#WelcomeBadge {{
+    color: {p.accent};
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+}}
+#WelcomeTitle {{
+    font-size: 22px;
+    font-weight: 700;
+    color: {p.text};
+}}
+#WelcomeSubtitle {{
+    color: {p.text_dim};
+    font-size: 12px;
+    line-height: 160%;
+}}
+#WelcomeSection {{
+    color: {p.text_faint};
+    font-size: 12px;
+    font-weight: 600;
+    padding-top: 6px;
+}}
+#WelcomeHint {{ color: {p.text_faint}; font-size: 12px; }}
+QPushButton#RecentItem {{
+    background: {p.elevated};
+    border: 1px solid {p.border};
+    border-radius: 8px;
+    color: {p.text_dim};
+    text-align: left;
+    padding: 8px 12px;
+}}
+QPushButton#RecentItem:hover {{
+    background: {p.user_bubble};
+    border-color: {p.border_strong};
+    color: {p.text};
 }}
 
 /* ---------------------------------------------------------------- 状态与杂项 */
